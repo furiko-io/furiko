@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: metrics-proxy-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: metrics-proxy-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: execution-controller
+  namespace: furiko-system
+- kind: ServiceAccount
+  name: execution-webhook
+  namespace: furiko-system

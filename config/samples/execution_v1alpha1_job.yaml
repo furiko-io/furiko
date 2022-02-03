@@ -1,0 +1,47 @@
+apiVersion: execution.furiko.io/v1alpha1
+kind: Job
+metadata:
+  name: job-sample
+spec:
+  type: Adhoc
+
+  # Key-value entries to be substituted into the task's template.
+  # This will typically be automatically filled in by tools or the controller.
+  substitutions:
+    option.user-name: "John Smith"
+    option.image-tag: "3.15.0"
+
+  # Defines how to create the job.
+  template:
+    # Defines how to create the task.
+    task:
+      # PodTemplate for creating the task.
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: job-container
+              args:
+                - echo
+                - "Hello world, ${option.user-name}!"
+              env:
+                - name: JOB_NAME
+                  value: "${job.name}"
+                - name: TASK_NAME
+                  value: "${task.name}"
+                - name: TASK_RETRY_INDEX
+                  value: "${task.retry_index}"
+              image: "alpine:${option.image-tag}"
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+
+      # Maximum duration that a task can be Pending for.
+      pendingTimeoutSeconds: 1800
+
+    # Defines how many additional tasks to retry in case of failure.
+    maxRetryAttempts: 2
+
+    # Defines how long to wait between retries.
+    retryDelaySeconds: 15

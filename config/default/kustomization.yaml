@@ -1,0 +1,11 @@
+# Adds namespace to all resources.
+namespace: furiko-system
+
+# Labels to add to all resources and selectors.
+commonLabels:
+  app.kubernetes.io/name: furiko
+
+bases:
+  - ../common
+  - ../crd
+  - ../execution

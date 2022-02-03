@@ -1,0 +1,27 @@
+run:
+
+linters-settings:
+  maligned:
+    suggest-new: true
+  gocritic:
+    disabled-checks:
+      - singleCaseSwitch
+
+linters:
+  disable:
+    - exhaustive
+    - funlen
+    - gci
+    - gochecknoglobals
+    - gochecknoinits
+    - godot
+    - godox
+    - goerr113
+    - gofumpt
+    - gomnd
+    - nestif
+    - nlreturn
+    - nolintlint
+    - testpackage
+    - wsl
+  enable-all: true

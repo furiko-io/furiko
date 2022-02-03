@@ -1,0 +1,17 @@
+resources:
+  - deployment.yaml
+  - metrics_service.yaml
+  - service_account.yaml
+  - webhook_certgen_job.yaml
+  - webhook_service.yaml
+
+configurations:
+  - kustomizeconfig.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: webhook-config
+    files:
+      - config.yaml

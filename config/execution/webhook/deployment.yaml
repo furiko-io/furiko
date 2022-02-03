@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook
+  labels:
+    app.kubernetes.io/component: execution-webhook
+spec:
+  selector:
+    matchLabels:
+      app: execution-webhook
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: webhook
+      labels:
+        app: execution-webhook
+        app.kubernetes.io/component: execution-webhook
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: webhook
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: webhook
+          command:
+            - /webhook
+          args:
+            - "--config=/etc/webhook/config.yaml"
+            - "-v=2"
+          image: webhook:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: webhook-config
+              mountPath: /etc/webhook/config.yaml
+              subPath: config.yaml
+            - mountPath: /etc/webhook/certs
+              name: webhook-certs
+              readOnly: true
+          resources:
+            limits:
+              cpu: 4
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+        - name: kube-rbac-proxy
+          image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+          args:
+            - "--secure-listen-address=0.0.0.0:8443"
+            - "--upstream=http://127.0.0.1:8080/"
+            - "--logtostderr=true"
+            - "--v=0"
+          ports:
+            - containerPort: 8443
+              protocol: TCP
+              name: https
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 5m
+              memory: 64Mi
+      volumes:
+        - name: webhook-config
+          configMap:
+            name: webhook-config
+        - name: webhook-certs
+          secret:
+            defaultMode: 420
+            secretName: execution-webhook-certs

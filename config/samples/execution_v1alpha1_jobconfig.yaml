@@ -1,0 +1,80 @@
+apiVersion: execution.furiko.io/v1alpha1
+kind: JobConfig
+metadata:
+  name: jobconfig-sample
+spec:
+  # Defines how to treat concurrent executions of the same JobConfig.
+  concurrency:
+    # The policy to use for concurrent Jobs.
+    policy: Forbid
+
+  # Defines automatic scheduling parameters.
+  schedule:
+    # Specify a cron-based schedule.
+    cron:
+      # The cron expression.
+      # Supports hash tokens (`H`) for cluster-level load balancing.
+      expression: "H/15 * * * *"
+
+      # The timezone to interpret the cron schedule in.
+      timezone: Asia/Singapore
+
+    # Optionally disable automatic scheduling for the JobConfig.
+    disabled: false
+
+  # Defines parameter inputs for the JobConfig, known as Job Options.
+  # A Job can specify optionValues which will be evaluated against the options here.
+  option:
+    options:
+      # The simplest example of a Job Option is a String option, which supports arbitrary text.
+      - type: String
+        name: user-name
+        label: Username
+        string:
+          default: Example User
+          trimSpaces: true
+
+      # This is an example of a Select option, which supports choices for selection.
+      - type: Select
+        name: image-tag
+        label: Image Tag
+        select:
+          default: latest
+          values:
+            - "latest"
+            - "3.15"
+            - "3.14"
+            - "3.13"
+          allowCustom: true
+
+  # Defines the template to create the Job.
+  template:
+    # Metadata that should be added to created Jobs.
+    metadata:
+      annotations:
+        https://app.kubernetes.io/name: jobconfig-sample
+
+    # Defines the specification of the Job.
+    spec:
+      # Defines how to create the task. See how the Job Options are used below.
+      # See the sample Job YAML for more information.
+      task:
+        template:
+          spec:
+            containers:
+              - name: job-container
+                args:
+                  - echo
+                  - "Hello world, ${option.user-name}!"
+                env:
+                  - name: JOBCONFIG_NAME
+                    value: "${jobconfig.name}"
+                  - name: JOB_NAME
+                    value: "${job.name}"
+                  - name: TASK_NAME
+                    value: "${task.name}"
+                image: "alpine:${option.image-tag}"
+                resources:
+                  limits:
+                    cpu: 100m
+                    memory: 64Mi

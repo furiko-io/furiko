@@ -1,0 +1,24 @@
+domain: furiko.io
+layout:
+- go.kubebuilder.io/v3
+multigroup: true
+projectName: furiko
+repo: github.com/furiko-io/furiko
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: furiko.io
+  group: execution
+  kind: Job
+  path: github.com/furiko-io/furiko/apis/execution/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: furiko.io
+  group: execution
+  kind: JobConfig
+  path: github.com/furiko-io/furiko/apis/execution/v1alpha1
+  version: v1alpha1
+version: "3"

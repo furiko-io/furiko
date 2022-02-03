@@ -1,0 +1,94 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutating/jobs.execution.furiko.io
+  failurePolicy: Fail
+  name: mutating.webhook.jobs.execution.furiko.io
+  rules:
+  - apiGroups:
+    - execution.furiko.io
+    apiVersions:
+    - '*'
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - jobs
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutating/jobconfigs.execution.furiko.io
+  failurePolicy: Fail
+  name: mutating.webhook.jobconfigs.execution.furiko.io
+  rules:
+  - apiGroups:
+    - execution.furiko.io
+    apiVersions:
+    - '*'
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - jobconfigs
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validating/jobs.execution.furiko.io
+  failurePolicy: Fail
+  name: validation.webhook.jobs.execution.furiko.io
+  rules:
+  - apiGroups:
+    - execution.furiko.io
+    apiVersions:
+    - '*'
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - jobs
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validating/jobconfigs.execution.furiko.io
+  failurePolicy: Fail
+  name: validation.webhook.jobconfigs.execution.furiko.io
+  rules:
+  - apiGroups:
+    - execution.furiko.io
+    apiVersions:
+    - '*'
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - jobconfigs
+  sideEffects: None

@@ -1,0 +1,4 @@
+namePrefix: execution-
+bases:
+  - ./controller
+  - ./webhook

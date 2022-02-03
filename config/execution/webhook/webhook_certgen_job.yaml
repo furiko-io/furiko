@@ -1,0 +1,77 @@
+# Jobs to generate certs and patch ValidatingWebhookConfiguration and MutatingWebhookConfiguration.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: webhook-certgen
+  labels:
+    app.kubernetes.io/component: execution-webhook-certgen
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: furiko-webhook-certgen
+
+      # Generate certificates first as an init container.
+      initContainers:
+        - name: generate-certs
+          image: k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1
+          args:
+            - "create"
+            - "--host=execution-webhook-service,execution-webhook-service.furiko-system,execution-webhook-service.furiko-system.svc"
+            - "--namespace=furiko-system"
+            - "--secret-name=execution-webhook-certs"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+
+      # Patch all webhook configurations.
+      containers:
+        - name: patch-validating
+          image: k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1
+          args:
+            - "patch"
+            - "--namespace=furiko-system"
+            - "--secret-name=execution-webhook-certs"
+            - "--patch-failure-policy=Fail"
+            - "--patch-mutating=false"
+            - "--patch-validating=true"
+            - "--webhook-name=furiko-execution-validating-webhook-configuration"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+        - name: patch-mutating
+          image: k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1
+          args:
+            - "patch"
+            - "--namespace=furiko-system"
+            - "--secret-name=execution-webhook-certs"
+            - "--patch-failure-policy=Fail"
+            - "--patch-mutating=true"
+            - "--patch-validating=false"
+            - "--webhook-name=furiko-execution-mutating-webhook-configuration"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true

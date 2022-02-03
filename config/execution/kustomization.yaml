@@ -1,0 +1,6 @@
+namePrefix: execution-
+
+bases:
+  - ./controller
+  - ./dynamic
+  - ./webhook

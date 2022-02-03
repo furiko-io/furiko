@@ -1,0 +1,4 @@
+bases:
+  - ./auth-proxy
+  - ./execution
+  - ./webhook-certgen

@@ -1,0 +1,58 @@
+/*
+ * Copyright 2022 The Furiko Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package logvalues
+
+import (
+	"k8s.io/klog/v2"
+)
+
+// Values returns a new Builder after adding keysAndValues, ignoring verbosity level.
+func Values(keysAndValues ...interface{}) *Builder {
+	b := &Builder{}
+	return b.Values(keysAndValues...)
+}
+
+// Level returns a new Builder, adding keysAndValues only if verbosity level is
+// greater or equal to specified level.
+func Level(level klog.Level, keysAndValues ...interface{}) *Builder {
+	b := &Builder{}
+	return b.Level(level, keysAndValues...)
+}
+
+type Builder struct {
+	keysAndValues []interface{}
+}
+
+// Values returns the Builder instance after adding keysAndValues.
+func (b *Builder) Values(keysAndValues ...interface{}) *Builder {
+	b.keysAndValues = append(b.keysAndValues, keysAndValues...)
+	return b
+}
+
+// Level returns the Builder instance, adding keysAndValues only if verbosity
+// level is greater or equal to specified level.
+func (b *Builder) Level(level klog.Level, keysAndValues ...interface{}) *Builder {
+	if klog.V(level).Enabled() {
+		b.keysAndValues = append(b.keysAndValues, keysAndValues...)
+	}
+	return b
+}
+
+// Build returns the keys and values.
+func (b *Builder) Build() []interface{} {
+	return b.keysAndValues
+}

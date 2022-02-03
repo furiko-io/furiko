@@ -1,0 +1,9 @@
+# Add furiko- namePrefix to all common resources.
+namePrefix: furiko-
+
+bases:
+  - ./rbac
+  - ./webhook
+
+resources:
+  - namespace.yaml
