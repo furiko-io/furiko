@@ -57,3 +57,9 @@ func (c *Clientsets) Furiko() furiko.Interface {
 func (c *Clientsets) FurikoMock() *furikofake.Clientset {
 	return c.furiko
 }
+
+// ClearActions clears all actions.
+func (c *Clientsets) ClearActions() {
+	c.KubernetesMock().ClearActions()
+	c.FurikoMock().ClearActions()
+}

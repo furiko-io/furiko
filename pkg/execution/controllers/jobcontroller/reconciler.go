@@ -332,7 +332,7 @@ func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job
 func (w *Reconciler) syncCreateNewTask(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task,
 ) (*execution.Job, []jobtasks.Task, error) {
-	now := time.Now()
+	now := ktime.Now().Time
 
 	// Not allowed to create new task.
 	if !jobutil.AllowedToCreateNewTask(rj) {
@@ -421,7 +421,7 @@ func (w *Reconciler) createTask(ctx context.Context, rj *execution.Job) (jobtask
 // kill those tasks.
 func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, tasks []jobtasks.Task,
 	cfg *configv1.JobControllerConfig) error {
-	now := time.Now()
+	now := ktime.Now().Time
 
 	pendingTimeout := jobutil.GetPendingTimeout(rj, cfg.DefaultPendingTimeoutSeconds)
 
@@ -498,7 +498,7 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 // handleKillJob updates kill timestamp of all tasks if spec.killTimestamp is set.
 func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks []jobtasks.Task) error {
 	// Skip if not killing.
-	if rj.Spec.KillTimestamp == nil || time.Now().Before(rj.Spec.KillTimestamp.Time) {
+	if rj.Spec.KillTimestamp == nil || ktime.Now().Time.Before(rj.Spec.KillTimestamp.Time) {
 		return nil
 	}
 
@@ -557,7 +557,7 @@ func (w *Reconciler) handleDeleteKillingTasks(
 
 		// If task is not killable with kill timestamp, or is still alive beyond kill timestamp + timeout,
 		// use deletion to kill the task instead.
-		if killTS.Add(timeout).Before(time.Now()) || task.RequiresKillWithDeletion() {
+		if killTS.Add(timeout).Before(ktime.Now().Time) || task.RequiresKillWithDeletion() {
 			klog.InfoS("jobcontroller: worker deleting killing task",
 				"worker", w.Name(),
 				"namespace", rj.GetNamespace(),

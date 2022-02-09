@@ -21,18 +21,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
 const (
 	jobNamespace = "test"
 	jobName      = "my-sample-job"
+
+	createTime = "2021-02-09T04:06:00Z"
+	startTime  = "2021-02-09T04:06:01Z"
+	now        = "2021-02-09T04:06:05Z"
 )
 
 var (
 	fakeJob = &execution.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: jobNamespace,
+			Name:              jobName,
+			Namespace:         jobNamespace,
+			CreationTimestamp: testutils.Mkmtime(createTime),
 		},
 		Spec: execution.JobSpec{
 			Type: execution.JobTypeAdhoc,
@@ -51,6 +57,33 @@ var (
 								},
 							},
 						},
+					},
+				},
+			},
+		},
+		Status: execution.JobStatus{
+			StartTime: testutils.Mkmtimep(startTime),
+		},
+	}
+
+	fakeJobResult = &execution.Job{
+		ObjectMeta: fakeJob.ObjectMeta,
+		Spec:       fakeJob.Spec,
+		Status: execution.JobStatus{
+			Phase: execution.JobPending,
+			Condition: execution.JobCondition{
+				Waiting: &execution.JobConditionWaiting{
+					CreatedAt: testutils.Mkmtimep(createTime),
+				},
+			},
+			StartTime:    testutils.Mkmtimep(startTime),
+			CreatedTasks: 1,
+			Tasks: []execution.TaskRef{
+				{
+					Name:              fakeJob.Name + ".1",
+					CreationTimestamp: testutils.Mkmtime(createTime),
+					Status: execution.TaskStatus{
+						State: execution.TaskStaging,
 					},
 				},
 			},
