@@ -1,5 +1,7 @@
 # Furiko
 
+[![CI](https://github.com/furiko-io/furiko/actions/workflows/ci.yml/badge.svg)](https://github.com/furiko-io/furiko/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/furiko-io/furiko/branch/main/graph/badge.svg?token=ZSG05UXWJJ)](https://codecov.io/gh/furiko-io/furiko)
+
 ![Furiko Logo](./docs/images/color_horizontal.png)
 
 **Furiko** is a cloud-native, enterprise-level cron and adhoc job platform for Kubernetes.
