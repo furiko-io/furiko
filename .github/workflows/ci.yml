@@ -1,0 +1,69 @@
+name: Perform CI
+
+on:
+  - push
+  - pull_request
+  - workflow_dispatch
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+  golangci-lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run golangci-lint
+        run: golangci/golangci-lint-action@v2.5.2
+
+  generate-lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate code
+        run: make generate
+
+      - name: Check for differences
+        run: git add . && git diff --exit-code --staged
+
+  license-header-lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install license-header-checker
+        run: go install github.com/lsm-dev/license-header-checker/cmd/license-header-checker@v1.3.0
+
+      - name: Check license headers in all Go files
+        run: license-header-checker hack/boilerplate.go.txt . go
+
+  go-test:
+    needs:
+      - golangci-lint
+      - generate-lint
+    strategy:
+      matrix:
+        go-version: [ 1.17 ]
+        platform: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Run tests
+        run: ./hack/run-tests.sh
+
+      - name: Push code coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./combined.cov
+        # Push code coverage only for one of the environments
+        if: matrix.platform == 'ubuntu-latest'
