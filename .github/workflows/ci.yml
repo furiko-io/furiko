@@ -21,23 +21,22 @@ jobs:
 
   generate-lint:
     runs-on: ubuntu-latest
+    # NOTE(irvinlim): Need to operate in GOPATH in order for generate-groups.sh to succeed (see Makefile).
     steps:
-      - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
           go-version: 1.17
-      # NOTE(irvinlim): Need to operate in GOPATH in order for generate-groups.sh to succeed (see Makefile).
-      # Move directory GOPATH instead of using symlinks: https://github.com/golang/go/issues/45609
-      - name: Move to GOPATH
-        run: |
-          export PKG_PATH="$GOPATH/src/github.com/${{ github.repository }}"
-          mkdir -p $(dirname $PKG_PATH)
-          mv `pwd` $PKG_PATH
-          cd $PKG_PATH
+      - uses: actions/checkout@v2
+        with:
+          path: "go/src/github.com/${{ github.repository }}"
       - name: Generate code
         run: make generate
+        env:
+          GOPATH: /home/runner/work/furiko/go
+        working-directory: "go/src/github.com/${{ github.repository }}"
       - name: Check for differences
         run: git add . && git diff --exit-code --staged
+        working-directory: "go/src/github.com/${{ github.repository }}"
 
   license-header-lint:
     runs-on: ubuntu-latest
