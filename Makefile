@@ -22,6 +22,9 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# Set license header files.
+LICENSE_HEADER_GO ?= hack/boilerplate.go.txt
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -69,12 +72,12 @@ generate: generate-deepcopy generate-groups
 
 # Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 generate-deepcopy: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="$(LICENSE_HEADER_GO)" paths="./..."
 
 # Generate code such as client, lister, informers.
 # TODO(irvinlim): Current version of generate-groups.sh requires running in GOPATH to generate correctly.
 generate-groups: generate-groups.sh
-	$(GENERATE_GROUPS) $(GENERATE_GROUPS_GENERATORS) "$(PKG)/pkg/generated" "$(PKG)/apis" execution:v1alpha1 --go-header-file=hack/boilerplate.go.txt $(GENERATE_GROUPS_FLAGS)
+	$(GENERATE_GROUPS) $(GENERATE_GROUPS_GENERATORS) "$(PKG)/pkg/generated" "$(PKG)/apis" execution:v1alpha1 --go-header-file=$(LICENSE_HEADER_GO) $(GENERATE_GROUPS_FLAGS)
 
 # Format code.
 .PHONY: fmt
@@ -84,7 +87,16 @@ fmt: goimports
 
 # Lint all code.
 .PHONY: lint
-lint: golangci-lint
+lint: lint-go lint-license
+
+# Check license headers.
+.PHONY: lint-license
+lint-license: license-header-checker
+	$(LICENSE_HEADER_CHECKER) "$(LICENSE_HEADER_GO)" . go
+
+# Lint Go code.
+.PHONY: lint-go
+lint-go: golangci-lint
 	$(GOLANGCI_LINT) run -v --timeout=5m
 
 # Go mod tidy.
@@ -92,9 +104,9 @@ lint: golangci-lint
 tidy:
 	go mod tidy
 
-# Run tests.
+# Run tests with coverage. Outputs to coverage.cov.
 .PHONY: test
-test: manifests generate fmt envtest
+test:
 	./hack/run-tests.sh
 
 ##@ Deployment
@@ -147,7 +159,12 @@ yq: ## Download yq locally if necessary.
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 .PHONY: golangci-lint
 golangci-lint: ## Download golangci-lint locally if necessary.
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint@v1.44.0)
+	@[ -f $(GOLANGCI_LINT) ] || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.31.0
+
+LICENSE_HEADER_CHECKER = $(shell pwd)/bin/license-header-checker
+.PHONY: license-header-checker
+license-header-checker: ## Download license-header-checker locally if necessary.
+	$(call go-get-tool,$(LICENSE_HEADER_CHECKER),github.com/lsm-dev/license-header-checker/cmd/license-header-checker@v1.3.0)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

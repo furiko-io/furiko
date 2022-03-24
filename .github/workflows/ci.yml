@@ -37,11 +37,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Install license-header-checker
-        run: go install github.com/lsm-dev/license-header-checker/cmd/license-header-checker@v1.3.0
-
-      - name: Check license headers in all Go files
-        run: license-header-checker hack/boilerplate.go.txt . go
+      - run: make lint-license
 
   go-test:
     needs:
@@ -59,7 +55,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Run tests
-        run: ./hack/run-tests.sh
+        run: make test
 
       - name: Push code coverage to Codecov
         uses: codecov/codecov-action@v2
