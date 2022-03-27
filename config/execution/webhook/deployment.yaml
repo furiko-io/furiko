@@ -28,7 +28,7 @@ spec:
           args:
             - "--config=/etc/webhook/config.yaml"
             - "-v=2"
-          image: webhook:latest
+          image: execution-webhook:latest
           securityContext:
             allowPrivilegeEscalation: false
           livenessProbe:

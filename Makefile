@@ -25,6 +25,9 @@ endif
 # Set license header files.
 LICENSE_HEADER_GO ?= hack/boilerplate.go.txt
 
+# Set image name prefix. The actual image name and tag will be appended to this.
+IMAGE_NAME_PREFIX ?= "docker.io/furikoio"
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -108,6 +111,11 @@ yaml: yaml-execution ## Build kustomize configs. Outputs to dist folder.
 
 .PHONY: yaml-execution
 yaml-execution: manifests kustomize $(YAML_DEST) ## Build furiko-execution.yaml with Kustomize.
+	{ \
+	cd config/default ;\
+	$(KUSTOMIZE) edit set image execution-controller=$(IMAGE_NAME_PREFIX)/execution-controller:$(IMAGE_TAG)  ;\
+	$(KUSTOMIZE) edit set image execution-webhook=$(IMAGE_NAME_PREFIX)/execution-webhook:$(IMAGE_TAG) ;\
+	}
 	$(KUSTOMIZE) build config/default -o $(YAML_DEST)/furiko-execution.yaml
 
 .PHONY: manifests
