@@ -1,3 +1,8 @@
+# Package the YAML manifests.
+before:
+  hooks:
+    - make yaml
+
 # Build each entrypoint for Docker.
 builds:
   - id: execution-controller
@@ -38,11 +43,6 @@ snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:
   use: github-native
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^chore:'
 
 # Build Docker images for each entrypoint separately.
 dockers:
@@ -71,8 +71,6 @@ dockers:
 release:
   prerelease: auto
   header: |
-    ## Furiko {{ .Version }} ({{ .Date }})
-
     ### 🚨 Breaking or Notable
 
     <!-- FIXME: Add release notes -->
@@ -86,6 +84,8 @@ release:
     <!-- FIXME: Add release notes -->
 
     ---
+
+    <!-- FIXME: Remove any redundant release notes below this line -->
 
   # Creates a draft release, so that additional release notes can be added later
   draft: true
