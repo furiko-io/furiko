@@ -1,6 +1,10 @@
 # Furiko
 
-[![CI](https://github.com/furiko-io/furiko/actions/workflows/ci.yml/badge.svg)](https://github.com/furiko-io/furiko/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/furiko-io/furiko/branch/main/graph/badge.svg?token=ZSG05UXWJJ)](https://codecov.io/gh/furiko-io/furiko)
+[![CI](https://github.com/furiko-io/furiko/actions/workflows/ci.yml/badge.svg)](https://github.com/furiko-io/furiko/actions/workflows/ci.yml)
+[![Releases](https://img.shields.io/github/release-pre/furiko-io/furiko.svg?sort=semver)](https://github.com/furiko-io/furiko/releases)
+[![LICENSE](https://img.shields.io/github/license/furiko-io/furiko.svg)](https://github.com/furiko-io/furiko/blob/main/LICENSE)
+[![codecov](https://codecov.io/gh/furiko-io/furiko/branch/main/graph/badge.svg?token=ZSG05UXWJJ)](https://codecov.io/gh/furiko-io/furiko)
+
 
 ![Furiko Logo](./docs/images/color_horizontal.png)
 
@@ -8,7 +12,7 @@
 
 ## Introduction
 
-Furiko is a Kubernetes-native operator for managing, scheduling and executing scheduled and adhoc jobs and workflows. It aims to be an general-purpose job platform that supports a diverse range of use cases, including cron jobs, batch processing, workflow automation, etc.
+Furiko is a Kubernetes-native operator for managing, scheduling and executing scheduled and adhoc jobs and workflows. It aims to be a general-purpose job platform that supports a diverse range of use cases, including cron jobs, batch processing, workflow automation, etc.
 
 Furiko is built from the beginning to support enterprise-level use cases and running self-hosted in a private Kubernetes cluster, supporting users across a large organization.
 
