@@ -24,7 +24,7 @@ spec:
       containers:
         - name: webhook
           command:
-            - /webhook
+            - /execution-webhook
           args:
             - "--config=/etc/webhook/config.yaml"
             - "-v=2"

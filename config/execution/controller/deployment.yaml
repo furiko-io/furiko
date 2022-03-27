@@ -24,7 +24,7 @@ spec:
       containers:
         - name: controller
           command:
-            - /controller
+            - /execution-controller
           args:
             - "--config=/etc/controller/config.yaml"
             - "-v=2"
