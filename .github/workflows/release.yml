@@ -15,6 +15,9 @@ jobs:
           fetch-depth: 0
       - name: Fetch all tags
         run: git fetch --force --tags
+      - name: Get the tag
+        id: tag_name
+        run: echo ::set-output name=TAG_NAME::${GITHUB_REF/refs\/tags\//}
       - name: Determine Go version from go.mod
         run: echo "GO_VERSION=$(grep "go 1." go.mod | cut -d " " -f 2)" >> $GITHUB_ENV
       - uses: actions/setup-go@v3
@@ -42,3 +45,4 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ steps.tag_name.outputs.TAG_NAME }}
