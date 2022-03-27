@@ -9,11 +9,11 @@ RUN apk add --update --no-cache ca-certificates tzdata && \
     rm -rf /var/cache/apk/*
 
 FROM furiko-base AS execution-controller
-USER furiko
 COPY execution-controller /
+USER 100:101
 ENTRYPOINT [ "/execution-controller" ]
 
 FROM furiko-base AS execution-webhook
-USER furiko
 COPY execution-webhook /
+USER 100:101
 ENTRYPOINT [ "/execution-webhook" ]
