@@ -98,13 +98,17 @@ build-execution-controller: ## Build execution-controller.
 
 ##@ YAML Configuration
 
+## Location to write YAMLs to
+YAML_DEST ?= $(shell pwd)/yamls
+$(YAML_DEST): ## Ensure that the directory exists
+	mkdir -p $(YAML_DEST)
+
 .PHONY: yaml
 yaml: yaml-execution ## Build kustomize configs. Outputs to dist folder.
 
 .PHONY: yaml-execution
-yaml-execution: manifests kustomize ## Build furiko-execution.yaml with Kustomize.
-	mkdir -p ./dist
-	$(KUSTOMIZE) build config/default -o dist/furiko-execution.yaml
+yaml-execution: manifests kustomize $(YAML_DEST) ## Build furiko-execution.yaml with Kustomize.
+	$(KUSTOMIZE) build config/default -o $(YAML_DEST)/furiko-execution.yaml
 
 .PHONY: manifests
 manifests: tidy controller-gen yq ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.

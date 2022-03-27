@@ -1,0 +1,93 @@
+# Build each entrypoint for Docker.
+builds:
+  - id: execution-controller
+    main: ./cmd/execution-controller
+    binary: execution-controller
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+  - id: execution-webhook
+    main: ./cmd/execution-webhook
+    binary: execution-webhook
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+# Create archive for each entrypoint.
+archives:
+  - id: execution-controller
+    builds:
+      - execution-controller
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    wrap_in_directory: true
+  - id: execution-webhook
+    builds:
+      - execution-webhook
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    wrap_in_directory: true
+
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  use: github-native
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+# Build Docker images for each entrypoint separately.
+dockers:
+  - id: execution-controller
+    use: buildx
+    ids:
+      - execution-controller
+    image_templates:
+      - "furikoio/execution-controller:latest"
+      - "furikoio/execution-controller:{{ .Tag }}"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--target=execution-controller"
+  - id: execution-webhook
+    use: buildx
+    ids:
+      - execution-webhook
+    image_templates:
+      - "furikoio/execution-webhook:latest"
+      - "furikoio/execution-webhook:{{ .Tag }}"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--target=execution-webhook"
+
+# Prepare release assets.
+release:
+  prerelease: auto
+  header: |
+    ## Furiko {{ .Version }} ({{ .Date }})
+
+    ### 🚨 Breaking or Notable
+
+    <!-- FIXME: Add release notes -->
+
+    ### 💫 New Features & Changes
+
+    <!-- FIXME: Add release notes -->
+
+    ### 🐞 Bug Fixes
+
+    <!-- FIXME: Add release notes -->
+
+    ---
+
+  # Creates a draft release, so that additional release notes can be added later
+  draft: true
+  extra_files:
+    # Add all YAML manifests to release as well
+    - glob: ./yamls/*.yaml
