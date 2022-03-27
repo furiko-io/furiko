@@ -8,13 +8,25 @@ on:
   workflow_dispatch:
 
 jobs:
-  golangci-lint:
+  get-go-version:
     runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.read-go-version.outputs.version }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - id: read-go-version
+        name: Determine Go version from go.mod
+        run: echo "::set-output name=version::$(grep "go 1." go.mod | cut -d " " -f 2)"
+
+  golangci-lint:
+    runs-on: ubuntu-latest
+    needs:
+      - get-go-version
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2.5.2
         with:
@@ -23,14 +35,16 @@ jobs:
 
   generate-lint:
     runs-on: ubuntu-latest
+    needs:
+      - get-go-version
     # NOTE(irvinlim): Need to operate in GOPATH in order for generate-groups.sh to succeed (see Makefile).
     steps:
-      - uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
       - uses: actions/checkout@v2
         with:
           path: "go/src/github.com/${{ github.repository }}"
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       - name: Generate code
         run: make generate
         env:
@@ -42,8 +56,13 @@ jobs:
 
   license-header-lint:
     runs-on: ubuntu-latest
+    needs:
+      - get-go-version
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       - run: make lint-license
 
   go-test:
