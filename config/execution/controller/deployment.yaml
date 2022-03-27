@@ -28,7 +28,7 @@ spec:
           args:
             - "--config=/etc/controller/config.yaml"
             - "-v=2"
-          image: controller:latest
+          image: execution-controller:latest
           securityContext:
             allowPrivilegeEscalation: false
           livenessProbe:
