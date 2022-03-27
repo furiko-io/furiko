@@ -52,7 +52,7 @@ spec:
     # Metadata that should be added to created Jobs.
     metadata:
       annotations:
-        https://app.kubernetes.io/name: jobconfig-sample
+        app.kubernetes.io/name: jobconfig-sample
 
     # Defines the specification of the Job.
     spec:
