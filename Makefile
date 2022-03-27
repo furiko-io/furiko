@@ -31,10 +31,10 @@ LICENSE_HEADER_GO ?= hack/boilerplate.go.txt
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
-.PHONY: all
-all: manifests generate fmt
-
 ##@ General
+
+.PHONY: all
+all: manifests generate fmt build yaml ## Generate code, build Go binaries and YAML manifests.
 
 # The help target prints out all targets with their descriptions organized
 # beneath their categories. The categories are represented by '##@' and the
@@ -53,9 +53,61 @@ help: ## Display this help.
 
 ##@ Development
 
-# Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+.PHONY: generate
+generate: generate-deepcopy generate-groups ## Generate Go code.
+
+generate-deepcopy: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile="$(LICENSE_HEADER_GO)" paths="./..."
+
+generate-groups: generate-groups.sh ## Generate code such as client, lister, informers.
+	# TODO(irvinlim): Current version of generate-groups.sh requires running in GOPATH to generate correctly.
+	$(GENERATE_GROUPS) $(GENERATE_GROUPS_GENERATORS) "$(PKG)/pkg/generated" "$(PKG)/apis" execution:v1alpha1 --go-header-file=$(LICENSE_HEADER_GO) $(GENERATE_GROUPS_FLAGS)
+
+.PHONY: fmt
+fmt: goimports ## Format code.
+	go fmt ./...
+	$(GOIMPORTS) -w -local "$(PKG)" .
+
+.PHONY: lint
+lint: lint-go lint-license ## Lint all code.
+
+.PHONY: lint-license
+lint-license: license-header-checker ## Check license headers.
+	$(LICENSE_HEADER_CHECKER) "$(LICENSE_HEADER_GO)" . go
+
+.PHONY: lint-go
+lint-go: golangci-lint ## Lint Go code.
+	$(GOLANGCI_LINT) run -v --timeout=5m
+
+.PHONY: tidy
+tidy: ## Run go mod tidy.
+	go mod tidy
+
+.PHONY: test
+test: ## Run tests with coverage. Outputs to combined.cov.
+	./hack/run-tests.sh
+
+##@ Building
+
+.PHONY: build
+build: build-execution-controller ## Build all Go binaries.
+
+.PHONY: build-execution-controller
+build-execution-controller: ## Build execution-controller.
+	go build -o build/execution-controller ./cmd/execution-controller
+
+##@ YAML Configuration
+
+.PHONY: yaml
+yaml: yaml-execution ## Build kustomize configs. Outputs to dist folder.
+
+.PHONY: yaml-execution
+yaml-execution: manifests kustomize ## Build furiko-execution.yaml with Kustomize.
+	mkdir -p ./dist
+	$(KUSTOMIZE) build config/default -o dist/furiko-execution.yaml
+
 .PHONY: manifests
-manifests: tidy controller-gen yq
+manifests: tidy controller-gen yq ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	# Generate CRDs
 	$(CONTROLLER_GEN) crd paths="./..." output:crd:artifacts:config=config/crd/bases
 	# Generate webhook manifests
@@ -65,49 +117,6 @@ manifests: tidy controller-gen yq
 	$(CONTROLLER_GEN) rbac:roleName=webhook-role paths="./cmd/execution-webhook/..." output:stdout > config/common/rbac/execution/webhook/cluster_role.yaml
 	# Add preserveUnknownFields manually with yq, see https://github.com/kubernetes-sigs/controller-tools/issues/476
 	ls -1 config/crd/bases/*.yaml | xargs -I {} $(YQ) e '.spec.preserveUnknownFields = false' -i {}
-
-# Generate Go code.
-.PHONY: generate
-generate: generate-deepcopy generate-groups
-
-# Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-generate-deepcopy: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="$(LICENSE_HEADER_GO)" paths="./..."
-
-# Generate code such as client, lister, informers.
-# TODO(irvinlim): Current version of generate-groups.sh requires running in GOPATH to generate correctly.
-generate-groups: generate-groups.sh
-	$(GENERATE_GROUPS) $(GENERATE_GROUPS_GENERATORS) "$(PKG)/pkg/generated" "$(PKG)/apis" execution:v1alpha1 --go-header-file=$(LICENSE_HEADER_GO) $(GENERATE_GROUPS_FLAGS)
-
-# Format code.
-.PHONY: fmt
-fmt: goimports
-	go fmt ./...
-	$(GOIMPORTS) -w -local "$(PKG)" .
-
-# Lint all code.
-.PHONY: lint
-lint: lint-go lint-license
-
-# Check license headers.
-.PHONY: lint-license
-lint-license: license-header-checker
-	$(LICENSE_HEADER_CHECKER) "$(LICENSE_HEADER_GO)" . go
-
-# Lint Go code.
-.PHONY: lint-go
-lint-go: golangci-lint
-	$(GOLANGCI_LINT) run -v --timeout=5m
-
-# Go mod tidy.
-.PHONY: tidy
-tidy:
-	go mod tidy
-
-# Run tests with coverage. Outputs to coverage.cov.
-.PHONY: test
-test:
-	./hack/run-tests.sh
 
 ##@ Deployment
 
@@ -131,54 +140,65 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+##@ Build Dependencies
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN): ## Ensure that the directory exists
+	mkdir -p $(LOCALBIN)
+
+## Tool Binaries
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
+GOIMPORTS ?= $(LOCALBIN)/goimports
+YQ ?= $(LOCALBIN)/yq
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
+LICENSE_HEADER_CHECKER ?= $(LOCALBIN)/license-header-checker
+
+## Tool Versions
+KUSTOMIZE_VERSION ?= v3.8.7
+CONTROLLER_TOOLS_VERSION ?= v0.8.0
+YQ_VERSION ?= v4.14.1
+GOLANGCILINT_VERSION ?= v1.31.0
+LICENSEHEADERCHECKER_VERSION ?= v1.3.0
+
 .PHONY: controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.8.0)
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+$(CONTROLLER_GEN):
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
-KUSTOMIZE = $(shell pwd)/bin/kustomize
+KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
+$(KUSTOMIZE):
+	@[ -f $(KUSTOMIZE) ] || curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
 
-ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
-envtest: ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
+$(ENVTEST):
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-GOIMPORTS = $(shell pwd)/bin/goimports
 .PHONY: goimports
-goimports: ## Download yq locally if necessary.
-	$(call go-get-tool,$(GOIMPORTS),golang.org/x/tools/cmd/goimports@latest)
+goimports: $(GOIMPORTS) ## Download goimports locally if necessary.
+$(GOIMPORTS):
+	GOBIN=$(LOCALBIN) go install golang.org/x/tools/cmd/goimports@latest
 
-YQ = $(shell pwd)/bin/yq
 .PHONY: yq
-yq: ## Download yq locally if necessary.
-	$(call go-get-tool,$(YQ),github.com/mikefarah/yq/v4@v4.14.1)
+yq: $(YQ) ## Download yq locally if necessary.
+$(YQ):
+	GOBIN=$(LOCALBIN) go install github.com/mikefarah/yq/v4@$(YQ_VERSION)
 
-GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
+GOLANGCILINT_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh"
 .PHONY: golangci-lint
-golangci-lint: ## Download golangci-lint locally if necessary.
-	@[ -f $(GOLANGCI_LINT) ] || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.31.0
+golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
+$(GOLANGCI_LINT):
+	@[ -f $(GOLANGCI_LINT) ] || curl -sSfL $(GOLANGCILINT_INSTALL_SCRIPT) | sh -s $(GOLANGCILINT_VERSION)
 
-LICENSE_HEADER_CHECKER = $(shell pwd)/bin/license-header-checker
 .PHONY: license-header-checker
-license-header-checker: ## Download license-header-checker locally if necessary.
-	$(call go-get-tool,$(LICENSE_HEADER_CHECKER),github.com/lsm-dev/license-header-checker/cmd/license-header-checker@v1.3.0)
-
-# go-get-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
+license-header-checker: $(LICENSE_HEADER_CHECKER) ## Download license-header-checker locally if necessary.
+$(LICENSE_HEADER_CHECKER):
+	GOBIN=$(LOCALBIN) go install github.com/lsm-dev/license-header-checker/cmd/license-header-checker@$(LICENSEHEADERCHECKER_VERSION)
 
 # generate-groups.sh will download generate-groups.sh which is used for generating client libraries.
 generate-groups.sh:
