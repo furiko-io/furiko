@@ -2,3 +2,5 @@
 # Ignore build and test binaries.
 bin/
 testbin/
+build/
+dist/

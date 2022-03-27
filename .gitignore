@@ -25,3 +25,7 @@ testbin/*
 
 # Go output
 *.cov
+
+# Build output
+build/
+dist/
