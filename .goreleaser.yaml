@@ -42,6 +42,7 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+      - '^chore:'
 
 # Build Docker images for each entrypoint separately.
 dockers:
