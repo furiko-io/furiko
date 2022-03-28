@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -31,6 +32,7 @@ const (
 	createTime = "2021-02-09T04:06:00Z"
 	startTime  = "2021-02-09T04:06:01Z"
 	now        = "2021-02-09T04:06:05Z"
+	later15m   = "2021-02-09T04:21:00Z"
 )
 
 var (
@@ -85,8 +87,18 @@ var (
 					Status: execution.TaskStatus{
 						State: execution.TaskStaging,
 					},
+					ContainerStates: []execution.TaskContainerState{},
 				},
 			},
 		},
 	}
+
+	fakePod1, _ = podtaskexecutor.NewPod(fakeJob, 1)
+
+	// Add CreationTimestamp in the result to mimic apiserver response.
+	fakePod1Result = func() *corev1.Pod {
+		newPod := fakePod1.DeepCopy()
+		newPod.CreationTimestamp = testutils.Mkmtime(createTime)
+		return newPod
+	}()
 )

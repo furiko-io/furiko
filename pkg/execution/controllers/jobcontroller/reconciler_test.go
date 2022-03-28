@@ -18,12 +18,14 @@ package jobcontroller_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
 	ktesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -34,10 +36,9 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
-	"github.com/furiko-io/furiko/pkg/execution/tasks"
-	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
@@ -57,6 +58,8 @@ func TestReconciler(t *testing.T) {
 		target           *execution.Job
 		initialPods      []*corev1.Pod
 		wantErr          bool
+		now              time.Time
+		coreReactors     []*ktesting.SimpleReactor
 		coreActions      runtimetesting.ActionTest
 		executionActions runtimetesting.ActionTest
 	}{
@@ -64,20 +67,54 @@ func TestReconciler(t *testing.T) {
 			name:   "create pod",
 			target: fakeJob,
 			coreActions: runtimetesting.ActionTest{
-				ActionGenerators: []runtimetesting.ActionGenerator{
-					func() (ktesting.Action, error) {
-						pod, err := podtaskexecutor.NewPod(fakeJob, 1)
-						if err != nil {
-							return nil, err
-						}
-						action := ktesting.NewCreateAction(resourcePod, fakeJob.Namespace, pod)
-						return action, nil
+				Actions: []ktesting.Action{
+					ktesting.NewCreateAction(resourcePod, fakeJob.Namespace, fakePod1),
+				},
+			},
+			coreReactors: []*ktesting.SimpleReactor{
+				{
+					Verb:     "create",
+					Resource: "pods",
+					Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
+						return true, fakePod1Result, nil
 					},
 				},
 			},
 			executionActions: runtimetesting.ActionTest{
 				Actions: []ktesting.Action{
 					ktesting.NewUpdateSubresourceAction(resourceJob, "status", fakeJob.Namespace, fakeJobResult),
+				},
+			},
+		},
+		{
+			name:   "don't do anything with existing pod and updated result",
+			target: fakeJobResult,
+			initialPods: []*corev1.Pod{
+				fakePod1Result,
+			},
+		},
+		{
+			name:   "kill pod with pending timeout",
+			now:    testutils.Mktime(later15m),
+			target: fakeJobResult,
+			initialPods: []*corev1.Pod{
+				fakePod1Result,
+			},
+			coreActions: runtimetesting.ActionTest{
+				ActionGenerators: []runtimetesting.ActionGenerator{
+					func() (ktesting.Action, error) {
+						newPod := fakePod1Result.DeepCopy()
+						k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
+						return ktesting.NewUpdateAction(resourcePod, fakeJob.Namespace, newPod), nil
+					},
+					func() (ktesting.Action, error) {
+						newPod := fakePod1Result.DeepCopy()
+						k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
+						k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyTaskKillTimestamp,
+							strconv.Itoa(int(testutils.Mktime(later15m).Unix())))
+						newPod.Spec.ActiveDeadlineSeconds = testutils.Mkint64p(1)
+						return ktesting.NewUpdateAction(resourcePod, fakeJob.Namespace, newPod), nil
+					},
 				},
 			},
 		},
@@ -89,7 +126,7 @@ func TestReconciler(t *testing.T) {
 			defer cancel()
 
 			c := mock.NewContext()
-			ctrlCtx := jobcontroller.NewContextWithCustom(c, &record.FakeRecorder{}, newMockTaskManager(c))
+			ctrlCtx := jobcontroller.NewContextWithRecorder(c, &record.FakeRecorder{})
 			reconciler := jobcontroller.NewReconciler(ctrlCtx, &configv1.Concurrency{
 				Workers: 1,
 			})
@@ -99,7 +136,11 @@ func TestReconciler(t *testing.T) {
 			client := c.MockClientsets()
 
 			// Set the current time
-			fakeClock := clock.NewFakeClock(testutils.Mktime(now))
+			fakeNow := testutils.Mktime(now)
+			if !tt.now.IsZero() {
+				fakeNow = tt.now
+			}
+			fakeClock := clock.NewFakeClock(fakeNow)
 			ktime.Clock = fakeClock
 
 			// Create initial objects
@@ -123,6 +164,11 @@ func TestReconciler(t *testing.T) {
 			// Clear all actions prior to reconcile
 			client.ClearActions()
 
+			// Set up reactors
+			for _, reactor := range tt.coreReactors {
+				client.KubernetesMock().PrependReactor(reactor.Verb, reactor.Resource, reactor.React)
+			}
+
 			// Reconcile object
 			if err := reconciler.SyncOne(ctx, createdJob.Namespace, createdJob.Name, 0); (err != nil) != tt.wantErr {
 				t.Errorf("SyncOne() error = %v, wantErr %v", err, tt.wantErr)
@@ -137,85 +183,4 @@ func TestReconciler(t *testing.T) {
 			runtimetesting.CompareActions(t, tt.executionActions, client.FurikoMock().Actions())
 		})
 	}
-}
-
-// mockTaskManager is a custom ExecutorFactory implementation.
-type mockTaskManager struct {
-	context controllercontext.ContextInterface
-}
-
-func newMockTaskManager(context controllercontext.ContextInterface) *mockTaskManager {
-	return &mockTaskManager{context: context}
-}
-
-func (m *mockTaskManager) ForJob(rj *execution.Job) (tasks.Executor, error) {
-	return &mockTaskExecutor{
-		context: m.context,
-		rj:      rj,
-	}, nil
-}
-
-// mockTaskExecutor is a custom TaskExecutor implementation that wraps PodTaskExecutor.
-type mockTaskExecutor struct {
-	context controllercontext.ContextInterface
-	rj      *execution.Job
-}
-
-func (m *mockTaskExecutor) Lister() tasks.TaskLister {
-	return &mockTaskLister{
-		PodTaskLister: podtaskexecutor.NewPodTaskLister(
-			m.context.Informers().Kubernetes().Core().V1().Pods().Lister(),
-			m.context.Clientsets().Kubernetes().CoreV1().Pods(m.rj.Namespace),
-			m.rj,
-		),
-	}
-}
-
-func (m *mockTaskExecutor) Client() tasks.TaskClient {
-	return &mockTaskClient{
-		PodTaskClient: podtaskexecutor.NewPodTaskClient(
-			m.context.Clientsets().Kubernetes().CoreV1().Pods(m.rj.Namespace),
-			m.rj,
-		),
-		rj: m.rj,
-	}
-}
-
-type mockTaskLister struct {
-	*podtaskexecutor.PodTaskLister
-}
-
-type mockTaskClient struct {
-	*podtaskexecutor.PodTaskClient
-	rj *execution.Job
-}
-
-func (c *mockTaskClient) CreateIndex(ctx context.Context, index int64) (tasks.Task, error) {
-	created, err := c.PodTaskClient.CreateIndex(ctx, index)
-	if err != nil {
-		return nil, err
-	}
-
-	// Wrap into mock task to override certain fields
-	return &mockTask{
-		Task: created,
-		rj:   c.rj,
-	}, nil
-}
-
-type mockTask struct {
-	tasks.Task
-	rj *execution.Job
-}
-
-func (m *mockTask) GetTaskRef() execution.TaskRef {
-	original := m.Task.GetTaskRef()
-	newTaskRef := original.DeepCopy()
-
-	// Mock creation timestamp since we don't have a real apiserver.
-	// Note that another way to do this could be to use ReactionFunc
-	// to intercept the return value of Pod creation.
-	newTaskRef.CreationTimestamp = m.rj.CreationTimestamp
-
-	return *newTaskRef
 }

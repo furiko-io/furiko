@@ -78,18 +78,11 @@ func NewContext(context controllercontext.ContextInterface) *Context {
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
 
-	// Create task manager.
-	taskManager := taskexecutor.NewManager(context.Clientsets(), context.Informers())
-
-	return NewContextWithCustom(context, recorder, taskManager)
+	return NewContextWithRecorder(context, recorder)
 }
 
-// NewContextWithCustom returns a new Context with custom options.
-func NewContextWithCustom(
-	context controllercontext.ContextInterface,
-	recorder record.EventRecorder,
-	taskManager tasks.ExecutorFactory,
-) *Context {
+// NewContextWithRecorder returns a new Context with a custom EventRecorder.
+func NewContextWithRecorder(context controllercontext.ContextInterface, recorder record.EventRecorder) *Context {
 	c := &Context{ContextInterface: context}
 
 	// Set recorder.
@@ -108,7 +101,7 @@ func NewContextWithCustom(
 	}
 
 	// Set task manager.
-	c.tasks = taskManager
+	c.tasks = taskexecutor.NewManager(context.Clientsets(), context.Informers())
 
 	return c
 }

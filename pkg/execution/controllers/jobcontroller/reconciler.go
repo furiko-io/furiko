@@ -271,7 +271,7 @@ func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job
 	// we use Killed as the final result for the job.
 	// This ensures that the final status before the job is finalized (during deletion) is terminal.
 	if newRj.DeletionTimestamp != nil && newRj.Status.Condition.Finished == nil {
-		createdAt := metav1.Now()
+		createdAt := *ktime.Now()
 		var startedAt *metav1.Time
 		if condition := newRj.Status.Condition.Waiting; condition != nil && condition.CreatedAt != nil {
 			createdAt = *condition.CreatedAt
@@ -284,7 +284,7 @@ func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job
 			Finished: &execution.JobConditionFinished{
 				CreatedAt:  &createdAt,
 				StartedAt:  startedAt,
-				FinishedAt: metav1.Now(),
+				FinishedAt: createdAt,
 				Result:     execution.JobResultKilled,
 			},
 		}
@@ -488,7 +488,7 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 	}
 
 	// Set kill timestamp on tasks.
-	if err := w.setTasksKillTimestamp(ctx, rj, needKill, metav1.Now()); err != nil {
+	if err := w.setTasksKillTimestamp(ctx, rj, needKill, *ktime.Now()); err != nil {
 		return err
 	}
 
@@ -636,7 +636,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 			continue
 		}
 
-		if deletionTS.Add(timeout).Before(time.Now()) {
+		if deletionTS.Add(timeout).Before(ktime.Now().Time) {
 			klog.InfoS("jobcontroller: worker force deleting killing task",
 				"worker", w.Name(),
 				"namespace", rj.GetNamespace(),
@@ -717,7 +717,7 @@ func (w *Reconciler) handleTTLAfterFinished(ctx context.Context, rj *execution.J
 
 	// Not yet expired.
 	duration := time.Duration(ttl) * time.Second
-	if rj.Status.Condition.Finished.FinishedAt.Add(duration).After(time.Now()) {
+	if rj.Status.Condition.Finished.FinishedAt.Add(duration).After(ktime.Now().Time) {
 		return nil
 	}
 

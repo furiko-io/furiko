@@ -17,6 +17,7 @@
 package testing
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -90,16 +91,17 @@ func CompareActions(t *testing.T, test ActionTest, got []ktesting.Action) {
 			continue
 		}
 		if idx >= len(actions) {
-			t.Errorf("saw extra action %v", gotAction)
-			return
+			t.Errorf("saw extra action: %v %v", gotAction.GetVerb(), GetFullResourceName(gotAction))
+			continue
 		}
 		wantAction := actions[idx]
 		idx++
 		CompareAction(t, wantAction, gotAction)
 	}
 
-	if idx < len(actions) {
-		t.Errorf("wanted %v actions, saw %v actions (verbs = %v)", len(actions), idx, test.GetVerbs())
+	for i := idx; i < len(actions); i++ {
+		action := actions[i]
+		t.Errorf("did not see action: %v %v", action.GetVerb(), GetFullResourceName(action))
 	}
 }
 
@@ -126,27 +128,27 @@ func CompareAction(t *testing.T, want, got ktesting.Action) {
 	// Compare by ObjectGetter.
 	if wantObj, ok := want.(ObjectGetter); ok {
 		if gotObj, ok := got.(ObjectGetter); ok {
-			CompareObjects(t, wantObj, gotObj)
+			CompareObjects(t, want, wantObj, gotObj)
 		}
 	}
 
 	// Compare by NameGetter.
 	if wantObj, ok := want.(NameGetter); ok {
 		if gotObj, ok := got.(NameGetter); ok {
-			CompareNames(t, wantObj, gotObj)
+			CompareNames(t, want, wantObj, gotObj)
 		}
 	}
 
 	// Compare by PatchGetter.
 	if wantObj, ok := want.(PatchGetter); ok {
 		if gotObj, ok := got.(PatchGetter); ok {
-			ComparePatches(t, wantObj, gotObj)
+			ComparePatches(t, want, wantObj, gotObj)
 		}
 	}
 }
 
 // CompareObjects compares two objects.
-func CompareObjects(t *testing.T, want, got ObjectGetter) {
+func CompareObjects(t *testing.T, action ktesting.Action, want, got ObjectGetter) {
 	wantGVK := want.GetObject().GetObjectKind().GroupVersionKind()
 	gotGVK := got.GetObject().GetObjectKind().GroupVersionKind()
 
@@ -156,20 +158,31 @@ func CompareObjects(t *testing.T, want, got ObjectGetter) {
 	}
 
 	if !cmp.Equal(want.GetObject(), got.GetObject(), cmpopts.EquateEmpty()) {
-		t.Errorf("mismatched objects\ndiff = %v", cmp.Diff(want.GetObject(), got.GetObject()))
+		t.Errorf("mismatched objects for %v %v action\ndiff = %v", action.GetVerb(), action.GetResource().Resource,
+			cmp.Diff(want.GetObject(), got.GetObject()))
 	}
 }
 
 // CompareNames compares two names.
-func CompareNames(t *testing.T, want, got NameGetter) {
+func CompareNames(t *testing.T, action ktesting.Action, want, got NameGetter) {
 	if want.GetName() != got.GetName() {
-		t.Errorf("mismatched names, want %v got %v", want.GetName(), got.GetName())
+		t.Errorf("mismatched names for %v %v action, want %v got %v", action.GetVerb(), action.GetResource().Resource,
+			want.GetName(), got.GetName())
 	}
 }
 
 // ComparePatches compares two patches.
-func ComparePatches(t *testing.T, want, got PatchGetter) {
+func ComparePatches(t *testing.T, action ktesting.Action, want, got PatchGetter) {
 	if string(want.GetPatch()) != string(got.GetPatch()) {
-		t.Errorf("mismatched patches, want %v got %v", string(want.GetPatch()), string(got.GetPatch()))
+		t.Errorf("mismatched patches for %v %v action, want %v got %v", action.GetVerb(), action.GetResource().Resource,
+			string(want.GetPatch()), string(got.GetPatch()))
 	}
+}
+
+// GetFullResourceName returns the full resource name, including subresource if any.
+func GetFullResourceName(action ktesting.Action) string {
+	if action.GetSubresource() != "" {
+		return fmt.Sprintf("%v/%v", action.GetResource().Resource, action.GetSubresource())
+	}
+	return action.GetResource().Resource
 }
