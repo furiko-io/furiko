@@ -27,7 +27,7 @@ func GetPendingTimeout(rj *execution.Job, defaultTimeoutSeconds int64) time.Dura
 	seconds := defaultTimeoutSeconds
 
 	// Override with configured timeout from task.
-	if taskPt := rj.Spec.Template.Task.PendingTimeoutSeconds; taskPt != nil && *taskPt > 0 {
+	if taskPt := rj.Spec.Template.Task.PendingTimeoutSeconds; taskPt != nil && *taskPt >= 0 {
 		seconds = *taskPt
 	}
 

@@ -58,6 +58,7 @@ func TestReconciler(t *testing.T) {
 		coreReactors     []*ktesting.SimpleReactor
 		coreActions      runtimetesting.ActionTest
 		executionActions runtimetesting.ActionTest
+		configs          map[configv1.ConfigName]runtime.Object
 	}{
 		{
 			name:   "create pod",
@@ -85,10 +86,29 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			name:   "don't do anything with existing pod and updated result",
+			name:   "do nothing with existing pod and updated result",
 			target: fakeJobResult,
 			initialPods: []*corev1.Pod{
 				fakePodResult,
+			},
+		},
+		{
+			name:   "update with pod pending",
+			target: fakeJobResult,
+			initialPods: []*corev1.Pod{
+				fakePodPending,
+			},
+			executionActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, fakeJobPending),
+				},
+			},
+		},
+		{
+			name:   "do nothing with updated job status",
+			target: fakeJobPending,
+			initialPods: []*corev1.Pod{
+				fakePodPending,
 			},
 		},
 		{
@@ -117,6 +137,28 @@ func TestReconciler(t *testing.T) {
 						object := generateJobStatusFromPod(fakeJobResult, fakePodPendingTimeoutTerminating)
 						return runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, object), nil
 					},
+				},
+			},
+		},
+		{
+			name:   "do nothing if job has no pending timeout",
+			now:    testutils.Mktime(later15m),
+			target: fakeJobWithoutPendingTimeout,
+			initialPods: []*corev1.Pod{
+				fakePodPending,
+			},
+		},
+		{
+			name:   "do nothing with no default pending timeout",
+			now:    testutils.Mktime(later15m),
+			target: fakeJobPending,
+			initialPods: []*corev1.Pod{
+				fakePodPending,
+			},
+			configs: map[configv1.ConfigName]runtime.Object{
+				configv1.ConfigNameJobController: &configv1.JobControllerConfig{
+					// TODO(irvinlim): Change to 0 once https://github.com/furiko-io/furiko/issues/28 is fixed.
+					DefaultPendingTimeoutSeconds: -1,
 				},
 			},
 		},
@@ -177,9 +219,12 @@ func TestReconciler(t *testing.T) {
 			reconciler := jobcontroller.NewReconciler(ctrlCtx, &configv1.Concurrency{
 				Workers: 1,
 			})
+			for configName, cfg := range tt.configs {
+				c.MockConfigs().MockConfigLoader().SetConfig(configName, cfg)
+			}
+
 			err := c.Start(ctx)
 			assert.NoError(t, err)
-
 			client := c.MockClientsets()
 
 			// Set the current time
@@ -204,9 +249,13 @@ func TestReconciler(t *testing.T) {
 			if tt.targetGenerator != nil {
 				target = tt.targetGenerator()
 			}
+			target = target.DeepCopy()
 			createdJob, err := client.Furiko().ExecutionV1alpha1().Jobs(target.Namespace).
 				Create(ctx, target, metav1.CreateOptions{})
 			assert.NoError(t, err)
+
+			// NOTE(irvinlim): Add a short delay otherwise cache may not sync consistently
+			time.Sleep(time.Millisecond * 10)
 
 			// Wait for cache sync
 			if !cache.WaitForCacheSync(ctx.Done(), ctrlCtx.HasSynced...) {

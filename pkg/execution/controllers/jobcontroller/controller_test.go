@@ -21,6 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
@@ -82,6 +83,16 @@ var (
 	// Job that was created with a fully populated status.
 	fakeJobResult = generateJobStatusFromPod(fakeJob, fakePodResult)
 
+	// Job with pod pending.
+	fakeJobPending = generateJobStatusFromPod(fakeJob, fakePodPending)
+
+	// Job without pending timeout.
+	fakeJobWithoutPendingTimeout = func() *execution.Job {
+		newJob := fakeJobPending.DeepCopy()
+		newJob.Spec.Template.Task.PendingTimeoutSeconds = pointer.Int64(0)
+		return newJob
+	}()
+
 	// Job that has succeeded.
 	fakeJobFinished = generateJobStatusFromPod(fakeJobResult, fakePodFinished)
 
@@ -123,7 +134,7 @@ var (
 		k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
 		k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyTaskKillTimestamp,
 			strconv.Itoa(int(testutils.Mktime(later15m).Unix())))
-		newPod.Spec.ActiveDeadlineSeconds = testutils.Mkint64p(899)
+		newPod.Spec.ActiveDeadlineSeconds = pointer.Int64(899)
 		return newPod
 	}()
 
