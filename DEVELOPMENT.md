@@ -12,9 +12,7 @@ To start developing on Furiko, you will need to set up a local development envir
 2. [**minikube**](https://minikube.sigs.k8s.io/docs/): Sets up a Kubernetes cluster locally using a VM.
 3. [**kubeadm**](https://kubernetes.io/docs/reference/setup-tools/kubeadm/): Sets up a full Kubernetes cluster, like in a production environment.
 
-There are many other ways of deploying and setting up a Kubernetes cluster, which may also work for development purposes.
-
-Most of Furiko development is sufficient to be run on KIND.
+There are many other ways of deploying and setting up a Kubernetes cluster not covered here, and they may also work for development purposes. Most of Furiko development is sufficient to be run on KIND.
 
 ### Setting up a Go Environment
 
@@ -26,9 +24,7 @@ For a tutorial on how to start writing Go, you can use [Go by Example](https://g
 
 ### Monorepo Structure
 
-`furiko-io/furiko` is intended to be structured as a [monorepo](https://monorepo.tools/). Although it is currently in its infancy, we expect this repository quickly grow to house multiple components, including Execution, Federation and Telemetry. This is to aid and reduce the toil needed when sharing Go code across multiple repositories, as well as to consolidate tooling, code style and development workflows when working with many components in a large project.
-
-This approach can be seen in other Go projects by the likes of [`kubernetes/kubernetes`](https://github.com/kubernetes/kubernetes), [`projectcalico/calico`](https://github.com/projectcalico/calico), and so on.
+`furiko-io/furiko` is intended to be structured as a [monorepo](https://monorepo.tools/). Although it is currently in its infancy, we expect this repository quickly grow to house multiple components, including Execution, Federation and Telemetry. This is to aid and reduce the toil needed when sharing Go code across multiple repositories, as well as to consolidate tooling, code style and development workflows when working with many components in a large project. This approach can be seen in other Go projects by the likes of [`kubernetes/kubernetes`](https://github.com/kubernetes/kubernetes), [`projectcalico/calico`](https://github.com/projectcalico/calico), and so on.
 
 Notably, releases have to be done for all components in the single monorepo simultaneously. We believe that this is in fact _a good thing_, and users _should_ be running the same version of all components to ensure maximum compatibility and unhandled bugs arising from version mismatch.
 
