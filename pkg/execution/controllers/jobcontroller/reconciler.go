@@ -564,7 +564,7 @@ func (w *Reconciler) handleDeleteKillingTasks(
 
 		// If task is not killable with kill timestamp, or is still alive beyond kill timestamp + timeout,
 		// use deletion to kill the task instead.
-		if killTS.Add(timeout).Before(ktime.Now().Time) || task.RequiresKillWithDeletion() {
+		if !killTS.Add(timeout).After(ktime.Now().Time) || task.RequiresKillWithDeletion() {
 			klog.InfoS("jobcontroller: worker deleting killing task",
 				"worker", w.Name(),
 				"namespace", rj.GetNamespace(),

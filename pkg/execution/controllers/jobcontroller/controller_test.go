@@ -102,6 +102,36 @@ var (
 		return newJob
 	}()
 
+	// Job with pod being deleted.
+	fakeJobPodDeleting = func() *execution.Job {
+		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
+		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
+			State:   execution.TaskKilled,
+			Result:  job.GetResultPtr(execution.JobResultKilled),
+			Reason:  "Deleted",
+			Message: "Task was killed via deletion",
+		}
+		return newJob
+	}()
+
+	// Job with pod already deleted.
+	fakeJobPodDeleted = func() *execution.Job {
+		newJob := fakeJobPodDeleting.DeepCopy()
+		newJob.Status.Phase = execution.JobKilled
+		newJob.Status.Condition = execution.JobCondition{
+			Finished: &execution.JobConditionFinished{
+				CreatedAt:  testutils.Mkmtimep(createTime),
+				FinishedAt: testutils.Mkmtime(now),
+				Result:     execution.JobResultKilled,
+				Reason:     "Deleted",
+				Message:    "Task was killed via deletion",
+			},
+		}
+		newJob.Status.Tasks[0].Status = *newJob.Status.Tasks[0].DeletedStatus.DeepCopy()
+		newJob.Status.Tasks[0].FinishTimestamp = testutils.Mkmtimep(now)
+		return newJob
+	}()
+
 	// Job that has succeeded.
 	fakeJobFinished = generateJobStatusFromPod(fakeJobResult, fakePodFinished)
 

@@ -27,11 +27,12 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	jobutil "github.com/furiko-io/furiko/pkg/utils/execution/job"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 func TestGetCondition(t *testing.T) {
 	timeNow := time.Now()
-	jobutil.Clock = clock.NewFakeClock(timeNow)
+	ktime.Clock = clock.NewFakeClock(timeNow)
 
 	type args struct {
 		rj         *execution.Job

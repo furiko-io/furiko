@@ -202,6 +202,29 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
+			name:   "delete pod with kill timestamp",
+			now:    testutils.Mktime(killTime).Add(time.Minute * 3),
+			target: fakeJobWithKillTimestamp,
+			initialPods: []*corev1.Pod{
+				fakePodTerminating,
+			},
+			coreActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewDeleteAction(resourcePod, jobNamespace, fakePod.Name),
+				},
+			},
+			executionActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, fakeJobPodDeleting),
+				},
+			},
+		},
+		{
+			name:   "do nothing with already deleted pod",
+			now:    testutils.Mktime(killTime).Add(time.Minute * 3),
+			target: fakeJobPodDeleted,
+		},
+		{
 			name:   "pod succeeded",
 			now:    testutils.Mktime(later15m),
 			target: fakeJobResult,
