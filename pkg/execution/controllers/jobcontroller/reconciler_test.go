@@ -51,6 +51,7 @@ func TestReconciler(t *testing.T) {
 	tests := []struct {
 		name             string
 		target           *execution.Job
+		targetGenerator  func() *execution.Job
 		initialPods      []*corev1.Pod
 		wantErr          bool
 		now              time.Time
@@ -117,6 +118,17 @@ func TestReconciler(t *testing.T) {
 						return runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, object), nil
 					},
 				},
+			},
+		},
+		{
+			name: "do nothing if already marked with pending timeout",
+			now:  testutils.Mktime(later15m),
+			targetGenerator: func() *execution.Job {
+				// NOTE(irvinlim): Can only generate JobStatus after the clock is mocked
+				return generateJobStatusFromPod(fakeJobResult, fakePodPendingTimeoutTerminating)
+			},
+			initialPods: []*corev1.Pod{
+				fakePodPendingTimeoutTerminating,
 			},
 		},
 		{
@@ -188,8 +200,12 @@ func TestReconciler(t *testing.T) {
 			}
 
 			// Create object
-			createdJob, err := client.Furiko().ExecutionV1alpha1().Jobs(tt.target.Namespace).
-				Create(ctx, tt.target, metav1.CreateOptions{})
+			target := tt.target
+			if tt.targetGenerator != nil {
+				target = tt.targetGenerator()
+			}
+			createdJob, err := client.Furiko().ExecutionV1alpha1().Jobs(target.Namespace).
+				Create(ctx, target, metav1.CreateOptions{})
 			assert.NoError(t, err)
 
 			// Wait for cache sync

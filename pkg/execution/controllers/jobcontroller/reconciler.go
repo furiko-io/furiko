@@ -837,6 +837,10 @@ func (w *Reconciler) setTasksKillTimestamp(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, killTimestamp metav1.Time,
 ) error {
 	if err := jobutil.ConcurrentTasks(tasks, func(task jobtasks.Task) error {
+		if ktime.IsTimeSetAndEarlierThanOrEqualTo(task.GetKillTimestamp(), ktime.Now().Time) {
+			return nil
+		}
+
 		if err := task.SetKillTimestamp(ctx, killTimestamp.Time); err != nil {
 			return err
 		}
