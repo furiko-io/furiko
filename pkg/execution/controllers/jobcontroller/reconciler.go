@@ -143,7 +143,7 @@ func (w *Reconciler) sync(
 	rj = w.syncJobStatusFromTaskRefs(rj)
 
 	// Clean up Job if it is finished and beyond its TTL.
-	if err := w.handleTTLAfterFinished(ctx, rj); err != nil {
+	if err := w.handleTTLAfterFinished(ctx, rj, cfg); err != nil {
 		return rj, errors.Wrapf(err, "could not handle TTLAfterFinished")
 	}
 	trace.Step("Handle TTLAfterFinished done")
@@ -697,13 +697,18 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 	return newRj, nil
 }
 
-// handleTTLAfterFinished deletes the Job if its InitialTTLSecondsAfterFinished is exceeded.
-func (w *Reconciler) handleTTLAfterFinished(ctx context.Context, rj *execution.Job) error {
-	// Skip if not set.
-	if rj.Spec.TTLSecondsAfterFinished == nil {
-		return nil
+// handleTTLAfterFinished deletes the Job if its TTLSecondsAfterFinished is exceeded.
+func (w *Reconciler) handleTTLAfterFinished(
+	ctx context.Context,
+	rj *execution.Job,
+	cfg *configv1.JobControllerConfig,
+) error {
+	// Get TTL from JobSpec or fall back to global default.
+	ttl := rj.Spec.TTLSecondsAfterFinished
+	if ttl == nil {
+		spec := int32(cfg.DefaultTTLSecondsAfterFinished)
+		ttl = &spec
 	}
-	ttl := *rj.Spec.TTLSecondsAfterFinished
 
 	// Skip if already being deleted.
 	if isDeleted(rj) {
@@ -716,7 +721,7 @@ func (w *Reconciler) handleTTLAfterFinished(ctx context.Context, rj *execution.J
 	}
 
 	// Not yet expired.
-	duration := time.Duration(ttl) * time.Second
+	duration := time.Duration(*ttl) * time.Second
 	if rj.Status.Condition.Finished.FinishedAt.Add(duration).After(ktime.Now().Time) {
 		return nil
 	}

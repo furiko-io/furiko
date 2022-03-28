@@ -76,7 +76,7 @@ func TestReconciler(t *testing.T) {
 					Verb:     "create",
 					Resource: "pods",
 					Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
-						return true, fakePod1Result, nil
+						return true, fakePod1Result.DeepCopy(), nil
 					},
 				},
 			},
@@ -118,6 +118,41 @@ func TestReconciler(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "pod succeeded",
+			now:    testutils.Mktime(later15m),
+			target: fakeJobResult,
+			initialPods: []*corev1.Pod{
+				fakePod1Finished,
+			},
+			executionActions: runtimetesting.ActionTest{
+				Actions: []ktesting.Action{
+					ktesting.NewUpdateSubresourceAction(resourceJob, "status", fakeJob.Namespace,
+						fakeJobFinishedResult),
+				},
+			},
+		},
+		{
+			name:   "don't delete finished job on TTL after created/started",
+			now:    testutils.Mktime(later60m),
+			target: fakeJobFinishedResult,
+			initialPods: []*corev1.Pod{
+				fakePod1Finished,
+			},
+		},
+		{
+			name:   "delete finished job on TTL after finished",
+			now:    testutils.Mktime(finishAfterTTL),
+			target: fakeJobFinishedResult,
+			initialPods: []*corev1.Pod{
+				fakePod1Finished,
+			},
+			executionActions: runtimetesting.ActionTest{
+				Actions: []ktesting.Action{
+					ktesting.NewDeleteAction(resourceJob, fakeJob.Namespace, fakeJob.Name),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -145,6 +180,7 @@ func TestReconciler(t *testing.T) {
 
 			// Create initial objects
 			for _, pod := range tt.initialPods {
+				pod := pod.DeepCopy()
 				_, err := client.Kubernetes().CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 				if err != nil {
 					t.Fatalf("cannot create Pod: %v", err)
