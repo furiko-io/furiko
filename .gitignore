@@ -26,6 +26,9 @@ testbin/*
 # Go output
 *.cov
 
+# Local environment
+.local
+
 # Build output
 build/
 dist/
