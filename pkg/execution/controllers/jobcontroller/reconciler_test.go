@@ -90,6 +90,8 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
+			// TODO(irvinlim): Maybe fix reconciler to immediately reconcile updated task
+			//  into JobStatus, and reduce 2 API calls into 1.
 			name:   "kill pod with pending timeout",
 			now:    testutils.Mktime(later15m),
 			target: fakeJobResult,
