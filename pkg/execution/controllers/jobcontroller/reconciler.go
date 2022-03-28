@@ -262,6 +262,40 @@ func (w *Reconciler) updateTaskRefStatus(rj *execution.Job, tasks []jobtasks.Tas
 // syncJobStatusFromTaskRefs will sync the rest of the JobStatus from CreatedTaskRefs.
 // The exact flow of data is: PodStatus -> CreatedTaskRefs -> Condition -> Phase.
 func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
+	newRj := UpdateJobStatusFromTaskRefs(rj)
+
+	// Handle job that is newly running.
+	if rj.Status.Condition.Running == nil && newRj.Status.Condition.Running != nil {
+		w.recorder.Eventf(newRj, corev1.EventTypeNormal, "Running",
+			"Job started running")
+	}
+
+	// Handle job that is newly finished.
+	if rj.Status.Condition.Finished == nil && newRj.Status.Condition.Finished != nil {
+		result := newRj.Status.Condition.Finished.Result
+		if result.IsFailed() {
+			w.recorder.Eventf(newRj, corev1.EventTypeWarning, "Failed",
+				"Job failed with result: %v", result)
+		} else {
+			w.recorder.Eventf(newRj, corev1.EventTypeNormal, "Finished",
+				"Job finished with result: %v", result)
+		}
+	}
+
+	// Enqueue work to delete finished Job after TTL.
+	if newRj.Status.Condition.Finished != nil && !isDeleted(newRj) {
+		if newRj.Spec.TTLSecondsAfterFinished != nil {
+			timeout := time.Duration(*newRj.Spec.TTLSecondsAfterFinished) * time.Second
+			duration := time.Until(newRj.Status.Condition.Finished.FinishedAt.Add(timeout))
+			w.enqueueAfter(rj, "ttl_seconds_after_finished", duration)
+		}
+	}
+
+	return newRj
+}
+
+// UpdateJobStatusFromTaskRefs returns a new Job after updating JobStatus from TaskRefs.
+func UpdateJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
 	newRj := rj.DeepCopy()
 
 	// Compute consolidated condition for Job.
@@ -292,33 +326,6 @@ func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job
 
 	// Set phase based on computed status so far.
 	newRj.Status.Phase = jobutil.GetPhase(newRj)
-
-	// Handle job that is newly running.
-	if rj.Status.Condition.Running == nil && newRj.Status.Condition.Running != nil {
-		w.recorder.Eventf(newRj, corev1.EventTypeNormal, "Running",
-			"Job started running")
-	}
-
-	// Handle job that is newly finished.
-	if rj.Status.Condition.Finished == nil && newRj.Status.Condition.Finished != nil {
-		result := newRj.Status.Condition.Finished.Result
-		if result.IsFailed() {
-			w.recorder.Eventf(newRj, corev1.EventTypeWarning, "Failed",
-				"Job failed with result: %v", result)
-		} else {
-			w.recorder.Eventf(newRj, corev1.EventTypeNormal, "Finished",
-				"Job finished with result: %v", result)
-		}
-	}
-
-	// Enqueue work to delete finished Job after TTL.
-	if newRj.Status.Condition.Finished != nil && !isDeleted(newRj) {
-		if newRj.Spec.TTLSecondsAfterFinished != nil {
-			timeout := time.Duration(*newRj.Spec.TTLSecondsAfterFinished) * time.Second
-			duration := time.Until(newRj.Status.Condition.Finished.FinishedAt.Add(timeout))
-			w.enqueueAfter(rj, "ttl_seconds_after_finished", duration)
-		}
-	}
 
 	return newRj
 }

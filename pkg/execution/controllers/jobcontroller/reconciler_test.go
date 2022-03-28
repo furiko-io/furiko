@@ -18,7 +18,6 @@ package jobcontroller_test
 
 import (
 	"context"
-	"strconv"
 	"testing"
 	"time"
 
@@ -63,8 +62,8 @@ func TestReconciler(t *testing.T) {
 			name:   "create pod",
 			target: fakeJob,
 			coreActions: runtimetesting.ActionTest{
-				Actions: []ktesting.Action{
-					ktesting.NewCreateAction(resourcePod, fakeJob.Namespace, fakePod1),
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewCreateAction(resourcePod, fakeJob.Namespace, fakePod),
 				},
 			},
 			coreReactors: []*ktesting.SimpleReactor{
@@ -72,13 +71,15 @@ func TestReconciler(t *testing.T) {
 					Verb:     "create",
 					Resource: "pods",
 					Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
-						return true, fakePod1Result.DeepCopy(), nil
+						// NOTE(irvinlim): Use Reactor to inject a different return value.
+						// Here we return a Pod with creationTimestamp added to simulate kube-apiserver.
+						return true, fakePodResult.DeepCopy(), nil
 					},
 				},
 			},
 			executionActions: runtimetesting.ActionTest{
-				Actions: []ktesting.Action{
-					ktesting.NewUpdateSubresourceAction(resourceJob, "status", fakeJob.Namespace, fakeJobResult),
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, fakeJobResult),
 				},
 			},
 		},
@@ -86,32 +87,34 @@ func TestReconciler(t *testing.T) {
 			name:   "don't do anything with existing pod and updated result",
 			target: fakeJobResult,
 			initialPods: []*corev1.Pod{
-				fakePod1Result,
+				fakePodResult,
 			},
 		},
 		{
-			// TODO(irvinlim): Maybe fix reconciler to immediately reconcile updated task
-			//  into JobStatus, and reduce 2 API calls into 1.
 			name:   "kill pod with pending timeout",
 			now:    testutils.Mktime(later15m),
 			target: fakeJobResult,
 			initialPods: []*corev1.Pod{
-				fakePod1Result,
+				fakePodPending,
 			},
 			coreActions: runtimetesting.ActionTest{
 				ActionGenerators: []runtimetesting.ActionGenerator{
-					func() (ktesting.Action, error) {
-						newPod := fakePod1Result.DeepCopy()
+					func() (runtimetesting.Action, error) {
+						newPod := fakePodPending.DeepCopy()
 						k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
-						return ktesting.NewUpdateAction(resourcePod, fakeJob.Namespace, newPod), nil
+						return runtimetesting.NewUpdateAction(resourcePod, fakeJob.Namespace, newPod), nil
 					},
-					func() (ktesting.Action, error) {
-						newPod := fakePod1Result.DeepCopy()
-						k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
-						k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyTaskKillTimestamp,
-							strconv.Itoa(int(testutils.Mktime(later15m).Unix())))
-						newPod.Spec.ActiveDeadlineSeconds = testutils.Mkint64p(1)
-						return ktesting.NewUpdateAction(resourcePod, fakeJob.Namespace, newPod), nil
+					func() (runtimetesting.Action, error) {
+						return runtimetesting.NewUpdateAction(resourcePod, fakeJob.Namespace, fakePodPendingTimeoutTerminating), nil
+					},
+				},
+			},
+			executionActions: runtimetesting.ActionTest{
+				ActionGenerators: []runtimetesting.ActionGenerator{
+					func() (runtimetesting.Action, error) {
+						// NOTE(irvinlim): Can only generate JobStatus after the clock is mocked
+						object := generateJobStatusFromPod(fakeJobResult, fakePodPendingTimeoutTerminating)
+						return runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, object), nil
 					},
 				},
 			},
@@ -121,33 +124,32 @@ func TestReconciler(t *testing.T) {
 			now:    testutils.Mktime(later15m),
 			target: fakeJobResult,
 			initialPods: []*corev1.Pod{
-				fakePod1Finished,
+				fakePodFinished,
 			},
 			executionActions: runtimetesting.ActionTest{
-				Actions: []ktesting.Action{
-					ktesting.NewUpdateSubresourceAction(resourceJob, "status", fakeJob.Namespace,
-						fakeJobFinishedResult),
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, fakeJobFinished),
 				},
 			},
 		},
 		{
 			name:   "don't delete finished job on TTL after created/started",
 			now:    testutils.Mktime(later60m),
-			target: fakeJobFinishedResult,
+			target: fakeJobFinished,
 			initialPods: []*corev1.Pod{
-				fakePod1Finished,
+				fakePodFinished,
 			},
 		},
 		{
 			name:   "delete finished job on TTL after finished",
 			now:    testutils.Mktime(finishAfterTTL),
-			target: fakeJobFinishedResult,
+			target: fakeJobFinished,
 			initialPods: []*corev1.Pod{
-				fakePod1Finished,
+				fakePodFinished,
 			},
 			executionActions: runtimetesting.ActionTest{
-				Actions: []ktesting.Action{
-					ktesting.NewDeleteAction(resourceJob, fakeJob.Namespace, fakeJob.Name),
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewDeleteAction(resourceJob, fakeJob.Namespace, fakeJob.Name),
 				},
 			},
 		},
