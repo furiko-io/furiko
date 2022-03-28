@@ -65,7 +65,7 @@ func TestReconciler(t *testing.T) {
 			target: fakeJob,
 			coreActions: runtimetesting.ActionTest{
 				Actions: []runtimetesting.Action{
-					runtimetesting.NewCreateAction(resourcePod, fakeJob.Namespace, fakePod),
+					runtimetesting.NewCreateAction(resourcePod, jobNamespace, fakePod),
 				},
 			},
 			coreReactors: []*ktesting.SimpleReactor{
@@ -81,7 +81,7 @@ func TestReconciler(t *testing.T) {
 			},
 			executionActions: runtimetesting.ActionTest{
 				Actions: []runtimetesting.Action{
-					runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, fakeJobResult),
+					runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, fakeJobResult),
 				},
 			},
 		},
@@ -100,7 +100,7 @@ func TestReconciler(t *testing.T) {
 			},
 			executionActions: runtimetesting.ActionTest{
 				Actions: []runtimetesting.Action{
-					runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, fakeJobPending),
+					runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, fakeJobPending),
 				},
 			},
 		},
@@ -123,10 +123,10 @@ func TestReconciler(t *testing.T) {
 					func() (runtimetesting.Action, error) {
 						newPod := fakePodPending.DeepCopy()
 						k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
-						return runtimetesting.NewUpdateAction(resourcePod, fakeJob.Namespace, newPod), nil
+						return runtimetesting.NewUpdateAction(resourcePod, jobNamespace, newPod), nil
 					},
 					func() (runtimetesting.Action, error) {
-						return runtimetesting.NewUpdateAction(resourcePod, fakeJob.Namespace, fakePodPendingTimeoutTerminating), nil
+						return runtimetesting.NewUpdateAction(resourcePod, jobNamespace, fakePodPendingTimeoutTerminating), nil
 					},
 				},
 			},
@@ -135,7 +135,7 @@ func TestReconciler(t *testing.T) {
 					func() (runtimetesting.Action, error) {
 						// NOTE(irvinlim): Can only generate JobStatus after the clock is mocked
 						object := generateJobStatusFromPod(fakeJobResult, fakePodPendingTimeoutTerminating)
-						return runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, object), nil
+						return runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, object), nil
 					},
 				},
 			},
@@ -174,6 +174,34 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
+			name:   "do nothing if kill timestamp is not yet reached",
+			target: fakeJobWithKillTimestamp,
+			initialPods: []*corev1.Pod{
+				fakePodPending,
+			},
+		},
+		{
+			name:   "kill pod with kill timestamp",
+			now:    testutils.Mktime(killTime),
+			target: fakeJobWithKillTimestamp,
+			initialPods: []*corev1.Pod{
+				fakePodPending,
+			},
+			coreActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewUpdateAction(resourcePod, jobNamespace, fakePodTerminating),
+				},
+			},
+		},
+		{
+			name:   "do nothing with existing kill timestamp",
+			now:    testutils.Mktime(killTime),
+			target: fakeJobWithKillTimestamp,
+			initialPods: []*corev1.Pod{
+				fakePodTerminating,
+			},
+		},
+		{
 			name:   "pod succeeded",
 			now:    testutils.Mktime(later15m),
 			target: fakeJobResult,
@@ -182,7 +210,7 @@ func TestReconciler(t *testing.T) {
 			},
 			executionActions: runtimetesting.ActionTest{
 				Actions: []runtimetesting.Action{
-					runtimetesting.NewUpdateStatusAction(resourceJob, fakeJob.Namespace, fakeJobFinished),
+					runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, fakeJobFinished),
 				},
 			},
 		},
@@ -203,7 +231,7 @@ func TestReconciler(t *testing.T) {
 			},
 			executionActions: runtimetesting.ActionTest{
 				Actions: []runtimetesting.Action{
-					runtimetesting.NewDeleteAction(resourceJob, fakeJob.Namespace, fakeJob.Name),
+					runtimetesting.NewDeleteAction(resourceJob, jobNamespace, fakeJob.Name),
 				},
 			},
 		},

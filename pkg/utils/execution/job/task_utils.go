@@ -44,7 +44,7 @@ func IsTaskActive(task jobtasks.Task) bool {
 // IsTaskFinished tests if the tasks.Task is finished.
 func IsTaskFinished(task jobtasks.Task) bool {
 	taskStatus := task.GetTaskRef()
-	return taskStatus.FinishTimestamp.IsZero()
+	return !taskStatus.FinishTimestamp.IsZero()
 }
 
 // GetMaxAllowedTasks returns the maximum number of allowed tasks that a Job can have.

@@ -18,6 +18,7 @@ package jobcontroller_test
 
 import (
 	"strconv"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +39,7 @@ const (
 
 	createTime     = "2021-02-09T04:06:00Z"
 	startTime      = "2021-02-09T04:06:01Z"
+	killTime       = "2021-02-09T04:06:10Z"
 	finishTime     = "2021-02-09T04:06:18Z"
 	now            = "2021-02-09T04:06:05Z"
 	later15m       = "2021-02-09T04:21:00Z"
@@ -86,6 +88,13 @@ var (
 	// Job with pod pending.
 	fakeJobPending = generateJobStatusFromPod(fakeJob, fakePodPending)
 
+	// Job with kill timestamp.
+	fakeJobWithKillTimestamp = func() *execution.Job {
+		newJob := fakeJobPending.DeepCopy()
+		newJob.Spec.KillTimestamp = testutils.Mkmtimep(killTime)
+		return newJob
+	}()
+
 	// Job without pending timeout.
 	fakeJobWithoutPendingTimeout = func() *execution.Job {
 		newJob := fakeJobPending.DeepCopy()
@@ -127,14 +136,14 @@ var (
 		return newPod
 	}()
 
+	// Pod that is in Pending state and is in the process of being killed.
+	fakePodTerminating = killPod(fakePodPending, testutils.Mktime(killTime))
+
 	// Pod that is in Pending state and is in the process of being killed by pending
 	// timeout.
 	fakePodPendingTimeoutTerminating = func() *corev1.Pod {
-		newPod := fakePodPending.DeepCopy()
+		newPod := killPod(fakePodPending, testutils.Mktime(later15m))
 		k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
-		k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyTaskKillTimestamp,
-			strconv.Itoa(int(testutils.Mktime(later15m).Unix())))
-		newPod.Spec.ActiveDeadlineSeconds = pointer.Int64(899)
 		return newPod
 	}()
 
@@ -169,4 +178,12 @@ var (
 func generateJobStatusFromPod(rj *execution.Job, pod *corev1.Pod) *execution.Job {
 	newJob := job.UpdateJobTaskRefs(rj, []tasks.Task{podtaskexecutor.NewPodTask(pod, nil)})
 	return jobcontroller.UpdateJobStatusFromTaskRefs(newJob)
+}
+
+// killPod returns a new Pod after setting the kill timestamp.
+func killPod(pod *corev1.Pod, ts time.Time) *corev1.Pod {
+	newPod := pod.DeepCopy()
+	k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyTaskKillTimestamp, strconv.Itoa(int(ts.Unix())))
+	newPod.Spec.ActiveDeadlineSeconds = pointer.Int64(int64(ts.Sub(newPod.Status.StartTime.Time).Seconds()))
+	return newPod
 }

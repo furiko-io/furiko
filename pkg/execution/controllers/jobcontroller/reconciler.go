@@ -505,7 +505,7 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 // handleKillJob updates kill timestamp of all tasks if spec.killTimestamp is set.
 func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks []jobtasks.Task) error {
 	// Skip if not killing.
-	if rj.Spec.KillTimestamp == nil || ktime.Now().Time.Before(rj.Spec.KillTimestamp.Time) {
+	if rj.Spec.KillTimestamp == nil || ktime.Now().Before(rj.Spec.KillTimestamp) {
 		return nil
 	}
 
