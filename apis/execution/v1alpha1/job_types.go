@@ -487,7 +487,7 @@ type TaskRef struct {
 	// reconciled as deleted. If the task is deleted, Status cannot be reconciled
 	// from the task any more, and instead uses information stored in DeletedStatus.
 	// In other words, this field acts as a tombstone marker, and is only used after
-	// the task object is already deleted. complete.
+	// the deletion of the task object is complete.
 	//
 	// While the task is in the process of being deleted (i.e. deletionTimestamp is
 	// set but object still exists), Status will still be reconciled from the actual
