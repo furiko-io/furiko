@@ -43,10 +43,6 @@ import (
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
-const (
-	flushActionTimeout = time.Millisecond * 100
-)
-
 var (
 	resourcePod = runtimetesting.NewGroupVersionResource("core", "v1", "pods")
 	resourceJob = runtimetesting.NewGroupVersionResource(executiongroup.GroupName, execution.Version, "jobs")
@@ -187,15 +183,15 @@ func TestReconciler(t *testing.T) {
 				}
 			}
 
-			// Wait for cache sync
-			if !cache.WaitForCacheSync(ctx.Done(), ctrlCtx.HasSynced...) {
-				assert.FailNow(t, "caches not synced")
-			}
-
 			// Create object
 			createdJob, err := client.Furiko().ExecutionV1alpha1().Jobs(tt.target.Namespace).
 				Create(ctx, tt.target, metav1.CreateOptions{})
 			assert.NoError(t, err)
+
+			// Wait for cache sync
+			if !cache.WaitForCacheSync(ctx.Done(), ctrlCtx.HasSynced...) {
+				assert.FailNow(t, "caches not synced")
+			}
 
 			// Clear all actions prior to reconcile
 			client.ClearActions()
@@ -209,10 +205,6 @@ func TestReconciler(t *testing.T) {
 			if err := reconciler.SyncOne(ctx, createdJob.Namespace, createdJob.Name, 0); (err != nil) != tt.wantErr {
 				t.Errorf("SyncOne() error = %v, wantErr %v", err, tt.wantErr)
 			}
-
-			// Sleep for a short duration in case API requests are not yet called
-			// TODO(irvinlim): There may be a better way to do this
-			time.Sleep(flushActionTimeout)
 
 			// Compare actions.
 			runtimetesting.CompareActions(t, tt.coreActions, client.KubernetesMock().Actions())
