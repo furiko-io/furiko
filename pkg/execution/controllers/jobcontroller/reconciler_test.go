@@ -225,6 +225,38 @@ func TestReconciler(t *testing.T) {
 			target: fakeJobPodDeleted,
 		},
 		{
+			name:   "finalize job",
+			target: fakeJobWithDeletionTimestamp,
+			initialPods: []*corev1.Pod{
+				fakePodTerminating,
+			},
+			coreActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewDeleteAction(resourcePod, jobNamespace, fakePod.Name),
+				},
+			},
+			executionActions: runtimetesting.ActionTest{
+				ActionGenerators: []runtimetesting.ActionGenerator{
+					func() (runtimetesting.Action, error) {
+						// NOTE(irvinlim): Can safely ignore the transient status update here
+						action := runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, fakeJobWithDeletionTimestamp)
+						action.IgnoreObject = true
+						return action, nil
+					},
+				},
+			},
+		},
+		{
+			name:   "finalize job with already deleted pods",
+			target: fakeJobWithDeletionTimestampAndKilledPods,
+			executionActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewUpdateAction(resourceJob, jobNamespace, fakeJobWithDeletionTimestampAndDeletedPods),
+					runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, fakeJobWithDeletionTimestampAndDeletedPods),
+				},
+			},
+		},
+		{
 			name:   "pod succeeded",
 			now:    testutils.Mktime(later15m),
 			target: fakeJobResult,

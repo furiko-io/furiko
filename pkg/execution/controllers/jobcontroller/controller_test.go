@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
+	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
@@ -55,6 +56,9 @@ var (
 			Name:              jobName,
 			Namespace:         jobNamespace,
 			CreationTimestamp: testutils.Mkmtime(createTime),
+			Finalizers: []string{
+				executiongroup.DeleteDependentsFinalizer,
+			},
 		},
 		Spec: execution.JobSpec{
 			Type: execution.JobTypeAdhoc,
@@ -92,6 +96,59 @@ var (
 	fakeJobWithKillTimestamp = func() *execution.Job {
 		newJob := fakeJobPending.DeepCopy()
 		newJob.Spec.KillTimestamp = testutils.Mkmtimep(killTime)
+		return newJob
+	}()
+
+	// Job with deletion timestamp.
+	fakeJobWithDeletionTimestamp = func() *execution.Job {
+		newJob := fakeJobPending.DeepCopy()
+		newJob.DeletionTimestamp = testutils.Mkmtimep(killTime)
+		return newJob
+	}()
+
+	// Job with deletion timestamp whose pods are killed.
+	fakeJobWithDeletionTimestampAndKilledPods = func() *execution.Job {
+		newJob := fakeJobWithDeletionTimestamp.DeepCopy()
+		newJob.Status.Phase = execution.JobKilled
+		newJob.Status.Condition = execution.JobCondition{
+			Finished: &execution.JobConditionFinished{
+				CreatedAt:  testutils.Mkmtimep(createTime),
+				FinishedAt: testutils.Mkmtime(killTime),
+				Result:     execution.JobResultKilled,
+			},
+		}
+		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
+			State:   execution.TaskKilled,
+			Result:  job.GetResultPtr(execution.JobResultKilled),
+			Reason:  "JobDeleted",
+			Message: "Task was killed in response to deletion of Job",
+		}
+		newJob.Status.Tasks[0].FinishTimestamp = testutils.Mkmtimep(killTime)
+		return newJob
+	}()
+
+	// Job with deletion timestamp whose pods are killed.
+	fakeJobWithDeletionTimestampAndDeletedPods = func() *execution.Job {
+		newJob := fakeJobWithDeletionTimestamp.DeepCopy()
+		newJob.Finalizers = k8sutils.RemoveFinalizer(newJob.Finalizers, executiongroup.DeleteDependentsFinalizer)
+		newJob.Status.Phase = execution.JobKilled
+		newJob.Status.Condition = execution.JobCondition{
+			Finished: &execution.JobConditionFinished{
+				CreatedAt:  testutils.Mkmtimep(createTime),
+				FinishedAt: testutils.Mkmtime(killTime),
+				Result:     execution.JobResultKilled,
+				Reason:     "JobDeleted",
+				Message:    "Task was killed in response to deletion of Job",
+			},
+		}
+		newJob.Status.Tasks[0].Status = execution.TaskStatus{
+			State:   execution.TaskKilled,
+			Result:  job.GetResultPtr(execution.JobResultKilled),
+			Reason:  "JobDeleted",
+			Message: "Task was killed in response to deletion of Job",
+		}
+		newJob.Status.Tasks[0].DeletedStatus = newJob.Status.Tasks[0].Status.DeepCopy()
+		newJob.Status.Tasks[0].FinishTimestamp = testutils.Mkmtimep(killTime)
 		return newJob
 	}()
 
