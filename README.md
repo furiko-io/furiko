@@ -1,14 +1,17 @@
 # Furiko
 
+![Furiko Logo](./docs/images/color_horizontal.png)
+
 [![CI](https://github.com/furiko-io/furiko/actions/workflows/ci.yml/badge.svg)](https://github.com/furiko-io/furiko/actions/workflows/ci.yml)
 [![Releases](https://img.shields.io/github/release-pre/furiko-io/furiko.svg?sort=semver)](https://github.com/furiko-io/furiko/releases)
+![Go version](https://img.shields.io/github/go-mod/go-version/furiko-io/furiko)
+![Kubernetes version](https://img.shields.io/badge/k8s-v1.23-blue)
 [![LICENSE](https://img.shields.io/github/license/furiko-io/furiko.svg)](https://github.com/furiko-io/furiko/blob/main/LICENSE)
 [![codecov](https://codecov.io/gh/furiko-io/furiko/branch/main/graph/badge.svg?token=ZSG05UXWJJ)](https://codecov.io/gh/furiko-io/furiko)
 
-
-![Furiko Logo](./docs/images/color_horizontal.png)
-
 **Furiko** is a cloud-native, enterprise-level cron and adhoc job platform for Kubernetes.
+
+The main website for documentation and updates is hosted at <https://furiko.io>.
 
 ## Introduction
 
@@ -23,6 +26,10 @@ Some use cases that are perfect for Furiko include:
 - Starting multiple jobs to execute one after another, once the previous job has finished
 - Event-driven, offline/asynchronous job processing via webhooks
 - Building a platform to automate business operations via form-based inputs (with Furiko as the job engine)
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
