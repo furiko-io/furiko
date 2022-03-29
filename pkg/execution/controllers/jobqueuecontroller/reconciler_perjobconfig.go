@@ -127,7 +127,7 @@ func (w *PerConfigReconciler) SyncOne(ctx context.Context, namespace, name strin
 		if !ok {
 			continue
 		}
-		if err := w.startJob(ctx, rj, store, activeCount); err != nil {
+		if err := w.startJob(ctx, rjc, rj, store, activeCount); err != nil {
 			return errors.Wrapf(err, "cannot start job")
 		}
 
@@ -204,17 +204,18 @@ func (w *PerConfigReconciler) canStartJob(
 
 func (w *PerConfigReconciler) startJob(
 	ctx context.Context,
+	rjc *execution.JobConfig,
 	rj *execution.Job,
 	store controllercontext.ActiveJobStore,
 	oldCount int64,
 ) (err error) {
 	// Atomically update the count, otherwise return an error to retry creation via workqueue.
-	if !store.CheckAndAdd(rj, oldCount) {
+	if !store.CheckAndAdd(rjc, oldCount) {
 		return fmt.Errorf("concurrent add, try again")
 	}
 	defer func() {
 		if err != nil {
-			store.Delete(rj)
+			store.Delete(rjc)
 		}
 	}()
 

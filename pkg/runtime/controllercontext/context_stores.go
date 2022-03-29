@@ -55,8 +55,8 @@ func (c *ContextStores) Register(store Store) {
 
 type ActiveJobStore interface {
 	CountActiveJobsForConfig(rjc *execution.JobConfig) int64
-	CheckAndAdd(rj *execution.Job, oldCount int64) (success bool)
-	Delete(rj *execution.Job)
+	CheckAndAdd(rjc *execution.JobConfig, oldCount int64) (success bool)
+	Delete(rjc *execution.JobConfig)
 }
 
 // ActiveJobStore returns the active job store.

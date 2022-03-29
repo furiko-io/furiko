@@ -107,6 +107,17 @@ func main() {
 		klog.Fatalf("cannot initialize controller manager: %v", err)
 	}
 
+	// Set up stores.
+	for _, factory := range GetStoreFactories() {
+		klog.Infof("setting up store %v", factory.Name())
+		store, err := factory.New(ctrlContext)
+		if err != nil {
+			klog.Fatalf("cannot initialize store %v: %v", factory.Name(), err)
+		}
+		mgr.AddStore(store)
+		ctrlContext.Stores().Register(store)
+	}
+
 	// Set up controllers.
 	for _, factory := range GetControllerFactories() {
 		concurrencySpec := options.ControllerConcurrency
@@ -119,17 +130,6 @@ func main() {
 			klog.Fatalf("cannot initialize controller %v: %v", factory.Name(), err)
 		}
 		mgr.Add(controller)
-	}
-
-	// Set up stores.
-	for _, factory := range GetStoreFactories() {
-		klog.Infof("setting up store %v", factory.Name())
-		store, err := factory.New(ctrlContext)
-		if err != nil {
-			klog.Fatalf("cannot initialize store %v: %v", factory.Name(), err)
-		}
-		mgr.AddStore(store)
-		ctrlContext.Stores().Register(store)
 	}
 
 	ctx := ctrl.SetupSignalHandler()

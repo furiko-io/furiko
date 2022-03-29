@@ -18,7 +18,6 @@ package croncontroller_test
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -26,9 +25,12 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
 const (
+	scheduleUnix  = 1604188800
+	scheduleTime  = "2020-11-01T00:00:00Z"
 	testNamespace = "test"
 	testName      = "sample-job.1605774500690"
 )
@@ -42,8 +44,8 @@ func TestJobConfigKeyFunc(t *testing.T) {
 	}{
 		{
 			name:         "basic test",
-			scheduleTime: time.Unix(1604188800, 0),
-			want:         fmt.Sprintf("%v/%v.%v", testNamespace, testName, 1604188800),
+			scheduleTime: testutils.Mktime(scheduleTime),
+			want:         fmt.Sprintf("%v/%v.%v", testNamespace, testName, scheduleUnix),
 		},
 	}
 	for _, tt := range tests {
@@ -77,9 +79,9 @@ func TestSplitJobConfigKey(t *testing.T) {
 	}{
 		{
 			name:     "basic test",
-			key:      fmt.Sprintf("%v.%v", testName, 1604188800),
+			key:      fmt.Sprintf("%v.%v", testName, scheduleUnix),
 			wantName: testName,
-			wantTS:   time.Unix(1604188800, 0),
+			wantTS:   testutils.Mktime(scheduleTime),
 		},
 		{
 			name:    "empty key",
@@ -114,7 +116,7 @@ func TestSplitJobConfigKey(t *testing.T) {
 			if gotName != tt.wantName {
 				t.Errorf("SplitJobConfigKeyName() gotName = %v, want %v", gotName, tt.wantName)
 			}
-			if !reflect.DeepEqual(gotTS, tt.wantTS) {
+			if !gotTS.Equal(tt.wantTS) {
 				t.Errorf("SplitJobConfigKeyName() gotTS = %v, want %v", gotTS, tt.wantTS)
 			}
 		})

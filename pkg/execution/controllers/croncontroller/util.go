@@ -51,8 +51,14 @@ func JobConfigKeyFunc(config *execution.JobConfig, scheduleTime time.Time) (stri
 	}
 
 	// Add Unix timestamp (seconds) in key.
-	wrappedKey := fmt.Sprintf("%v.%v", key, scheduleTime.Unix())
-	return wrappedKey, nil
+	return JoinJobConfigKeyName(key, scheduleTime), nil
+}
+
+// JoinJobConfigKeyName joins a key with a scheduled timestamp for a JobConfig.
+// Performs the reverse of SplitJobConfigKeyName.
+func JoinJobConfigKeyName(key string, ts time.Time) string {
+	wrappedKey := fmt.Sprintf("%v.%v", key, ts.Unix())
+	return wrappedKey
 }
 
 // SplitJobConfigKeyName splits a key into name and scheduled timestamp for a JobConfig.

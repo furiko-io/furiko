@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -67,21 +68,14 @@ type Context struct {
 	controllercontext.ContextInterface
 	jobInformer       executioninformers.JobInformer
 	jobconfigInformer executioninformers.JobConfigInformer
-	hasSynced         []cache.InformerSynced
+	HasSynced         []cache.InformerSynced
 	queue             workqueue.RateLimitingInterface
 	updatedConfigs    chan *execution.JobConfig
-	recorder          record.EventRecorder
 }
 
+// NewContext returns a new Context.
 func NewContext(context controllercontext.ContextInterface) *Context {
 	c := &Context{ContextInterface: context}
-
-	// Create recorder.
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
-		Interface: c.Clientsets().Kubernetes().CoreV1().Events(""),
-	})
-	c.recorder = eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
 
 	// Create workqueue.
 	ratelimiter := workqueue.DefaultControllerRateLimiter()
@@ -90,7 +84,7 @@ func NewContext(context controllercontext.ContextInterface) *Context {
 	// Bind informers.
 	c.jobInformer = c.Informers().Furiko().Execution().V1alpha1().Jobs()
 	c.jobconfigInformer = c.Informers().Furiko().Execution().V1alpha1().JobConfigs()
-	c.hasSynced = []cache.InformerSynced{
+	c.HasSynced = []cache.InformerSynced{
 		c.jobInformer.Informer().HasSynced,
 		c.jobconfigInformer.Informer().HasSynced,
 	}
@@ -98,6 +92,15 @@ func NewContext(context controllercontext.ContextInterface) *Context {
 	c.updatedConfigs = make(chan *execution.JobConfig, updatedConfigsBufferSize)
 
 	return c
+}
+
+// NewRecorder returns a new Recorder for the controller.
+func NewRecorder(context controllercontext.ContextInterface) record.EventRecorder {
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
+		Interface: context.Clientsets().Kubernetes().CoreV1().Events(""),
+	})
+	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
 }
 
 func NewController(
@@ -110,7 +113,18 @@ func NewController(
 
 	ctrl.cronWorker = NewCronWorker(ctrl.Context)
 	ctrl.informerWorker = NewInformerWorker(ctrl.Context)
-	ctrl.reconciler = reconciler.NewController(NewReconciler(ctrl.Context, concurrency), ctrl.queue)
+
+	client := NewExecutionControl(
+		(&Reconciler{}).Name(),
+		ctrlContext.Clientsets().Furiko().ExecutionV1alpha1(),
+		NewRecorder(ctrl.Context),
+	)
+	store, err := ctrlContext.Stores().ActiveJobStore()
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot load ActiveJobStore")
+	}
+	recon := NewReconciler(ctrl.Context, client, store, concurrency)
+	ctrl.reconciler = reconciler.NewController(recon, ctrl.queue)
 
 	return ctrl, nil
 }
@@ -125,7 +139,7 @@ func (c *Controller) Run(ctx context.Context) error {
 		ctx,
 		controllerName,
 		waitForCacheSyncTimeout,
-		c.hasSynced...,
+		c.HasSynced...,
 	); err != nil {
 		klog.ErrorS(err, "croncontroller: cache sync timeout")
 		return err
