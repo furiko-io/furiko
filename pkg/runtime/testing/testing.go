@@ -18,10 +18,10 @@ package testing
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	testinginterface "github.com/mitchellh/go-testing-interface"
 	"k8s.io/apimachinery/pkg/runtime"
 	ktesting "k8s.io/client-go/testing"
 
@@ -41,7 +41,7 @@ type PatchGetter interface {
 }
 
 // CompareActions compares the actions we received against the ActionTest spec.
-func CompareActions(t *testing.T, test ActionTest, got []ktesting.Action) {
+func CompareActions(t testinginterface.T, test ActionTest, got []ktesting.Action) {
 	actions, err := test.GetActions()
 	if err != nil {
 		t.Fatalf("cannot get actions from test: %v", err)
@@ -61,8 +61,7 @@ func CompareActions(t *testing.T, test ActionTest, got []ktesting.Action) {
 		if err := CompareAction(wantAction, gotAction); err != nil {
 			t.Errorf("action %d (%v %v) did not match received action (%v %v): %v",
 				idx+1, wantAction.GetVerb(), GetFullResourceName(wantAction),
-				gotAction.GetVerb(), GetFullResourceName(gotAction), err,
-			)
+				gotAction.GetVerb(), GetFullResourceName(gotAction), err)
 		}
 		idx++
 	}
@@ -78,6 +77,10 @@ func CompareAction(want Action, got ktesting.Action) error {
 	if !want.Matches(got.GetVerb(), got.GetResource().Resource) {
 		return fmt.Errorf("mismatched actions, want %v %v got %v %v",
 			want.GetVerb(), want.GetResource(), got.GetVerb(), got.GetResource())
+	}
+
+	if want.GetNamespace() != got.GetNamespace() {
+		return fmt.Errorf("mismatched namespace, want %v got %v", want.GetNamespace(), got.GetNamespace())
 	}
 
 	// Compare by ObjectGetter.

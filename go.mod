@@ -6,6 +6,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/furiko-io/cronexpr v0.1.1
 	github.com/google/go-cmp v0.5.6
+	github.com/mitchellh/go-testing-interface v1.0.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/nleeper/goment v1.4.1

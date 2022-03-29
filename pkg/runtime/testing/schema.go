@@ -17,13 +17,25 @@
 package testing
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	ktesting "k8s.io/client-go/testing"
 )
 
+// NewGroupVersionResource is a shorthand method to return a GroupVersionResource.
 func NewGroupVersionResource(group, version, resource string) schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    group,
 		Version:  version,
 		Resource: resource,
 	}
+}
+
+// GetFullResourceName returns the full resource name, including subresource if any.
+func GetFullResourceName(action ktesting.Action) string {
+	if action.GetSubresource() != "" {
+		return fmt.Sprintf("%v/%v", action.GetResource().Resource, action.GetSubresource())
+	}
+	return action.GetResource().Resource
 }

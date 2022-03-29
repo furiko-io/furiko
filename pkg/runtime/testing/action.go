@@ -19,6 +19,7 @@ package testing
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ktesting "k8s.io/client-go/testing"
 )
 
@@ -95,6 +96,15 @@ func NewUpdateAction(resource schema.GroupVersionResource, namespace string, obj
 
 func NewUpdateStatusAction(resource schema.GroupVersionResource, namespace string, object runtime.Object) Action {
 	return WrapAction(ktesting.NewUpdateSubresourceAction(resource, "status", namespace, object))
+}
+
+func NewPatchAction(
+	resource schema.GroupVersionResource,
+	namespace, name string,
+	pt types.PatchType,
+	patch []byte,
+) Action {
+	return WrapAction(ktesting.NewPatchAction(resource, namespace, name, pt, patch))
 }
 
 func NewDeleteAction(resource schema.GroupVersionResource, namespace, name string) Action {
