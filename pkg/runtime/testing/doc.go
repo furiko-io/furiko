@@ -14,22 +14,5 @@
  * limitations under the License.
  */
 
-package job
-
-import (
-	"time"
-
-	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-)
-
-// GetPendingTimeout returns the pending timeout for the given Job.
-func GetPendingTimeout(rj *execution.Job, defaultTimeoutSeconds int64) time.Duration {
-	seconds := defaultTimeoutSeconds
-
-	// Override with configured timeout from task.
-	if taskPt := rj.Spec.Template.Task.PendingTimeoutSeconds; taskPt != nil && *taskPt >= 0 {
-		seconds = *taskPt
-	}
-
-	return time.Duration(seconds) * time.Second
-}
+// Package testing contains testing utilities for controller runtimes.
+package testing

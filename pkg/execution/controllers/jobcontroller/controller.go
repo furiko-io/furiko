@@ -32,6 +32,7 @@ import (
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor"
+	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/generated/clientset/versioned/scheme"
 	executioninformers "github.com/furiko-io/furiko/pkg/generated/informers/externalversions/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -62,21 +63,30 @@ type Context struct {
 	controllercontext.ContextInterface
 	podInformer coreinformers.PodInformer
 	jobInformer executioninformers.JobInformer
-	hasSynced   []cache.InformerSynced
+	HasSynced   []cache.InformerSynced
 	queue       workqueue.RateLimitingInterface
 	recorder    record.EventRecorder
-	tasks       *taskexecutor.Manager
+	tasks       tasks.ExecutorFactory
 }
 
+// NewContext returns a new Context.
 func NewContext(context controllercontext.ContextInterface) *Context {
-	c := &Context{ContextInterface: context}
-
 	// Create recorder.
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
-		Interface: c.Clientsets().Kubernetes().CoreV1().Events(""),
+		Interface: context.Clientsets().Kubernetes().CoreV1().Events(""),
 	})
-	c.recorder = eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
+
+	return NewContextWithRecorder(context, recorder)
+}
+
+// NewContextWithRecorder returns a new Context with a custom EventRecorder.
+func NewContextWithRecorder(context controllercontext.ContextInterface, recorder record.EventRecorder) *Context {
+	c := &Context{ContextInterface: context}
+
+	// Set recorder.
+	c.recorder = recorder
 
 	// Create workqueue.
 	ratelimiter := workqueue.DefaultControllerRateLimiter()
@@ -85,12 +95,12 @@ func NewContext(context controllercontext.ContextInterface) *Context {
 	// Bind informers.
 	c.podInformer = c.Informers().Kubernetes().Core().V1().Pods()
 	c.jobInformer = c.Informers().Furiko().Execution().V1alpha1().Jobs()
-	c.hasSynced = []cache.InformerSynced{
+	c.HasSynced = []cache.InformerSynced{
 		c.podInformer.Informer().HasSynced,
 		c.jobInformer.Informer().HasSynced,
 	}
 
-	// Add task manager
+	// Set task manager.
 	c.tasks = taskexecutor.NewManager(context.Clientsets(), context.Informers())
 
 	return c
@@ -120,7 +130,7 @@ func (c *Controller) Run(ctx context.Context) error {
 		ctx,
 		controllerName,
 		waitForCacheSyncTimeout,
-		c.hasSynced...,
+		c.HasSynced...,
 	); err != nil {
 		klog.ErrorS(err, "jobcontroller: cache sync timeout")
 		return err

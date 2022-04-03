@@ -19,6 +19,7 @@ package jobcontroller
 import (
 	"context"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +51,10 @@ func (c *ExecutionControl) UpdateJob(ctx context.Context, rj, newRj *execution.J
 		return false, nil
 	}
 
+	if klog.V(5).Enabled() {
+		klog.V(5).Infof("jobcontroller: updating job, diff = %v", cmp.Diff(rj, newRj))
+	}
+
 	updatedRj, err := c.client.Jobs(rj.GetNamespace()).Update(ctx, newRj, metav1.UpdateOptions{})
 	if err != nil {
 		return false, err
@@ -70,6 +75,10 @@ func (c *ExecutionControl) UpdateJobStatus(ctx context.Context, rj, newRj *execu
 		return false, errors.Wrapf(err, "cannot compare job")
 	} else if isEqual {
 		return false, nil
+	}
+
+	if klog.V(5).Enabled() {
+		klog.V(5).Infof("jobcontroller: updating job status, diff = %v", cmp.Diff(rj, newRj))
 	}
 
 	updatedRj, err := c.client.Jobs(rj.GetNamespace()).UpdateStatus(ctx, newRj, metav1.UpdateOptions{})

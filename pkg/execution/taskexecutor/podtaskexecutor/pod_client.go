@@ -36,7 +36,7 @@ type PodTaskClient struct {
 	rj     *execution.Job
 }
 
-func NewPodTaskClient(client v1.PodInterface, rj *execution.Job) tasks.TaskClient {
+func NewPodTaskClient(client v1.PodInterface, rj *execution.Job) *PodTaskClient {
 	return &PodTaskClient{
 		client: client,
 		rj:     rj,

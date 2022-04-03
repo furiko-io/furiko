@@ -19,17 +19,9 @@ package job
 import (
 	"sort"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/clock"
-
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
-)
-
-var (
-	// Clock is used to mock time.Now() for tests.
-	// Use Clock.Now() instead of time.Now() whenever needed.
-	Clock clock.PassiveClock = clock.RealClock{}
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 // GetTaskRef returns the TaskRef given a Task.
@@ -127,8 +119,7 @@ func GenerateTaskRefs(existing []execution.TaskRef, tasks []tasks.Task) []execut
 
 			// Use current time as finish time if not set.
 			if newRef.FinishTimestamp.IsZero() {
-				newFinishTime := metav1.NewTime(Clock.Now())
-				newRef.FinishTimestamp = &newFinishTime
+				newRef.FinishTimestamp = ktime.Now()
 			}
 
 			// Use DeletedStatus if set.

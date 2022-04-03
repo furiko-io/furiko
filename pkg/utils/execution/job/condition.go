@@ -19,9 +19,8 @@ package job
 import (
 	"fmt"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 // GetCondition returns a consolidated JobCondition computed from TaskRefs.
@@ -31,7 +30,7 @@ func GetCondition(rj *execution.Job) execution.JobCondition {
 	// We cannot create tasks due to a user error.
 	if message, ok := GetAdmissionErrorMessage(rj); ok {
 		newStatus := &execution.JobConditionFinished{
-			FinishedAt: metav1.NewTime(Clock.Now()),
+			FinishedAt: *ktime.Now(),
 			Result:     execution.JobResultAdmissionError,
 			Reason:     "AdmissionError",
 			Message:    message,

@@ -143,7 +143,7 @@ func (w *Reconciler) sync(
 	rj = w.syncJobStatusFromTaskRefs(rj)
 
 	// Clean up Job if it is finished and beyond its TTL.
-	if err := w.handleTTLAfterFinished(ctx, rj); err != nil {
+	if err := w.handleTTLAfterFinished(ctx, rj, cfg); err != nil {
 		return rj, errors.Wrapf(err, "could not handle TTLAfterFinished")
 	}
 	trace.Step("Handle TTLAfterFinished done")
@@ -262,36 +262,7 @@ func (w *Reconciler) updateTaskRefStatus(rj *execution.Job, tasks []jobtasks.Tas
 // syncJobStatusFromTaskRefs will sync the rest of the JobStatus from CreatedTaskRefs.
 // The exact flow of data is: PodStatus -> CreatedTaskRefs -> Condition -> Phase.
 func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
-	newRj := rj.DeepCopy()
-
-	// Compute consolidated condition for Job.
-	newRj.Status.Condition = jobutil.GetCondition(rj)
-
-	// If job is being deleted and is not properly finished (e.g. being deleted midway),
-	// we use Killed as the final result for the job.
-	// This ensures that the final status before the job is finalized (during deletion) is terminal.
-	if newRj.DeletionTimestamp != nil && newRj.Status.Condition.Finished == nil {
-		createdAt := metav1.Now()
-		var startedAt *metav1.Time
-		if condition := newRj.Status.Condition.Waiting; condition != nil && condition.CreatedAt != nil {
-			createdAt = *condition.CreatedAt
-		} else if condition := newRj.Status.Condition.Running; condition != nil {
-			createdAt = condition.CreatedAt
-			startedAt = &condition.StartedAt
-		}
-
-		newRj.Status.Condition = execution.JobCondition{
-			Finished: &execution.JobConditionFinished{
-				CreatedAt:  &createdAt,
-				StartedAt:  startedAt,
-				FinishedAt: metav1.Now(),
-				Result:     execution.JobResultKilled,
-			},
-		}
-	}
-
-	// Set phase based on computed status so far.
-	newRj.Status.Phase = jobutil.GetPhase(newRj)
+	newRj := UpdateJobStatusFromTaskRefs(rj)
 
 	// Handle job that is newly running.
 	if rj.Status.Condition.Running == nil && newRj.Status.Condition.Running != nil {
@@ -323,6 +294,42 @@ func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job
 	return newRj
 }
 
+// UpdateJobStatusFromTaskRefs returns a new Job after updating JobStatus from TaskRefs.
+func UpdateJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
+	newRj := rj.DeepCopy()
+
+	// Compute consolidated condition for Job.
+	newRj.Status.Condition = jobutil.GetCondition(rj)
+
+	// If job is being deleted and is not properly finished (e.g. being deleted midway),
+	// we use Killed as the final result for the job.
+	// This ensures that the final status before the job is finalized (during deletion) is terminal.
+	if newRj.DeletionTimestamp != nil && newRj.Status.Condition.Finished == nil {
+		createdAt := *ktime.Now()
+		var startedAt *metav1.Time
+		if condition := newRj.Status.Condition.Waiting; condition != nil && condition.CreatedAt != nil {
+			createdAt = *condition.CreatedAt
+		} else if condition := newRj.Status.Condition.Running; condition != nil {
+			createdAt = condition.CreatedAt
+			startedAt = &condition.StartedAt
+		}
+
+		newRj.Status.Condition = execution.JobCondition{
+			Finished: &execution.JobConditionFinished{
+				CreatedAt:  &createdAt,
+				StartedAt:  startedAt,
+				FinishedAt: createdAt,
+				Result:     execution.JobResultKilled,
+			},
+		}
+	}
+
+	// Set phase based on computed status so far.
+	newRj.Status.Phase = jobutil.GetPhase(newRj)
+
+	return newRj
+}
+
 // syncCreateNewTask will determine if a new task needs to be created, and if
 // so, create it and update the list of tasks with the newly created task. At
 // this point, the entire JobStatus should be up-to-date. We use
@@ -332,7 +339,7 @@ func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job
 func (w *Reconciler) syncCreateNewTask(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task,
 ) (*execution.Job, []jobtasks.Task, error) {
-	now := time.Now()
+	now := ktime.Now().Time
 
 	// Not allowed to create new task.
 	if !jobutil.AllowedToCreateNewTask(rj) {
@@ -421,7 +428,7 @@ func (w *Reconciler) createTask(ctx context.Context, rj *execution.Job) (jobtask
 // kill those tasks.
 func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, tasks []jobtasks.Task,
 	cfg *configv1.JobControllerConfig) error {
-	now := time.Now()
+	now := ktime.Now().Time
 
 	pendingTimeout := jobutil.GetPendingTimeout(rj, cfg.DefaultPendingTimeoutSeconds)
 
@@ -488,7 +495,7 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 	}
 
 	// Set kill timestamp on tasks.
-	if err := w.setTasksKillTimestamp(ctx, rj, needKill, metav1.Now()); err != nil {
+	if err := w.setTasksKillTimestamp(ctx, rj, needKill, *ktime.Now()); err != nil {
 		return err
 	}
 
@@ -498,7 +505,7 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 // handleKillJob updates kill timestamp of all tasks if spec.killTimestamp is set.
 func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks []jobtasks.Task) error {
 	// Skip if not killing.
-	if rj.Spec.KillTimestamp == nil || time.Now().Before(rj.Spec.KillTimestamp.Time) {
+	if rj.Spec.KillTimestamp == nil || ktime.Now().Before(rj.Spec.KillTimestamp) {
 		return nil
 	}
 
@@ -557,7 +564,7 @@ func (w *Reconciler) handleDeleteKillingTasks(
 
 		// If task is not killable with kill timestamp, or is still alive beyond kill timestamp + timeout,
 		// use deletion to kill the task instead.
-		if killTS.Add(timeout).Before(time.Now()) || task.RequiresKillWithDeletion() {
+		if !killTS.Add(timeout).After(ktime.Now().Time) || task.RequiresKillWithDeletion() {
 			klog.InfoS("jobcontroller: worker deleting killing task",
 				"worker", w.Name(),
 				"namespace", rj.GetNamespace(),
@@ -636,7 +643,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 			continue
 		}
 
-		if deletionTS.Add(timeout).Before(time.Now()) {
+		if deletionTS.Add(timeout).Before(ktime.Now().Time) {
 			klog.InfoS("jobcontroller: worker force deleting killing task",
 				"worker", w.Name(),
 				"namespace", rj.GetNamespace(),
@@ -697,13 +704,18 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 	return newRj, nil
 }
 
-// handleTTLAfterFinished deletes the Job if its InitialTTLSecondsAfterFinished is exceeded.
-func (w *Reconciler) handleTTLAfterFinished(ctx context.Context, rj *execution.Job) error {
-	// Skip if not set.
-	if rj.Spec.TTLSecondsAfterFinished == nil {
-		return nil
+// handleTTLAfterFinished deletes the Job if its TTLSecondsAfterFinished is exceeded.
+func (w *Reconciler) handleTTLAfterFinished(
+	ctx context.Context,
+	rj *execution.Job,
+	cfg *configv1.JobControllerConfig,
+) error {
+	// Get TTL from JobSpec or fall back to global default.
+	ttl := rj.Spec.TTLSecondsAfterFinished
+	if ttl == nil {
+		spec := int32(cfg.DefaultTTLSecondsAfterFinished)
+		ttl = &spec
 	}
-	ttl := *rj.Spec.TTLSecondsAfterFinished
 
 	// Skip if already being deleted.
 	if isDeleted(rj) {
@@ -716,8 +728,8 @@ func (w *Reconciler) handleTTLAfterFinished(ctx context.Context, rj *execution.J
 	}
 
 	// Not yet expired.
-	duration := time.Duration(ttl) * time.Second
-	if rj.Status.Condition.Finished.FinishedAt.Add(duration).After(time.Now()) {
+	duration := time.Duration(*ttl) * time.Second
+	if rj.Status.Condition.Finished.FinishedAt.Add(duration).After(ktime.Now().Time) {
 		return nil
 	}
 
@@ -825,6 +837,10 @@ func (w *Reconciler) setTasksKillTimestamp(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, killTimestamp metav1.Time,
 ) error {
 	if err := jobutil.ConcurrentTasks(tasks, func(task jobtasks.Task) error {
+		if ktime.IsTimeSetAndEarlierThanOrEqualTo(task.GetKillTimestamp(), ktime.Now().Time) {
+			return nil
+		}
+
 		if err := task.SetKillTimestamp(ctx, killTimestamp.Time); err != nil {
 			return err
 		}
