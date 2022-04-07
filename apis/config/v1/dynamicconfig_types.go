@@ -29,36 +29,36 @@ type JobControllerConfig struct {
 
 	// DefaultTTLSecondsAfterFinished is the default time-to-live (TTL) for a Job
 	// after it has finished. Lower this value to reduce the strain on the
-	// cluster/kubelet. This field can be set separately on each Job as well.
+	// cluster/kubelet. Set to 0 to delete immediately after the Job is finished.
 	//
 	// Default: 3600
 	// +optional
-	DefaultTTLSecondsAfterFinished int64 `json:"defaultTTLSecondsAfterFinished,omitempty"`
+	DefaultTTLSecondsAfterFinished *int64 `json:"defaultTTLSecondsAfterFinished,omitempty"`
 
 	// DefaultPendingTimeoutSeconds is default timeout to use if job does not
 	// specify the pending timeout. By default, this is a non-zero value to prevent
-	// permanently stuck jobs. To disable default pending timeout, set this to 0 or
-	// a negative number.
+	// permanently stuck jobs. To disable default pending timeout, set this to 0.
 	//
 	// Default: 900
 	// +optional
-	DefaultPendingTimeoutSeconds int64 `json:"defaultPendingTimeoutSeconds,omitempty"`
+	DefaultPendingTimeoutSeconds *int64 `json:"defaultPendingTimeoutSeconds,omitempty"`
 
 	// DeleteKillingTasksTimeoutSeconds is the duration we delete the task to kill
 	// it instead of using active deadline, if previous efforts were ineffective.
+	// Set this value to 0 to immediately use deletion.
 	//
 	// Default: 180
 	// +optional
-	DeleteKillingTasksTimeoutSeconds int64 `json:"deleteKillingTasksTimeoutSeconds,omitempty"`
+	DeleteKillingTasksTimeoutSeconds *int64 `json:"deleteKillingTasksTimeoutSeconds,omitempty"`
 
 	// ForceDeleteKillingTasksTimeoutSeconds is the duration before we use force
 	// deletion instead of normal deletion. This timeout is computed from the
 	// deletionTimestamp of the object, which may also include an additional delay
-	// of deletionGracePeriodSeconds.
+	// of deletionGracePeriodSeconds. Set this value to 0 to disable force deletion.
 	//
 	// Default: 120
 	// +optional
-	ForceDeleteKillingTasksTimeoutSeconds int64 `json:"forceDeleteKillingTasksTimeoutSeconds,omitempty"`
+	ForceDeleteKillingTasksTimeoutSeconds *int64 `json:"forceDeleteKillingTasksTimeoutSeconds,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -129,11 +129,12 @@ type CronControllerConfig struct {
 	// MaxMissedSchedules defines a maximum number of jobs that the controller
 	// should back-schedule, or attempt to create after coming back up from
 	// downtime. Having a sane value here would prevent a thundering herd of jobs
-	// being scheduled that would exhaust resources in the cluster.
+	// being scheduled that would exhaust resources in the cluster. Set this to 0 to
+	// disable back-scheduling.
 	//
 	// Default: 5
 	// +optional
-	MaxMissedSchedules int64 `json:"maxMissedSchedules,omitempty"`
+	MaxMissedSchedules *int64 `json:"maxMissedSchedules,omitempty"`
 
 	// MaxDowntimeThresholdSeconds defines the maximum downtime that the controller
 	// can tolerate. If the controller was intentionally shut down for an extended

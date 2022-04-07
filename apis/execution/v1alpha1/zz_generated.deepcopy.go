@@ -410,7 +410,7 @@ func (in *JobSpec) DeepCopyInto(out *JobSpec) {
 	}
 	if in.TTLSecondsAfterFinished != nil {
 		in, out := &in.TTLSecondsAfterFinished, &out.TTLSecondsAfterFinished
-		*out = new(int32)
+		*out = new(int64)
 		**out = **in
 	}
 }

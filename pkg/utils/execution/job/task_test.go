@@ -98,7 +98,3 @@ func (t *stubTask) SetKillTimestamp(ctx context.Context, ts time.Time) error {
 	t.killTimestamp = &mts
 	return nil
 }
-
-func mkint64p(i int64) *int64 {
-	return &i
-}

@@ -29,12 +29,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/validation"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
 const (
@@ -42,7 +44,7 @@ const (
 )
 
 var (
-	startTime = mkmtime(mockStartTime)
+	startTime = testutils.Mkmtimep(mockStartTime)
 
 	objectMetaJobConfig = metav1.ObjectMeta{
 		Name:      "jobconfig-sample",
@@ -56,8 +58,8 @@ var (
 			Kind:               v1alpha1.KindJobConfig,
 			Name:               objectMetaJobConfig.Name,
 			UID:                objectMetaJobConfig.UID,
-			Controller:         mkboolp(true),
-			BlockOwnerDeletion: mkboolp(true),
+			Controller:         pointer.Bool(true),
+			BlockOwnerDeletion: pointer.Bool(true),
 		},
 	}
 
@@ -90,10 +92,10 @@ var (
 		Spec: v1alpha1.JobTemplateSpec{
 			Task: v1alpha1.JobTaskSpec{
 				Template:              podTemplateSpecBasic,
-				PendingTimeoutSeconds: mkintp64(1800),
+				PendingTimeoutSeconds: pointer.Int64(1800),
 			},
-			MaxRetryAttempts:  mkintp32(5),
-			RetryDelaySeconds: mkintp64(60),
+			MaxRetryAttempts:  pointer.Int32(5),
+			RetryDelaySeconds: pointer.Int64(60),
 		},
 	}
 
@@ -102,7 +104,7 @@ var (
 		Spec: v1alpha1.JobTemplateSpec{
 			Task: v1alpha1.JobTaskSpec{
 				Template:              podTemplateSpecBasic,
-				PendingTimeoutSeconds: mkintp64(3600),
+				PendingTimeoutSeconds: pointer.Int64(3600),
 			},
 			MaxRetryAttempts:  jobTemplateSpecBasic.Spec.MaxRetryAttempts,
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
@@ -113,7 +115,7 @@ var (
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
 		Spec: v1alpha1.JobTemplateSpec{
 			Task:              jobTemplateSpecBasic.Spec.Task,
-			MaxRetryAttempts:  mkintp32(10),
+			MaxRetryAttempts:  pointer.Int32(10),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
@@ -122,7 +124,7 @@ var (
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
 		Spec: v1alpha1.JobTemplateSpec{
 			Task:              jobTemplateSpecBasic.Spec.Task,
-			MaxRetryAttempts:  mkintp32(100),
+			MaxRetryAttempts:  pointer.Int32(100),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
@@ -275,7 +277,7 @@ func TestValidateJobConfig(t *testing.T) {
 			},
 			cfgs: map[configv1.ConfigName]runtime.Object{
 				configv1.ConfigNameCronController: &configv1.CronControllerConfig{
-					CronHashNames: mkboolp(false),
+					CronHashNames: pointer.Bool(false),
 				},
 			},
 			wantErr: "spec.schedule.cron.expression: Invalid value: \"H 10 * * *\": cannot parse cron schedule",
@@ -512,7 +514,7 @@ func TestValidateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:                    v1alpha1.JobTypeAdhoc,
 					Template:                &jobTemplateSpecBasic.Spec,
-					TTLSecondsAfterFinished: mkintp32(-300),
+					TTLSecondsAfterFinished: pointer.Int64(-300),
 				},
 			},
 			wantErr: "spec.ttlSecondsAfterFinished: Invalid value: -300",
@@ -750,13 +752,13 @@ func TestValidateJobUpdate(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:          v1alpha1.JobTypeAdhoc,
 					Template:      &jobTemplateSpecBasic.Spec,
-					KillTimestamp: mkmtime("2021-02-09T04:10:00Z"),
+					KillTimestamp: testutils.Mkmtimep("2021-02-09T04:10:00Z"),
 				},
 			},
 		},
 		{
 			name: "can set KillTimestamp in the past",
-			now:  mktime("2021-02-09T04:12:00Z"),
+			now:  testutils.Mktimep("2021-02-09T04:12:00Z"),
 			oldRj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
@@ -769,19 +771,19 @@ func TestValidateJobUpdate(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:          v1alpha1.JobTypeAdhoc,
 					Template:      &jobTemplateSpecBasic.Spec,
-					KillTimestamp: mkmtime("2021-02-09T04:10:00Z"),
+					KillTimestamp: testutils.Mkmtimep("2021-02-09T04:10:00Z"),
 				},
 			},
 		},
 		{
 			name: "can update KillTimestamp that was in the future",
-			now:  mktime("2021-02-09T04:08:00Z"),
+			now:  testutils.Mktimep("2021-02-09T04:08:00Z"),
 			oldRj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type:          v1alpha1.JobTypeAdhoc,
 					Template:      &jobTemplateSpecBasic.Spec,
-					KillTimestamp: mkmtime("2021-02-09T04:10:00Z"),
+					KillTimestamp: testutils.Mkmtimep("2021-02-09T04:10:00Z"),
 				},
 			},
 			newRj: &v1alpha1.Job{
@@ -789,19 +791,19 @@ func TestValidateJobUpdate(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:          v1alpha1.JobTypeAdhoc,
 					Template:      &jobTemplateSpecBasic.Spec,
-					KillTimestamp: mkmtime("2021-02-09T04:15:00Z"),
+					KillTimestamp: testutils.Mkmtimep("2021-02-09T04:15:00Z"),
 				},
 			},
 		},
 		{
 			name: "can shorten KillTimestamp to the past that was originally in the future",
-			now:  mktime("2021-02-09T04:08:00Z"),
+			now:  testutils.Mktimep("2021-02-09T04:08:00Z"),
 			oldRj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type:          v1alpha1.JobTypeAdhoc,
 					Template:      &jobTemplateSpecBasic.Spec,
-					KillTimestamp: mkmtime("2021-02-09T04:10:00Z"),
+					KillTimestamp: testutils.Mkmtimep("2021-02-09T04:10:00Z"),
 				},
 			},
 			newRj: &v1alpha1.Job{
@@ -809,19 +811,19 @@ func TestValidateJobUpdate(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:          v1alpha1.JobTypeAdhoc,
 					Template:      &jobTemplateSpecBasic.Spec,
-					KillTimestamp: mkmtime("2021-02-09T04:05:00Z"),
+					KillTimestamp: testutils.Mkmtimep("2021-02-09T04:05:00Z"),
 				},
 			},
 		},
 		{
 			name: "cannot update KillTimestamp that was originally in the past",
-			now:  mktime("2021-02-09T04:12:00Z"),
+			now:  testutils.Mktimep("2021-02-09T04:12:00Z"),
 			oldRj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type:          v1alpha1.JobTypeAdhoc,
 					Template:      &jobTemplateSpecBasic.Spec,
-					KillTimestamp: mkmtime("2021-02-09T04:10:00Z"),
+					KillTimestamp: testutils.Mkmtimep("2021-02-09T04:10:00Z"),
 				},
 			},
 			newRj: &v1alpha1.Job{
@@ -829,7 +831,7 @@ func TestValidateJobUpdate(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:          v1alpha1.JobTypeAdhoc,
 					Template:      &jobTemplateSpecBasic.Spec,
-					KillTimestamp: mkmtime("2021-02-09T04:15:00Z"),
+					KillTimestamp: testutils.Mkmtimep("2021-02-09T04:15:00Z"),
 				},
 			},
 			wantErr: "spec.killTimestamp: Invalid value: 2021-02-09 04:15:00 +0000 UTC: field is immutable once passed",
@@ -1076,29 +1078,4 @@ func checkError(err error, wantErr string) bool {
 	}
 
 	return false
-}
-
-func mkintp32(i int32) *int32 {
-	return &i
-}
-
-func mkintp64(i int64) *int64 {
-	return &i
-}
-
-func mkboolp(i bool) *bool {
-	return &i
-}
-
-func mktime(value string) *time.Time {
-	ts, err := time.Parse(time.RFC3339, value)
-	if err != nil {
-		panic(err) // panic ok for tests
-	}
-	return &ts
-}
-
-func mkmtime(value string) *metav1.Time {
-	mt := metav1.NewTime(*mktime(value))
-	return &mt
 }

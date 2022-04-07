@@ -26,6 +26,7 @@ import (
 
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
@@ -38,14 +39,13 @@ const (
 	jobNamespace = "test"
 	jobName      = "my-sample-job"
 
-	createTime     = "2021-02-09T04:06:00Z"
-	startTime      = "2021-02-09T04:06:01Z"
-	killTime       = "2021-02-09T04:06:10Z"
-	finishTime     = "2021-02-09T04:06:18Z"
-	now            = "2021-02-09T04:06:05Z"
-	later15m       = "2021-02-09T04:21:00Z"
-	later60m       = "2021-02-09T05:06:00Z"
-	finishAfterTTL = "2021-02-09T05:06:18Z"
+	createTime = "2021-02-09T04:06:00Z"
+	startTime  = "2021-02-09T04:06:01Z"
+	killTime   = "2021-02-09T04:06:10Z"
+	finishTime = "2021-02-09T04:06:18Z"
+	now        = "2021-02-09T04:06:05Z"
+	later15m   = "2021-02-09T04:21:00Z"
+	later60m   = "2021-02-09T05:06:00Z"
 )
 
 var (
@@ -171,6 +171,25 @@ var (
 		return newJob
 	}()
 
+	// Job with pod being deleted and force deletion is not allowed.
+	fakeJobPodDeletingForbidForceDeletion = func() *execution.Job {
+		newJob := fakeJobPodDeleting.DeepCopy()
+		newJob.Spec.Template.Task.ForbidForceDeletion = true
+		return newJob
+	}()
+
+	// Job with pod being force deleted.
+	fakeJobPodForceDeleting = func() *execution.Job {
+		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
+		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
+			State:   execution.TaskKilled,
+			Result:  job.GetResultPtr(execution.JobResultKilled),
+			Reason:  "ForceDeleted",
+			Message: "Forcefully deleted the task, container may still be running",
+		}
+		return newJob
+	}()
+
 	// Job with pod already deleted.
 	fakeJobPodDeleted = func() *execution.Job {
 		newJob := fakeJobPodDeleting.DeepCopy()
@@ -191,6 +210,13 @@ var (
 
 	// Job that has succeeded.
 	fakeJobFinished = generateJobStatusFromPod(fakeJobResult, fakePodFinished)
+
+	// Job that has succeeded with a custom TTLSecondsAfterFinished.
+	fakeJobFinishedWithTTLAfterFinished = func() *execution.Job {
+		newJob := fakeJobFinished.DeepCopy()
+		newJob.Spec.TTLSecondsAfterFinished = pointer.Int64(0)
+		return newJob
+	}()
 
 	// Pod that is to be created.
 	fakePod, _ = podtaskexecutor.NewPod(fakeJob, 1)
@@ -225,6 +251,15 @@ var (
 
 	// Pod that is in Pending state and is in the process of being killed.
 	fakePodTerminating = killPod(fakePodPending, testutils.Mktime(killTime))
+
+	// Pod that is terminating and has deletion timestamp.
+	fakePodDeleting = func() *corev1.Pod {
+		newPod := fakePodTerminating.DeepCopy()
+		deleteTime := metav1.NewTime(testutils.Mkmtimep(killTime).
+			Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second))
+		newPod.DeletionTimestamp = &deleteTime
+		return newPod
+	}()
 
 	// Pod that is in Pending state and is in the process of being killed by pending
 	// timeout.

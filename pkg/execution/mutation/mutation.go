@@ -133,8 +133,8 @@ func (m *Mutator) MutateJob(rj *v1alpha1.Job) *webhook.Result {
 	if rj.Spec.Type == "" {
 		rj.Spec.Type = v1alpha1.JobTypeAdhoc
 	}
-	if ttl := int32(cfg.DefaultTTLSecondsAfterFinished); ttl > 0 && rj.Spec.TTLSecondsAfterFinished == nil {
-		rj.Spec.TTLSecondsAfterFinished = &ttl
+	if rj.Spec.TTLSecondsAfterFinished == nil {
+		rj.Spec.TTLSecondsAfterFinished = cfg.DefaultTTLSecondsAfterFinished
 	}
 
 	return result

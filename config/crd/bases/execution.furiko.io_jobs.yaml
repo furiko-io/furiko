@@ -4161,7 +4161,7 @@ spec:
                   type: object
                 ttlSecondsAfterFinished:
                   description: Specifies the maximum lifetime of a Job that is finished. If not set, it will be set to the DefaultTTLSecondsAfterFinished configuration value in the controller.
-                  format: int32
+                  format: int64
                   type: integer
                 type:
                   description: "Specifies the type of Job. Can be one of: Adhoc, Scheduled \n Default: Adhoc"

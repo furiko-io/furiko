@@ -161,9 +161,9 @@ func (w *CronWorker) syncOne(
 	}
 	now := Clock.Now().In(timezone)
 
-	maxMissedSchedules := 5
-	if cfg.MaxMissedSchedules > 0 {
-		maxMissedSchedules = int(cfg.MaxMissedSchedules)
+	var maxMissedSchedules int
+	if spec := cfg.MaxMissedSchedules; spec != nil {
+		maxMissedSchedules = int(*spec)
 	}
 
 	// Get next scheduled time repeatedly and enqueue for each scheduled time.

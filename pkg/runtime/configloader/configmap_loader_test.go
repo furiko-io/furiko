@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
@@ -114,29 +115,29 @@ func testKubernetesLoader(
 	update(`{"defaultPendingTimeoutSeconds": 180}`)
 	cfg, err = loadJobControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(180), cfg.DefaultPendingTimeoutSeconds)
+	assert.Equal(t, pointer.Int64(180), cfg.DefaultPendingTimeoutSeconds)
 	assert.Zero(t, cfg.DefaultTTLSecondsAfterFinished)
 
 	// Update value
 	update(`{"defaultPendingTimeoutSeconds": 180, "defaultTTLSecondsAfterFinished": 3600}`)
 	cfg, err = loadJobControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(180), cfg.DefaultPendingTimeoutSeconds)
-	assert.Equal(t, int64(3600), cfg.DefaultTTLSecondsAfterFinished)
+	assert.Equal(t, pointer.Int64(180), cfg.DefaultPendingTimeoutSeconds)
+	assert.Equal(t, pointer.Int64(3600), cfg.DefaultTTLSecondsAfterFinished)
 
 	// Store invalid JSON, previous values should still be retained
 	update(`{"defaultPendingTimeoutSeconds": 190, "defaultTTLSecondsAfterFinished": 3601`)
 	cfg, err = loadJobControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(180), cfg.DefaultPendingTimeoutSeconds)
-	assert.Equal(t, int64(3600), cfg.DefaultTTLSecondsAfterFinished)
+	assert.Equal(t, pointer.Int64(180), cfg.DefaultPendingTimeoutSeconds)
+	assert.Equal(t, pointer.Int64(3600), cfg.DefaultTTLSecondsAfterFinished)
 
 	// Fix the JSON, now values should be updated
 	update(`{"defaultPendingTimeoutSeconds": 190, "defaultTTLSecondsAfterFinished": 3601}`)
 	cfg, err = loadJobControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(190), cfg.DefaultPendingTimeoutSeconds)
-	assert.Equal(t, int64(3601), cfg.DefaultTTLSecondsAfterFinished)
+	assert.Equal(t, pointer.Int64(190), cfg.DefaultPendingTimeoutSeconds)
+	assert.Equal(t, pointer.Int64(3601), cfg.DefaultTTLSecondsAfterFinished)
 
 	// Store YAML instead
 	update(`---
@@ -145,8 +146,8 @@ defaultPendingTimeoutSeconds: 2345
 `)
 	cfg, err = loadJobControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1234), cfg.DefaultTTLSecondsAfterFinished)
-	assert.Equal(t, int64(2345), cfg.DefaultPendingTimeoutSeconds)
+	assert.Equal(t, pointer.Int64(1234), cfg.DefaultTTLSecondsAfterFinished)
+	assert.Equal(t, pointer.Int64(2345), cfg.DefaultPendingTimeoutSeconds)
 
 	// Store invalid YAML, previous values should still be retained
 	update(`---
@@ -155,8 +156,8 @@ defaultTTLSecondsAfterFinished: 512
 `)
 	cfg, err = loadJobControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1234), cfg.DefaultTTLSecondsAfterFinished)
-	assert.Equal(t, int64(2345), cfg.DefaultPendingTimeoutSeconds)
+	assert.Equal(t, pointer.Int64(1234), cfg.DefaultTTLSecondsAfterFinished)
+	assert.Equal(t, pointer.Int64(2345), cfg.DefaultPendingTimeoutSeconds)
 
 	// Fix the YAML, now should be updated
 	update(`---
@@ -165,6 +166,6 @@ defaultPendingTimeoutSeconds: 12312
 `)
 	cfg, err = loadJobControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(512), cfg.DefaultTTLSecondsAfterFinished)
-	assert.Equal(t, int64(12312), cfg.DefaultPendingTimeoutSeconds)
+	assert.Equal(t, pointer.Int64(512), cfg.DefaultTTLSecondsAfterFinished)
+	assert.Equal(t, pointer.Int64(12312), cfg.DefaultPendingTimeoutSeconds)
 }
