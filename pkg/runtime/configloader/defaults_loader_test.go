@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
-	"github.com/furiko-io/furiko/pkg/configloader"
+	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
 func TestDefaultsLoader(t *testing.T) {

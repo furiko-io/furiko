@@ -24,7 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
-	"github.com/furiko-io/furiko/pkg/configloader"
+	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
 // Configs returns the dynamic controller configurations.

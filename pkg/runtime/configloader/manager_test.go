@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/viper"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
-	"github.com/furiko-io/furiko/pkg/configloader"
+	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
 type MockConfig map[configv1.ConfigName]map[string]interface{}

@@ -28,7 +28,7 @@ import (
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
-	"github.com/furiko-io/furiko/pkg/configloader"
+	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
 const (
