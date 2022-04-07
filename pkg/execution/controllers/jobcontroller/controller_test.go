@@ -39,14 +39,13 @@ const (
 	jobNamespace = "test"
 	jobName      = "my-sample-job"
 
-	createTime     = "2021-02-09T04:06:00Z"
-	startTime      = "2021-02-09T04:06:01Z"
-	killTime       = "2021-02-09T04:06:10Z"
-	finishTime     = "2021-02-09T04:06:18Z"
-	now            = "2021-02-09T04:06:05Z"
-	later15m       = "2021-02-09T04:21:00Z"
-	later60m       = "2021-02-09T05:06:00Z"
-	finishAfterTTL = "2021-02-09T05:06:18Z"
+	createTime = "2021-02-09T04:06:00Z"
+	startTime  = "2021-02-09T04:06:01Z"
+	killTime   = "2021-02-09T04:06:10Z"
+	finishTime = "2021-02-09T04:06:18Z"
+	now        = "2021-02-09T04:06:05Z"
+	later15m   = "2021-02-09T04:21:00Z"
+	later60m   = "2021-02-09T05:06:00Z"
 )
 
 var (
@@ -172,6 +171,13 @@ var (
 		return newJob
 	}()
 
+	// Job with pod being deleted and force deletion is not allowed.
+	fakeJobPodDeletingForbidForceDeletion = func() *execution.Job {
+		newJob := fakeJobPodDeleting.DeepCopy()
+		newJob.Spec.Template.Task.ForbidForceDeletion = true
+		return newJob
+	}()
+
 	// Job with pod being force deleted.
 	fakeJobPodForceDeleting = func() *execution.Job {
 		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
@@ -204,6 +210,13 @@ var (
 
 	// Job that has succeeded.
 	fakeJobFinished = generateJobStatusFromPod(fakeJobResult, fakePodFinished)
+
+	// Job that has succeeded with a custom TTLSecondsAfterFinished.
+	fakeJobFinishedWithTTLAfterFinished = func() *execution.Job {
+		newJob := fakeJobFinished.DeepCopy()
+		newJob.Spec.TTLSecondsAfterFinished = pointer.Int64(0)
+		return newJob
+	}()
 
 	// Pod that is to be created.
 	fakePod, _ = podtaskexecutor.NewPod(fakeJob, 1)

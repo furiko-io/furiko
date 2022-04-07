@@ -257,6 +257,16 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
+			name: "do not force delete pod if disabled via JobSpec",
+			now: testutils.Mktime(killTime).
+				Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
+				Add(time.Duration(*config.DefaultJobControllerConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+			target: fakeJobPodDeletingForbidForceDeletion,
+			initialPods: []*corev1.Pod{
+				fakePodDeleting,
+			},
+		},
+		{
 			name:   "do nothing with already deleted pod",
 			now:    testutils.Mktime(killTime).Add(time.Minute * 3),
 			target: fakeJobPodDeleted,
@@ -315,9 +325,41 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			name:   "delete finished job on TTL after finished",
-			now:    testutils.Mktime(finishAfterTTL),
+			name: "delete finished job on TTL after finished",
+			now: testutils.Mktime(finishTime).
+				Add(time.Duration(*config.DefaultJobControllerConfig.DefaultTTLSecondsAfterFinished) * time.Second),
 			target: fakeJobFinished,
+			initialPods: []*corev1.Pod{
+				fakePodFinished,
+			},
+			executionActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewDeleteAction(resourceJob, jobNamespace, fakeJob.Name),
+				},
+			},
+		},
+		{
+			name:   "delete finished job immediately after finished if set via config",
+			now:    testutils.Mktime(finishTime),
+			target: fakeJobFinished,
+			initialPods: []*corev1.Pod{
+				fakePodFinished,
+			},
+			executionActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewDeleteAction(resourceJob, jobNamespace, fakeJob.Name),
+				},
+			},
+			configs: map[configv1.ConfigName]runtime.Object{
+				configv1.ConfigNameJobController: &configv1.JobControllerConfig{
+					DefaultTTLSecondsAfterFinished: pointer.Int64(0),
+				},
+			},
+		},
+		{
+			name:   "delete finished job immediately after finished if set via JobSpec",
+			now:    testutils.Mktime(finishTime),
+			target: fakeJobFinishedWithTTLAfterFinished,
 			initialPods: []*corev1.Pod{
 				fakePodFinished,
 			},
