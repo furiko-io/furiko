@@ -16,16 +16,25 @@
 # limitations under the License.
 #
 
+set -euo pipefail
 
-set -euxo pipefail
+## Simple script that builds a snapshot of the current repository and pushes an image to Docker Hub.
+## Uses GoReleaser to build artifacts.
+## Docker image will be released as using the `<NEXT TAG>-next` image tag.
 
-# Run go test for each Go submodule and combine coverage.
-# Exclude the .cache directory.
-# Cannot use -execdir because find always exits with 0 even if `go test` returns non-zero exit code.
-find "$(pwd)" -not -path '*/\.*' -name go.mod -printf "%h\n" |\
-  xargs -I {} bash -c "cd {} && go test -coverpkg=./... -coverprofile ./coverage.cov ./..."
+# Build snapshot into dist.
+make -s goreleaser
+./bin/goreleaser release --snapshot --rm-dist
 
-# Combine all coverage files, skipping first line of each file
-echo "mode: set" > combined.cov
-find . -name coverage.cov -exec sh -c 'tail -n +2 $1' shell {} \; >> combined.cov
-go tool cover -func=combined.cov
+# Get version number (excludes the v prefix).
+VERSION=$(jq .version dist/metadata.json --raw-output)
+
+# Tag and push all images.
+REPOS=(
+  'furikoio/execution-controller'
+  'furikoio/execution-webhook'
+)
+for REPO in "${REPOS[@]}"
+do
+  docker push "${REPO}:v${VERSION}"
+done
