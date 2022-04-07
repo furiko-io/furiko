@@ -47,7 +47,7 @@ const (
 )
 
 var (
-	healthStatus uint64 = 0
+	healthStatus uint64
 )
 
 // Controller is responsible for reconciling Jobs with their downstream task

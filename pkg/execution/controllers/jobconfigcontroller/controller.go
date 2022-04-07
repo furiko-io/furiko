@@ -45,7 +45,7 @@ const (
 )
 
 var (
-	healthStatus uint64 = 0
+	healthStatus uint64
 )
 
 // Controller is responsible for reconciling the status of JobConfigs from their downstream Jobs.
