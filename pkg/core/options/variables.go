@@ -49,10 +49,8 @@ func SubstituteVariableMaps(target string, submaps []map[string]string, prefixes
 // Example: SubstituteEmptyStringForPrefixes("echo ${job.unknown_variable};", []string{"job."}) => "echo ;"
 func SubstituteEmptyStringForPrefixes(target string, prefixes []string) string {
 	for _, prefix := range prefixes {
-		if strings.HasSuffix(prefix, ".") {
-			// Drop trailing dot if specified, we will add it later.
-			prefix = prefix[:len(prefix)-1]
-		}
+		// Drop trailing dot if specified, we will add it later.
+		prefix = strings.TrimSuffix(prefix, ".")
 		regex := regexp.MustCompile(fmt.Sprintf(`\$\{%v\.[^}]+\}`, prefix))
 		target = regex.ReplaceAllString(target, "")
 	}

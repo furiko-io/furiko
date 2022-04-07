@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	healthStatus uint64 = 0
+	healthStatus uint64
 )
 
 // Controller is responsible for processing all Jobs to determine if they can be

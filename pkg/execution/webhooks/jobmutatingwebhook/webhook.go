@@ -48,7 +48,7 @@ const (
 )
 
 var (
-	readiness uint64 = 0
+	readiness uint64
 )
 
 type Webhook struct {

@@ -51,7 +51,7 @@ const (
 )
 
 var (
-	healthStatus uint64 = 0
+	healthStatus uint64
 )
 
 // Controller is responsible for creating new Jobs from JobConfigs based on
