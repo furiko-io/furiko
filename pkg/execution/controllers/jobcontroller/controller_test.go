@@ -26,6 +26,7 @@ import (
 
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
@@ -171,6 +172,18 @@ var (
 		return newJob
 	}()
 
+	// Job with pod being force deleted.
+	fakeJobPodForceDeleting = func() *execution.Job {
+		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
+		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
+			State:   execution.TaskKilled,
+			Result:  job.GetResultPtr(execution.JobResultKilled),
+			Reason:  "ForceDeleted",
+			Message: "Forcefully deleted the task, container may still be running",
+		}
+		return newJob
+	}()
+
 	// Job with pod already deleted.
 	fakeJobPodDeleted = func() *execution.Job {
 		newJob := fakeJobPodDeleting.DeepCopy()
@@ -225,6 +238,15 @@ var (
 
 	// Pod that is in Pending state and is in the process of being killed.
 	fakePodTerminating = killPod(fakePodPending, testutils.Mktime(killTime))
+
+	// Pod that is terminating and has deletion timestamp.
+	fakePodDeleting = func() *corev1.Pod {
+		newPod := fakePodTerminating.DeepCopy()
+		deleteTime := metav1.NewTime(testutils.Mkmtimep(killTime).
+			Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second))
+		newPod.DeletionTimestamp = &deleteTime
+		return newPod
+	}()
 
 	// Pod that is in Pending state and is in the process of being killed by pending
 	// timeout.

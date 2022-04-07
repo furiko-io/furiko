@@ -34,6 +34,7 @@ import (
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
@@ -202,8 +203,9 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			name:   "delete pod with kill timestamp",
-			now:    testutils.Mktime(killTime).Add(time.Minute * 3),
+			name: "delete pod with kill timestamp",
+			now: testutils.Mktime(killTime).
+				Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second),
 			target: fakeJobWithKillTimestamp,
 			initialPods: []*corev1.Pod{
 				fakePodTerminating,
@@ -216,6 +218,41 @@ func TestReconciler(t *testing.T) {
 			executionActions: runtimetesting.ActionTest{
 				Actions: []runtimetesting.Action{
 					runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, fakeJobPodDeleting),
+				},
+			},
+		},
+		{
+			name: "force delete pod with kill timestamp",
+			now: testutils.Mktime(killTime).
+				Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
+				Add(time.Duration(*config.DefaultJobControllerConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+			target: fakeJobPodDeleting,
+			initialPods: []*corev1.Pod{
+				fakePodDeleting,
+			},
+			coreActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewDeleteAction(resourcePod, jobNamespace, fakePod.Name),
+				},
+			},
+			executionActions: runtimetesting.ActionTest{
+				Actions: []runtimetesting.Action{
+					runtimetesting.NewUpdateStatusAction(resourceJob, jobNamespace, fakeJobPodForceDeleting),
+				},
+			},
+		},
+		{
+			name: "do not force delete pod if disabled via config",
+			now: testutils.Mktime(killTime).
+				Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
+				Add(time.Duration(*config.DefaultJobControllerConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+			target: fakeJobPodDeleting,
+			initialPods: []*corev1.Pod{
+				fakePodDeleting,
+			},
+			configs: map[configv1.ConfigName]runtime.Object{
+				configv1.ConfigNameJobController: &configv1.JobControllerConfig{
+					ForceDeleteKillingTasksTimeoutSeconds: pointer.Int64(0),
 				},
 			},
 		},

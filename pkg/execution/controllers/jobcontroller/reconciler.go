@@ -649,7 +649,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 			continue
 		}
 
-		if deletionTS.Add(timeout).Before(ktime.Now().Time) {
+		if !deletionTS.Add(timeout).After(ktime.Now().Time) {
 			klog.InfoS("jobcontroller: worker force deleting killing task",
 				"worker", w.Name(),
 				"namespace", rj.GetNamespace(),
