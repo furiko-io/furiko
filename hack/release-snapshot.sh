@@ -23,8 +23,7 @@ set -euo pipefail
 ## Docker image will be released as using the `<NEXT TAG>-next` image tag.
 
 # Build snapshot into dist.
-make -s goreleaser
-./bin/goreleaser release --snapshot --rm-dist
+curl -sL https://git.io/goreleaser | bash -s -- release --snapshot --rm-dist
 
 # Get version number (excludes the v prefix).
 VERSION=$(jq .version dist/metadata.json --raw-output)

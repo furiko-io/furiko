@@ -220,12 +220,6 @@ license-header-checker: $(LICENSE_HEADER_CHECKER) ## Download license-header-che
 $(LICENSE_HEADER_CHECKER):
 	GOBIN=$(LOCALBIN) go install github.com/lsm-dev/license-header-checker/cmd/license-header-checker@$(LICENSEHEADERCHECKER_VERSION)
 
-GORELEASER_INSTALL_SCRIPT ?= "https://github.com/goreleaser/goreleaser/releases/download/$(GORELEASER_VERSION)/goreleaser_$(shell uname -s)_$(shell uname -m).tar.gz"
-.PHONY: goreleaser
-goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
-$(GORELEASER):
-	@[ -f $(GORELEASER) ] || curl -sSfL $(GORELEASER_INSTALL_SCRIPT) -o /tmp/goreleaser.tar.gz && tar -xf /tmp/goreleaser.tar.gz goreleaser && mv goreleaser $(GORELEASER)
-
 # generate-groups.sh will download generate-groups.sh which is used for generating client libraries.
 generate-groups.sh:
 	@{ \
