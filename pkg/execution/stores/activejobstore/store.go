@@ -68,12 +68,9 @@ func (s *Store) CountActiveJobsForConfig(rjc *execution.JobConfig) int64 {
 	return s.counter.Get(string(rjc.UID))
 }
 
-// CheckAndAdd atomically increments the active count for the given Job.
-func (s *Store) CheckAndAdd(rj *execution.Job, oldCount int64) bool {
-	key, ok := s.getKey(rj)
-	if !ok {
-		return true
-	}
+// CheckAndAdd atomically increments the active count for the given JobConfig.
+func (s *Store) CheckAndAdd(rjc *execution.JobConfig, oldCount int64) bool {
+	key := string(rjc.UID)
 	res := s.counter.CheckAndAdd(key, oldCount)
 	if res {
 		klog.V(5).InfoS("activejobstore: incremented job counter", "key", key, "count", oldCount+1)
@@ -82,12 +79,8 @@ func (s *Store) CheckAndAdd(rj *execution.Job, oldCount int64) bool {
 }
 
 // Delete the Job from the store.
-func (s *Store) Delete(rj *execution.Job) {
-	key, ok := s.getKey(rj)
-	if !ok {
-		return
-	}
-
+func (s *Store) Delete(rjc *execution.JobConfig) {
+	key := string(rjc.UID)
 	count := s.decrement(key)
 	klog.V(5).InfoS("activejobstore: decremented job counter", "key", key, "count", count)
 }

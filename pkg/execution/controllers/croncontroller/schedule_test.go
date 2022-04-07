@@ -30,13 +30,16 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
 	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
+)
+
+const (
+	now = "2021-02-09T04:06:13.234Z"
 )
 
 var (
-	now                  = mktime("2021-02-09T04:06:13.234Z")
-	metaNow              = metav1.NewTime(now)
-	lastScheduleTime     = metav1.NewTime(mktime("2021-02-09T04:02:00Z"))
-	longLastScheduleTime = metav1.NewTime(mktime("2021-02-09T02:46:00Z"))
+	lastScheduleTime     = metav1.NewTime(testutils.Mktime("2021-02-09T04:02:00Z"))
+	longLastScheduleTime = metav1.NewTime(testutils.Mktime("2021-02-09T02:46:00Z"))
 
 	jobConfigEveryMinute = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -76,7 +79,7 @@ var (
 			},
 		},
 		Status: execution.JobConfigStatus{
-			LastScheduleTime: mkmtime("2021-10-27T22:15:00Z"),
+			LastScheduleTime: testutils.Mkmtimep("2021-10-27T22:15:00Z"),
 		},
 	}
 
@@ -139,7 +142,7 @@ var (
 			},
 		},
 		Status: execution.JobConfigStatus{
-			LastScheduleTime: mkmtime("2021-06-24T09:00:00Z"),
+			LastScheduleTime: testutils.Mkmtimep("2021-06-24T09:00:00Z"),
 		},
 	}
 
@@ -153,7 +156,7 @@ var (
 					Expression: "* * * * *",
 				},
 				Constraints: &execution.ScheduleContraints{
-					NotBefore: &metaNow,
+					NotBefore: testutils.Mkmtimep(now),
 				},
 			},
 		},
@@ -162,19 +165,6 @@ var (
 		},
 	}
 )
-
-func mktime(value string) time.Time {
-	ts, err := time.Parse(time.RFC3339, value)
-	if err != nil {
-		panic(err) // panic ok for tests
-	}
-	return ts
-}
-
-func mkmtime(value string) *metav1.Time {
-	mt := metav1.NewTime(mktime(value))
-	return &mt
-}
 
 func TestSchedule(t *testing.T) {
 	tests := []struct {
@@ -187,23 +177,23 @@ func TestSchedule(t *testing.T) {
 			name:      "Schedule every minute",
 			jobConfig: jobConfigEveryMinute,
 			cases: []time.Time{
-				mktime("2021-02-09T04:07:00Z"),
-				mktime("2021-02-09T04:08:00Z"),
-				mktime("2021-02-09T04:09:00Z"),
+				testutils.Mktime("2021-02-09T04:07:00Z"),
+				testutils.Mktime("2021-02-09T04:08:00Z"),
+				testutils.Mktime("2021-02-09T04:09:00Z"),
 			},
 		},
 		{
 			name:      "No future schedules",
 			jobConfig: jobConfigPointInTime,
 			cases: []time.Time{
-				mktime("2021-02-09T12:00:00Z"),
+				testutils.Mktime("2021-02-09T12:00:00Z"),
 				{}, // should return zero time
 			},
 		},
 		{
 			name:      "No future schedules with LastScheduleTime",
 			jobConfig: jobConfigPointInTimeWithAlreadySetLastScheduleTime,
-			fromTime:  mktime("2021-10-28T06:00:00+08:00"),
+			fromTime:  testutils.Mktime("2021-10-28T06:00:00+08:00"),
 			cases: []time.Time{
 				{}, // should return zero time
 			},
@@ -212,48 +202,48 @@ func TestSchedule(t *testing.T) {
 			name:      "Start from LastScheduleTime",
 			jobConfig: jobConfigWithLastScheduleTime,
 			cases: []time.Time{
-				mktime("2021-02-09T04:03:00Z"),
-				mktime("2021-02-09T04:04:00Z"),
-				mktime("2021-02-09T04:05:00Z"),
-				mktime("2021-02-09T04:06:00Z"),
+				testutils.Mktime("2021-02-09T04:03:00Z"),
+				testutils.Mktime("2021-02-09T04:04:00Z"),
+				testutils.Mktime("2021-02-09T04:05:00Z"),
+				testutils.Mktime("2021-02-09T04:06:00Z"),
 			},
 		},
 		{
 			name:      "Enforce maximum LastScheduleTime ago",
 			jobConfig: jobConfigWithLastScheduleTimeLongAgo,
 			cases: []time.Time{
-				mktime("2021-02-09T04:02:00Z"),
-				mktime("2021-02-09T04:03:00Z"),
-				mktime("2021-02-09T04:04:00Z"),
-				mktime("2021-02-09T04:05:00Z"),
-				mktime("2021-02-09T04:06:00Z"),
+				testutils.Mktime("2021-02-09T04:02:00Z"),
+				testutils.Mktime("2021-02-09T04:03:00Z"),
+				testutils.Mktime("2021-02-09T04:04:00Z"),
+				testutils.Mktime("2021-02-09T04:05:00Z"),
+				testutils.Mktime("2021-02-09T04:06:00Z"),
 			},
 		},
 		{
 			name:      "Using custom timezone",
 			jobConfig: jobConfigWithTimezone,
-			fromTime:  mktime("2021-02-09T04:07:00+08:00"),
+			fromTime:  testutils.Mktime("2021-02-09T04:07:00+08:00"),
 			cases: []time.Time{
-				mktime("2021-02-09T06:00:00+08:00"),
-				mktime("2021-02-09T08:00:00+08:00"),
-				mktime("2021-02-09T10:00:00+08:00"),
+				testutils.Mktime("2021-02-09T06:00:00+08:00"),
+				testutils.Mktime("2021-02-09T08:00:00+08:00"),
+				testutils.Mktime("2021-02-09T10:00:00+08:00"),
 			},
 		},
 		{
 			name:      "Using custom timezone and lastScheduleTime",
 			jobConfig: jobConfigWithTimezoneAndLastScheduleTime,
-			fromTime:  mktime("2021-06-24T17:19:40+08:00"),
+			fromTime:  testutils.Mktime("2021-06-24T17:19:40+08:00"),
 			cases: []time.Time{
-				mktime("2021-06-24T17:00:00+07:00"),
+				testutils.Mktime("2021-06-24T17:00:00+07:00"),
 			},
 		},
 		{
 			name:      "Respect ScheduleNotBeforeTimestamp",
 			jobConfig: jobConfigWithLastScheduleTimeAndNotBefore,
 			cases: []time.Time{
-				mktime("2021-02-09T04:07:00Z"),
-				mktime("2021-02-09T04:08:00Z"),
-				mktime("2021-02-09T04:09:00Z"),
+				testutils.Mktime("2021-02-09T04:07:00Z"),
+				testutils.Mktime("2021-02-09T04:08:00Z"),
+				testutils.Mktime("2021-02-09T04:09:00Z"),
 			},
 		},
 	}
@@ -261,7 +251,7 @@ func TestSchedule(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			// Change fromTime if specified.
-			now := now
+			now := testutils.Mktime(now)
 			if !tt.fromTime.IsZero() {
 				now = tt.fromTime
 			}
@@ -308,6 +298,7 @@ func TestSchedule(t *testing.T) {
 }
 
 func TestSchedule_FlushNextScheduleTime(t *testing.T) {
+	now := testutils.Mktime(now)
 	croncontroller.Clock = clock.NewFakeClock(now)
 	jobConfig := &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -341,7 +332,7 @@ func TestSchedule_FlushNextScheduleTime(t *testing.T) {
 
 	// Bump next schedule time
 	next := schedule.GetNextScheduleTime(jobConfig, now, expr)
-	want := mktime("2021-02-09T04:10:00Z")
+	want := testutils.Mktime("2021-02-09T04:10:00Z")
 	if !next.Equal(want) {
 		t.Errorf("expected next to be %v, got %v", want, next)
 		return
@@ -357,7 +348,7 @@ func TestSchedule_FlushNextScheduleTime(t *testing.T) {
 
 	// Should still use old schedule because it's cached
 	next2 := schedule.GetNextScheduleTime(jobConfig, next, expr)
-	want2 := mktime("2021-02-09T04:15:00Z")
+	want2 := testutils.Mktime("2021-02-09T04:15:00Z")
 	if !next2.Equal(want2) {
 		t.Errorf("expected next to be %v, got %v", want2, next2)
 		return
@@ -376,11 +367,11 @@ func TestSchedule_FlushNextScheduleTime(t *testing.T) {
 		schedule.BumpNextScheduleTime(jobConfig, next, expr)
 		return nil
 	}
-	if err := flushAndCheck(mktime("2021-02-09T04:11:00Z")); err != nil {
+	if err := flushAndCheck(testutils.Mktime("2021-02-09T04:11:00Z")); err != nil {
 		t.Error(err)
 		return
 	}
-	if err := flushAndCheck(mktime("2021-02-09T04:12:00Z")); err != nil { // idempotent
+	if err := flushAndCheck(testutils.Mktime("2021-02-09T04:12:00Z")); err != nil { // idempotent
 		t.Error(err)
 		return
 	}

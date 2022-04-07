@@ -155,7 +155,7 @@ func TestStore(t *testing.T) {
 			StartTime: &startTime,
 		},
 	}
-	for !store.CheckAndAdd(rj, store.CountActiveJobsForConfig(rjc2)) {
+	for !store.CheckAndAdd(rjc2, store.CountActiveJobsForConfig(rjc2)) {
 	}
 	createdRj, err := createJob(ctx, client, rj)
 	assert.NoError(t, err)
@@ -241,7 +241,7 @@ func TestStore_CheckAndAdd_NotStarted(t *testing.T) {
 	// This procedure is done in the JobQueueController.
 	for {
 		count := store.CountActiveJobsForConfig(rjc1)
-		if !store.CheckAndAdd(rj, count) {
+		if !store.CheckAndAdd(rjc1, count) {
 			continue
 		}
 		newRj := rj.DeepCopy()
@@ -256,7 +256,7 @@ func TestStore_CheckAndAdd_NotStarted(t *testing.T) {
 	assert.Equal(t, int64(1), store.CountActiveJobsForConfig(rjc1))
 
 	// Delete the key, ensure that it drops back to 0.
-	store.Delete(rj)
+	store.Delete(rjc1)
 	assert.Equal(t, int64(0), store.CountActiveJobsForConfig(rjc1))
 }
 
