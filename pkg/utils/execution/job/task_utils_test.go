@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/pointer"
+
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/utils/execution/job"
 )
@@ -48,7 +50,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
 						MaxRetryAttempts:  &two,
-						RetryDelaySeconds: mkint64p(30),
+						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
 			},
@@ -106,7 +108,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
 						MaxRetryAttempts:  &two,
-						RetryDelaySeconds: mkint64p(30),
+						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
 				Status: execution.JobStatus{
@@ -132,7 +134,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
 						MaxRetryAttempts:  &two,
-						RetryDelaySeconds: mkint64p(30),
+						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
 				Status: execution.JobStatus{
@@ -157,7 +159,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
 						MaxRetryAttempts:  &two,
-						RetryDelaySeconds: mkint64p(30),
+						RetryDelaySeconds: pointer.Int64(30),
 					},
 					KillTimestamp: &killTime,
 				},
@@ -184,7 +186,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
 						MaxRetryAttempts:  &one,
-						RetryDelaySeconds: mkint64p(30),
+						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
 				Status: execution.JobStatus{
@@ -219,7 +221,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
 						MaxRetryAttempts:  &one,
-						RetryDelaySeconds: mkint64p(30),
+						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
 				Status: execution.JobStatus{

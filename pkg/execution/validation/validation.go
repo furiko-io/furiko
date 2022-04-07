@@ -282,7 +282,7 @@ func (v *Validator) ValidateJobSpec(spec *v1alpha1.JobSpec, fldPath *field.Path)
 		allErrs = append(allErrs, v.ValidateJobTemplateSpec(spec.Template, fldPath.Child("template"))...)
 	}
 	if spec.TTLSecondsAfterFinished != nil {
-		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(*spec.TTLSecondsAfterFinished), fldPath.Child("ttlSecondsAfterFinished"))...)
+		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(*spec.TTLSecondsAfterFinished, fldPath.Child("ttlSecondsAfterFinished"))...)
 	}
 	return allErrs
 }

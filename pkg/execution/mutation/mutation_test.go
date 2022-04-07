@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
@@ -70,8 +71,8 @@ var (
 			Kind:               v1alpha1.KindJobConfig,
 			Name:               objectMetaJobConfig.Name,
 			UID:                objectMetaJobConfig.UID,
-			Controller:         mkboolp(true),
-			BlockOwnerDeletion: mkboolp(true),
+			Controller:         pointer.Bool(true),
+			BlockOwnerDeletion: pointer.Bool(true),
 		},
 	}
 
@@ -602,7 +603,7 @@ func TestMutator_MutateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:                    v1alpha1.JobTypeAdhoc,
 					Template:                &jobTemplateSpecBasic.Spec,
-					TTLSecondsAfterFinished: mkintp32(int32(config.DefaultJobControllerConfig.DefaultTTLSecondsAfterFinished)),
+					TTLSecondsAfterFinished: config.DefaultJobControllerConfig.DefaultTTLSecondsAfterFinished,
 				},
 			},
 		},
@@ -613,7 +614,7 @@ func TestMutator_MutateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:                    v1alpha1.JobTypeAdhoc,
 					Template:                &jobTemplateSpecBasic.Spec,
-					TTLSecondsAfterFinished: mkintp32(int32(config.DefaultJobControllerConfig.DefaultTTLSecondsAfterFinished)),
+					TTLSecondsAfterFinished: config.DefaultJobControllerConfig.DefaultTTLSecondsAfterFinished,
 				},
 			},
 		},
@@ -1266,14 +1267,6 @@ func optionValues(values map[string]interface{}) string {
 		panic(err)
 	}
 	return string(bytes)
-}
-
-func mkboolp(i bool) *bool {
-	return &i
-}
-
-func mkintp32(i int32) *int32 {
-	return &i
 }
 
 func mkScheduleSpec(expr string, nbf *metav1.Time) *v1alpha1.ScheduleSpec {

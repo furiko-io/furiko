@@ -430,7 +430,7 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 	cfg *configv1.JobControllerConfig) error {
 	now := ktime.Now().Time
 
-	pendingTimeout := jobutil.GetPendingTimeout(rj, cfg.DefaultPendingTimeoutSeconds)
+	pendingTimeout := jobutil.GetPendingTimeout(rj, cfg)
 
 	// Pending timeout is disabled.
 	if pendingTimeout <= 0 {
@@ -541,7 +541,7 @@ func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks
 func (w *Reconciler) handleDeleteKillingTasks(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1.JobControllerConfig,
 ) (*execution.Job, error) {
-	timeout := time.Duration(cfg.DeleteKillingTasksTimeoutSeconds) * time.Second
+	timeout := jobutil.GetDeleteKillingTimeout(cfg)
 	needDelete := make([]jobtasks.Task, 0, len(tasks))
 	needDeleteMap := make(map[string]jobtasks.Task)
 
@@ -626,7 +626,13 @@ func (w *Reconciler) handleDeleteKillingTasks(
 func (w *Reconciler) handleForceDeleteKillingTasks(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1.JobControllerConfig,
 ) (*execution.Job, error) {
-	timeout := time.Duration(cfg.ForceDeleteKillingTasksTimeoutSeconds) * time.Second
+	timeout := jobutil.GetForceDeleteKillingTimeout(cfg)
+
+	// Force deletion is disabled.
+	if timeout <= 0 {
+		return rj, nil
+	}
+
 	needDelete := make([]jobtasks.Task, 0, len(tasks))
 	needDeleteMap := make(map[string]jobtasks.Task)
 
@@ -710,12 +716,7 @@ func (w *Reconciler) handleTTLAfterFinished(
 	rj *execution.Job,
 	cfg *configv1.JobControllerConfig,
 ) error {
-	// Get TTL from JobSpec or fall back to global default.
-	ttl := rj.Spec.TTLSecondsAfterFinished
-	if ttl == nil {
-		spec := int32(cfg.DefaultTTLSecondsAfterFinished)
-		ttl = &spec
-	}
+	ttl := jobutil.GetTTLAfterFinished(rj, cfg)
 
 	// Skip if already being deleted.
 	if isDeleted(rj) {
@@ -728,8 +729,7 @@ func (w *Reconciler) handleTTLAfterFinished(
 	}
 
 	// Not yet expired.
-	duration := time.Duration(*ttl) * time.Second
-	if rj.Status.Condition.Finished.FinishedAt.Add(duration).After(ktime.Now().Time) {
+	if rj.Status.Condition.Finished.FinishedAt.Add(ttl).After(ktime.Now().Time) {
 		return nil
 	}
 

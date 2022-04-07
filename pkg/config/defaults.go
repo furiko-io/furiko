@@ -24,10 +24,10 @@ import (
 
 var (
 	DefaultJobControllerConfig = &configv1.JobControllerConfig{
-		DefaultTTLSecondsAfterFinished:        3600,
-		DefaultPendingTimeoutSeconds:          900,
-		DeleteKillingTasksTimeoutSeconds:      180,
-		ForceDeleteKillingTasksTimeoutSeconds: 120,
+		DefaultTTLSecondsAfterFinished:        pointer.Int64(3600),
+		DefaultPendingTimeoutSeconds:          pointer.Int64(900),
+		DeleteKillingTasksTimeoutSeconds:      pointer.Int64(180),
+		ForceDeleteKillingTasksTimeoutSeconds: pointer.Int64(120),
 	}
 
 	DefaultCronControllerConfig = &configv1.CronControllerConfig{
@@ -35,7 +35,7 @@ var (
 		CronHashNames:               pointer.Bool(true),
 		CronHashSecondsByDefault:    pointer.Bool(false),
 		CronHashFields:              pointer.Bool(true),
-		MaxMissedSchedules:          5,
+		MaxMissedSchedules:          pointer.Int64(5),
 		MaxDowntimeThresholdSeconds: 300,
 		DefaultTimezone:             pointer.String("UTC"),
 	}

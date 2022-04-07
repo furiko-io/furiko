@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/pointer"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
@@ -35,8 +36,8 @@ func TestDefaultsLoader(t *testing.T) {
 	loader := configloader.NewDefaultsLoader()
 	loader.Defaults = map[configv1.ConfigName]runtime.Object{
 		configv1.ConfigNameJobController: &configv1.JobControllerConfig{
-			DefaultTTLSecondsAfterFinished: 123,
-			DefaultPendingTimeoutSeconds:   234,
+			DefaultTTLSecondsAfterFinished: pointer.Int64(123),
+			DefaultPendingTimeoutSeconds:   pointer.Int64(234),
 		},
 	}
 
@@ -47,8 +48,8 @@ func TestDefaultsLoader(t *testing.T) {
 
 	cfg, err := loadJobControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(123), cfg.DefaultTTLSecondsAfterFinished)
-	assert.Equal(t, int64(234), cfg.DefaultPendingTimeoutSeconds)
+	assert.Equal(t, pointer.Int64(123), cfg.DefaultTTLSecondsAfterFinished)
+	assert.Equal(t, pointer.Int64(234), cfg.DefaultPendingTimeoutSeconds)
 
 	// Unset fields should be 0
 	assert.Zero(t, cfg.DeleteKillingTasksTimeoutSeconds)
@@ -68,8 +69,8 @@ func TestDefaultsLoader_LoaderOverride(t *testing.T) {
 	defaultLoader := configloader.NewDefaultsLoader()
 	defaultLoader.Defaults = map[configv1.ConfigName]runtime.Object{
 		configv1.ConfigNameJobController: &configv1.JobControllerConfig{
-			DefaultTTLSecondsAfterFinished: 123,
-			DefaultPendingTimeoutSeconds:   234,
+			DefaultTTLSecondsAfterFinished: pointer.Int64(123),
+			DefaultPendingTimeoutSeconds:   pointer.Int64(234),
 		},
 	}
 	mockLoader := newMockConfigLoader(MockConfig{
@@ -86,6 +87,6 @@ func TestDefaultsLoader_LoaderOverride(t *testing.T) {
 	// Non-empty CronControllerConfig overridden by mock loader.
 	cronCfg, err := loadCronControllerConfig(mgr)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(100), cronCfg.MaxMissedSchedules)
+	assert.Equal(t, pointer.Int64(100), cronCfg.MaxMissedSchedules)
 	assert.Empty(t, cronCfg.MaxDowntimeThresholdSeconds)
 }

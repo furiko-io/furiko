@@ -100,7 +100,7 @@ type JobSpec struct {
 	// controller.
 	//
 	// +optional
-	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
+	TTLSecondsAfterFinished *int64 `json:"ttlSecondsAfterFinished,omitempty"`
 }
 
 type JobType string

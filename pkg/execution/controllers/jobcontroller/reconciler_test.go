@@ -29,6 +29,7 @@ import (
 	ktesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
@@ -157,8 +158,7 @@ func TestReconciler(t *testing.T) {
 			},
 			configs: map[configv1.ConfigName]runtime.Object{
 				configv1.ConfigNameJobController: &configv1.JobControllerConfig{
-					// TODO(irvinlim): Change to 0 once https://github.com/furiko-io/furiko/issues/28 is fixed.
-					DefaultPendingTimeoutSeconds: -1,
+					DefaultPendingTimeoutSeconds: pointer.Int64(0),
 				},
 			},
 		},
