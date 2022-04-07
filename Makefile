@@ -167,6 +167,7 @@ GOIMPORTS ?= $(LOCALBIN)/goimports
 YQ ?= $(LOCALBIN)/yq
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 LICENSE_HEADER_CHECKER ?= $(LOCALBIN)/license-header-checker
+GORELEASER ?= $(LOCALBIN)/goreleaser
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
@@ -174,6 +175,7 @@ CONTROLLER_TOOLS_VERSION ?= v0.8.0
 YQ_VERSION ?= v4.14.1
 GOLANGCILINT_VERSION ?= v1.45.2
 LICENSEHEADERCHECKER_VERSION ?= v1.3.0
+GORELEASER_VERSION ?= v1.7.0
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -211,6 +213,12 @@ $(GOLANGCI_LINT):
 license-header-checker: $(LICENSE_HEADER_CHECKER) ## Download license-header-checker locally if necessary.
 $(LICENSE_HEADER_CHECKER):
 	GOBIN=$(LOCALBIN) go install github.com/lsm-dev/license-header-checker/cmd/license-header-checker@$(LICENSEHEADERCHECKER_VERSION)
+
+GORELEASER_INSTALL_SCRIPT ?= "https://github.com/goreleaser/goreleaser/releases/download/$(GORELEASER_VERSION)/goreleaser_$(shell uname -s)_$(shell uname -m).tar.gz"
+.PHONY: goreleaser
+goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
+$(GORELEASER):
+	@[ -f $(GORELEASER) ] || curl -sSfL $(GORELEASER_INSTALL_SCRIPT) -o /tmp/goreleaser.tar.gz && tar -xf /tmp/goreleaser.tar.gz goreleaser && mv goreleaser $(GORELEASER)
 
 # generate-groups.sh will download generate-groups.sh which is used for generating client libraries.
 generate-groups.sh:
