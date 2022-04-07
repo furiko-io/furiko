@@ -75,7 +75,7 @@ func TestConfigMapLoader(t *testing.T) {
 }
 
 func testKubernetesLoader(
-	t *testing.T, client kubernetes.Interface, loader configloader.ConfigLoader, ctrl ConfigLoaderControl,
+	t *testing.T, client kubernetes.Interface, loader configloader.Loader, ctrl ConfigLoaderControl,
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()

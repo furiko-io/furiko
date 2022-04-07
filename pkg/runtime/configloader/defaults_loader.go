@@ -22,14 +22,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	v1 "github.com/furiko-io/furiko/apis/config/v1"
 	"github.com/furiko-io/furiko/pkg/config"
 )
 
-// DefaultsLoader is a simple ConfigLoader that populates hardcoded defaults.
+// DefaultsLoader is a simple Loader that populates hardcoded defaults.
 // This is intended to be a fallback when all configs are not populated.
 type DefaultsLoader struct {
 	cache sync.Map
@@ -38,6 +37,8 @@ type DefaultsLoader struct {
 	// is called. Exposed for unit tests.
 	Defaults map[v1.ConfigName]runtime.Object
 }
+
+var _ Loader = (*DefaultsLoader)(nil)
 
 func NewDefaultsLoader() *DefaultsLoader {
 	return &DefaultsLoader{
@@ -54,7 +55,7 @@ func (d *DefaultsLoader) Name() string {
 
 func (d *DefaultsLoader) Start(_ context.Context) error {
 	for configName, object := range d.Defaults {
-		cfg, err := d.marshalToViper(object)
+		cfg, err := d.marshal(object)
 		if err != nil {
 			return err
 		}
@@ -63,30 +64,26 @@ func (d *DefaultsLoader) Start(_ context.Context) error {
 	return nil
 }
 
-func (d *DefaultsLoader) GetConfig(configName v1.ConfigName) (*viper.Viper, error) {
+func (d *DefaultsLoader) Load(configName v1.ConfigName) (Config, error) {
 	value, ok := d.cache.Load(configName)
 	if !ok {
-		return viper.New(), nil
+		return nil, nil
 	}
-	loaded, ok := value.(*viper.Viper)
+	loaded, ok := value.(Config)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type, got %T", value)
 	}
 	return loaded, nil
 }
 
-func (d *DefaultsLoader) marshalToViper(in interface{}) (*viper.Viper, error) {
+func (d *DefaultsLoader) marshal(in interface{}) (Config, error) {
 	data, err := json.Marshal(in)
 	if err != nil {
 		return nil, err
 	}
-	var out map[string]interface{}
+	var out Config
 	if err := json.Unmarshal(data, &out); err != nil {
 		return nil, err
 	}
-	v := viper.New()
-	if err := v.MergeConfigMap(out); err != nil {
-		return nil, err
-	}
-	return v, nil
+	return out, nil
 }

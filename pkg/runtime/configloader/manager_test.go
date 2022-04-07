@@ -24,13 +24,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
-type MockConfig map[configv1.ConfigName]map[string]interface{}
+type MockConfig map[configv1.ConfigName]configloader.Config
 
 type mockLoader struct {
 }
@@ -53,8 +52,8 @@ func newMockErrorLoader() *mockErrorLoader {
 	}
 }
 
-func (m *mockErrorLoader) GetConfig(_ configv1.ConfigName) (*viper.Viper, error) {
-	return nil, errors.New("get config error")
+func (m *mockErrorLoader) Load(_ configv1.ConfigName) (configloader.Config, error) {
+	return nil, errors.New("load config error")
 }
 
 type mockConfigLoader struct {
@@ -69,12 +68,8 @@ func newMockConfigLoader(values MockConfig) *mockConfigLoader {
 	}
 }
 
-func (m *mockConfigLoader) GetConfig(configName configv1.ConfigName) (*viper.Viper, error) {
-	v := viper.New()
-	if err := v.MergeConfigMap(m.values[configName]); err != nil {
-		return nil, err
-	}
-	return v, nil
+func (m *mockConfigLoader) Load(configName configv1.ConfigName) (configloader.Config, error) {
+	return m.values[configName], nil
 }
 
 type mockDynamicConfigLoader struct {
@@ -94,7 +89,7 @@ func (m *mockDynamicConfigLoader) SetConfig(config MockConfig) {
 func TestConfigManager(t *testing.T) {
 	tests := []struct {
 		name    string
-		loaders []configloader.ConfigLoader
+		loaders []configloader.Loader
 		want    *configv1.JobControllerConfig
 		wantErr bool
 	}{
@@ -105,14 +100,14 @@ func TestConfigManager(t *testing.T) {
 		},
 		{
 			name: "loader error",
-			loaders: []configloader.ConfigLoader{
+			loaders: []configloader.Loader{
 				newMockErrorLoader(),
 			},
 			wantErr: true,
 		},
 		{
 			name: "single loader",
-			loaders: []configloader.ConfigLoader{
+			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
 					configv1.ConfigNameJobController: {
 						"defaultTTLSecondsAfterFinished": 180,
@@ -127,7 +122,7 @@ func TestConfigManager(t *testing.T) {
 		},
 		{
 			name: "override values and add new fields in subsequent loaders",
-			loaders: []configloader.ConfigLoader{
+			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
 					configv1.ConfigNameJobController: {
 						"defaultTTLSecondsAfterFinished": 180,

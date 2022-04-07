@@ -19,13 +19,15 @@ package configloader
 import (
 	"context"
 
-	"github.com/spf13/viper"
-
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 )
 
-type ConfigLoader interface {
+// Config is a dynamic config value.
+type Config map[string]interface{}
+
+// Loader knows how to loads a Config given a config name.
+type Loader interface {
 	Name() string
 	Start(context.Context) error
-	GetConfig(configName configv1.ConfigName) (*viper.Viper, error)
+	Load(configName configv1.ConfigName) (Config, error)
 }

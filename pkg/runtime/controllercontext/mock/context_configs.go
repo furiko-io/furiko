@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
@@ -49,17 +48,19 @@ func NewConfigs() *Configs {
 	}
 }
 
-// MockConfigLoader returns the mock configloader.ConfigLoader.
+// MockConfigLoader returns the mock configloader.Loader.
 func (c *Configs) MockConfigLoader() *ConfigLoader {
 	return c.configLoader
 }
 
-var _ controllercontext.Configs = &Configs{}
+var _ controllercontext.Configs = (*Configs)(nil)
 
 type ConfigLoader struct {
 	configs map[configv1.ConfigName]runtime.Object
 	mu      sync.RWMutex
 }
+
+var _ configloader.Loader = (*ConfigLoader)(nil)
 
 func NewMockConfigLoader() *ConfigLoader {
 	return &ConfigLoader{
@@ -75,24 +76,20 @@ func (c *ConfigLoader) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *ConfigLoader) GetConfig(configName configv1.ConfigName) (*viper.Viper, error) {
-	v := viper.New()
+func (c *ConfigLoader) Load(configName configv1.ConfigName) (configloader.Config, error) {
 	config, ok := c.configs[configName]
 	if !ok {
-		return v, nil
+		return nil, nil
 	}
 	bytes, err := json.Marshal(config)
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[string]interface{})
+	m := make(configloader.Config)
 	if err := json.Unmarshal(bytes, &m); err != nil {
 		return nil, err
 	}
-	if err := v.MergeConfigMap(m); err != nil {
-		return nil, err
-	}
-	return v, nil
+	return m, nil
 }
 
 func (c *ConfigLoader) SetConfig(configName configv1.ConfigName, config runtime.Object) {

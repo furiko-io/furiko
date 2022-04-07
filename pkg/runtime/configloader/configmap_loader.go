@@ -24,7 +24,6 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -40,7 +39,7 @@ const (
 	defaultConfigMapName      = "execution-dynamic-config"
 )
 
-// ConfigMapLoader is a dynamic ConfigLoader that starts an informer to watch
+// ConfigMapLoader is a dynamic Loader that starts an informer to watch
 // changes on a ConfigMap with a specific name and namespace. Supports loading
 // both JSON and YAML configuration.
 type ConfigMapLoader struct {
@@ -49,6 +48,8 @@ type ConfigMapLoader struct {
 	namespace string
 	name      string
 }
+
+var _ Loader = (*ConfigMapLoader)(nil)
 
 func NewConfigMapLoader(client kubernetes.Interface, namespace, name string) *ConfigMapLoader {
 	if namespace == "" {
@@ -102,15 +103,14 @@ func (c *ConfigMapLoader) startInformer(
 	return nil
 }
 
-// GetConfig returns the unmarshaled config data stored in a given ConfigMap. If
-// the ConfigMap or config name in the ConfigMap does not exist, an empty config
+// Load returns the unmarshaled config data stored in a given ConfigMap. If the
+// ConfigMap or config name in the ConfigMap does not exist, an empty config
 // will be returned.
-func (c *ConfigMapLoader) GetConfig(configName v1.ConfigName) (*viper.Viper, error) {
-	v := viper.New()
+func (c *ConfigMapLoader) Load(configName v1.ConfigName) (Config, error) {
 	if value, ok := c.cache.Load(configName); ok {
 		return value, nil
 	}
-	return v, nil
+	return nil, nil
 }
 
 func (c *ConfigMapLoader) handleUpdate(obj interface{}) {
@@ -143,7 +143,7 @@ func (c *ConfigMapLoader) handleUpdate(obj interface{}) {
 func (c *ConfigMapLoader) unmarshalConfigMap(data map[string]string) (*configCache, error) {
 	newConfigMap := newConfigCache()
 	for name, value := range data {
-		v, err := c.unmarshalToViper(value)
+		v, err := c.unmarshal(value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot unmarshal %v: %v", name, value)
 		}
@@ -152,18 +152,13 @@ func (c *ConfigMapLoader) unmarshalConfigMap(data map[string]string) (*configCac
 	return newConfigMap, nil
 }
 
-func (c *ConfigMapLoader) unmarshalToViper(data string) (*viper.Viper, error) {
-	v := viper.New()
-	var conf map[string]interface{}
+func (c *ConfigMapLoader) unmarshal(data string) (Config, error) {
+	var conf Config
 	decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(data), 4096)
 	if err := decoder.Decode(&conf); err != nil {
 		return nil, errors.Wrapf(err, "cannot unmarshal configmap data: %v", data)
 	}
-
-	if err := v.MergeConfigMap(conf); err != nil {
-		return nil, errors.Wrapf(err, "cannot merge config map")
-	}
-	return v, nil
+	return conf, nil
 }
 
 type configCache struct {
@@ -176,14 +171,14 @@ func newConfigCache() *configCache {
 	}
 }
 
-func (c *configCache) Store(configName v1.ConfigName, config *viper.Viper) {
+func (c *configCache) Store(configName v1.ConfigName, config Config) {
 	c.m.Store(configName, config)
 }
 
-func (c *configCache) Load(configName v1.ConfigName) (*viper.Viper, bool) {
+func (c *configCache) Load(configName v1.ConfigName) (Config, bool) {
 	v, ok := c.m.Load(configName)
 	if !ok {
 		return nil, false
 	}
-	return v.(*viper.Viper), true
+	return v.(Config), true
 }
