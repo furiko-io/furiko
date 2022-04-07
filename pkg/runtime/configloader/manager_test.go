@@ -165,21 +165,55 @@ func TestConfigManager(t *testing.T) {
 			},
 		},
 		{
-			name: "support empty bool pointer",
+			name: "nil pointers",
 			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
 					ConfigName: {
+						"intPtr":  nil,
 						"boolPtr": nil,
 					},
-				}),
-				newMockConfigLoader(MockConfig{
-					ConfigName: {},
 				}),
 			},
 			want: &Config{},
 		},
 		{
-			name: "support bool pointers with true",
+			name: "override false bool pointer with true",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": false,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": true,
+					},
+				}),
+			},
+			want: &Config{
+				BoolPtr: pointer.Bool(true),
+			},
+		},
+		{
+			name: "override true bool pointer with false",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": true,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": false,
+					},
+				}),
+			},
+			want: &Config{
+				BoolPtr: pointer.Bool(false),
+			},
+		},
+		{
+			name: "do not override true bool pointer with nil",
 			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
 					ConfigName: {
@@ -195,7 +229,7 @@ func TestConfigManager(t *testing.T) {
 			},
 		},
 		{
-			name: "support bool pointers with false",
+			name: "do not override false bool pointer with nil",
 			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
 					ConfigName: {
@@ -211,7 +245,7 @@ func TestConfigManager(t *testing.T) {
 			},
 		},
 		{
-			name: "support override bool pointers with true",
+			name: "override nil bool pointer with true",
 			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
 					ConfigName: {},
@@ -227,7 +261,7 @@ func TestConfigManager(t *testing.T) {
 			},
 		},
 		{
-			name: "support override bool pointers with false",
+			name: "override nil bool pointer with false",
 			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
 					ConfigName: {},
@@ -240,6 +274,58 @@ func TestConfigManager(t *testing.T) {
 			},
 			want: &Config{
 				BoolPtr: pointer.Bool(false),
+			},
+		},
+		{
+			name: "do not override int pointers with nil",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 100,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {},
+				}),
+			},
+			want: &Config{
+				IntPtr: pointer.Int(100),
+			},
+		},
+		{
+			name: "override int pointers",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 100,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 101,
+					},
+				}),
+			},
+			want: &Config{
+				IntPtr: pointer.Int(101),
+			},
+		},
+		{
+			name: "override int pointers with 0",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 100,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 0,
+					},
+				}),
+			},
+			want: &Config{
+				IntPtr: pointer.Int(0),
 			},
 		},
 	}
