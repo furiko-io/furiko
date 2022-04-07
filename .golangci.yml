@@ -8,20 +8,45 @@ linters-settings:
       - singleCaseSwitch
 
 linters:
-  disable:
-    - exhaustive
-    - funlen
-    - gci
-    - gochecknoglobals
-    - gochecknoinits
-    - godot
-    - godox
-    - goerr113
-    - gofumpt
-    - gomnd
-    - nestif
-    - nlreturn
-    - nolintlint
-    - testpackage
-    - wsl
-  enable-all: true
+  enable:
+    - asciicheck
+    - bodyclose
+    - deadcode
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - exportloopref
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goheader
+    - goimports
+    - golint
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - interfacer
+    - lll
+    - maligned
+    - misspell
+    - nakedret
+    - noctx
+    - prealloc
+    - rowserrcheck
+    - scopelint
+    - sqlclosecheck
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace
