@@ -28,7 +28,7 @@ import (
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
-	"github.com/furiko-io/furiko/pkg/configloader"
+	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
 const (
@@ -75,7 +75,7 @@ func TestConfigMapLoader(t *testing.T) {
 }
 
 func testKubernetesLoader(
-	t *testing.T, client kubernetes.Interface, loader configloader.ConfigLoader, ctrl ConfigLoaderControl,
+	t *testing.T, client kubernetes.Interface, loader configloader.Loader, ctrl ConfigLoaderControl,
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()

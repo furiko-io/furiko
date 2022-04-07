@@ -21,9 +21,9 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
@@ -31,10 +31,10 @@ import (
 
 // ConfigManager manages ConfigLoaders and merges structured configuration
 // values from multiple sources. The order in which the configurations are
-// merged are based on the order of when each ConfigLoader is added to the
+// merged are based on the order of when each Loader is added to the
 // ConfigManager.
 type ConfigManager struct {
-	loaders []ConfigLoader
+	loaders []Loader
 	started bool
 	cache   sync.Map
 }
@@ -43,7 +43,7 @@ func NewConfigManager() *ConfigManager {
 	return &ConfigManager{}
 }
 
-func (c *ConfigManager) AddConfigLoaders(loader ...ConfigLoader) {
+func (c *ConfigManager) AddConfigLoaders(loader ...Loader) {
 	c.loaders = append(c.loaders, loader...)
 }
 
@@ -118,26 +118,39 @@ func (c *ConfigManager) loadAndUnmarshalConfigWithError(configName configv1.Conf
 	if err != nil {
 		return errors.Wrapf(err, "cannot load config %v", configName)
 	}
-	if err := decoder.Decode(configMap.AllSettings()); err != nil {
+	if err := decoder.Decode(configMap); err != nil {
 		return errors.Wrapf(err, "cannot decode %v", configName)
 	}
 	return nil
 }
 
 // loadConfig will load the given config name from all loaders.
-func (c *ConfigManager) loadConfig(configName configv1.ConfigName) (*viper.Viper, error) {
+func (c *ConfigManager) loadConfig(configName configv1.ConfigName) (res Config, err error) {
 	if !c.started {
 		return nil, errors.New("config manager is not started")
 	}
-	final := viper.New()
+
+	// Handle panic from mergo.
+	defer func() {
+		if e := recover(); e != nil {
+			err = errors.New("recovered from panic")
+			if recovered, ok := e.(error); ok {
+				err = recovered
+			}
+		}
+	}()
+
+	// Repeatedly merge all loaders onto base config, from lowest to highest priority.
+	res = make(Config)
 	for _, loader := range c.loaders {
-		loaded, err := loader.GetConfig(configName)
+		loaded, err := loader.Load(configName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot load %v", loader.Name())
 		}
-		if err := final.MergeConfigMap(loaded.AllSettings()); err != nil {
+		if err := mergo.Merge(&res, loaded, mergo.WithOverride); err != nil {
 			return nil, errors.Wrapf(err, "cannot merge configs")
 		}
 	}
-	return final, nil
+
+	return res, nil
 }

@@ -17,6 +17,8 @@
 package config
 
 import (
+	"k8s.io/utils/pointer"
+
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
 )
 
@@ -30,19 +32,11 @@ var (
 
 	DefaultCronControllerConfig = &configv1.CronControllerConfig{
 		CronFormat:                  "standard",
-		CronHashNames:               mkboolp(true),
-		CronHashSecondsByDefault:    mkboolp(false),
-		CronHashFields:              mkboolp(true),
+		CronHashNames:               pointer.Bool(true),
+		CronHashSecondsByDefault:    pointer.Bool(false),
+		CronHashFields:              pointer.Bool(true),
 		MaxMissedSchedules:          5,
 		MaxDowntimeThresholdSeconds: 300,
-		DefaultTimezone:             mkstrp("UTC"),
+		DefaultTimezone:             pointer.String("UTC"),
 	}
 )
-
-func mkstrp(s string) *string {
-	return &s
-}
-
-func mkboolp(b bool) *bool {
-	return &b
-}

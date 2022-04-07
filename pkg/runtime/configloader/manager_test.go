@@ -24,13 +24,30 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
+	"k8s.io/utils/pointer"
 
 	configv1 "github.com/furiko-io/furiko/apis/config/v1"
-	"github.com/furiko-io/furiko/pkg/configloader"
+	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
-type MockConfig map[configv1.ConfigName]map[string]interface{}
+const (
+	ConfigName = "mock-config"
+)
+
+type Config struct {
+	// Fields from JobControllerConfig.
+	DefaultTTLSecondsAfterFinished   int64 `json:"defaultTTLSecondsAfterFinished,omitempty"`
+	DefaultPendingTimeoutSeconds     int64 `json:"defaultPendingTimeoutSeconds,omitempty"`
+	DeleteKillingTasksTimeoutSeconds int64 `json:"deleteKillingTasksTimeoutSeconds,omitempty"`
+
+	// Fields for type-specific tests.
+	Bool    bool  `json:"bool,omitempty"`
+	BoolPtr *bool `json:"boolPtr,omitempty"`
+	Int     int   `json:"int,omitempty"`
+	IntPtr  *int  `json:"intPtr,omitempty"`
+}
+
+type MockConfig map[configv1.ConfigName]configloader.Config
 
 type mockLoader struct {
 }
@@ -53,8 +70,8 @@ func newMockErrorLoader() *mockErrorLoader {
 	}
 }
 
-func (m *mockErrorLoader) GetConfig(_ configv1.ConfigName) (*viper.Viper, error) {
-	return nil, errors.New("get config error")
+func (m *mockErrorLoader) Load(_ configv1.ConfigName) (configloader.Config, error) {
+	return nil, errors.New("load config error")
 }
 
 type mockConfigLoader struct {
@@ -69,12 +86,8 @@ func newMockConfigLoader(values MockConfig) *mockConfigLoader {
 	}
 }
 
-func (m *mockConfigLoader) GetConfig(configName configv1.ConfigName) (*viper.Viper, error) {
-	v := viper.New()
-	if err := v.MergeConfigMap(m.values[configName]); err != nil {
-		return nil, err
-	}
-	return v, nil
+func (m *mockConfigLoader) Load(configName configv1.ConfigName) (configloader.Config, error) {
+	return m.values[configName], nil
 }
 
 type mockDynamicConfigLoader struct {
@@ -94,61 +107,225 @@ func (m *mockDynamicConfigLoader) SetConfig(config MockConfig) {
 func TestConfigManager(t *testing.T) {
 	tests := []struct {
 		name    string
-		loaders []configloader.ConfigLoader
-		want    *configv1.JobControllerConfig
+		loaders []configloader.Loader
+		want    *Config
 		wantErr bool
 	}{
 		{
 			name:    "no loaders",
 			loaders: nil,
-			want:    &configv1.JobControllerConfig{},
+			want:    &Config{},
 		},
 		{
 			name: "loader error",
-			loaders: []configloader.ConfigLoader{
+			loaders: []configloader.Loader{
 				newMockErrorLoader(),
 			},
 			wantErr: true,
 		},
 		{
 			name: "single loader",
-			loaders: []configloader.ConfigLoader{
+			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
-					configv1.ConfigNameJobController: {
+					ConfigName: {
 						"defaultTTLSecondsAfterFinished": 180,
 						"defaultPendingTimeoutSeconds":   900,
 					},
 				}),
 			},
-			want: &configv1.JobControllerConfig{
+			want: &Config{
 				DefaultTTLSecondsAfterFinished: 180,
 				DefaultPendingTimeoutSeconds:   900,
 			},
 		},
 		{
 			name: "override values and add new fields in subsequent loaders",
-			loaders: []configloader.ConfigLoader{
+			loaders: []configloader.Loader{
 				newMockConfigLoader(MockConfig{
-					configv1.ConfigNameJobController: {
+					ConfigName: {
 						"defaultTTLSecondsAfterFinished": 180,
 					},
 				}),
 				newMockConfigLoader(MockConfig{
-					configv1.ConfigNameJobController: {
+					ConfigName: {
 						"defaultTTLSecondsAfterFinished": 190,
 						"defaultPendingTimeoutSeconds":   900,
 					},
 				}),
 				newMockConfigLoader(MockConfig{
-					configv1.ConfigNameJobController: {
+					ConfigName: {
 						"deleteKillingTasksTimeoutSeconds": 30,
 					},
 				}),
 			},
-			want: &configv1.JobControllerConfig{
+			want: &Config{
 				DefaultTTLSecondsAfterFinished:   190,
 				DefaultPendingTimeoutSeconds:     900,
 				DeleteKillingTasksTimeoutSeconds: 30,
+			},
+		},
+		{
+			name: "nil pointers",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr":  nil,
+						"boolPtr": nil,
+					},
+				}),
+			},
+			want: &Config{},
+		},
+		{
+			name: "override false bool pointer with true",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": false,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": true,
+					},
+				}),
+			},
+			want: &Config{
+				BoolPtr: pointer.Bool(true),
+			},
+		},
+		{
+			name: "override true bool pointer with false",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": true,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": false,
+					},
+				}),
+			},
+			want: &Config{
+				BoolPtr: pointer.Bool(false),
+			},
+		},
+		{
+			name: "do not override true bool pointer with nil",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": true,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {},
+				}),
+			},
+			want: &Config{
+				BoolPtr: pointer.Bool(true),
+			},
+		},
+		{
+			name: "do not override false bool pointer with nil",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": false,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {},
+				}),
+			},
+			want: &Config{
+				BoolPtr: pointer.Bool(false),
+			},
+		},
+		{
+			name: "override nil bool pointer with true",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": true,
+					},
+				}),
+			},
+			want: &Config{
+				BoolPtr: pointer.Bool(true),
+			},
+		},
+		{
+			name: "override nil bool pointer with false",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"boolPtr": false,
+					},
+				}),
+			},
+			want: &Config{
+				BoolPtr: pointer.Bool(false),
+			},
+		},
+		{
+			name: "do not override int pointers with nil",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 100,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {},
+				}),
+			},
+			want: &Config{
+				IntPtr: pointer.Int(100),
+			},
+		},
+		{
+			name: "override int pointers",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 100,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 101,
+					},
+				}),
+			},
+			want: &Config{
+				IntPtr: pointer.Int(101),
+			},
+		},
+		{
+			name: "override int pointers with 0",
+			loaders: []configloader.Loader{
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 100,
+					},
+				}),
+				newMockConfigLoader(MockConfig{
+					ConfigName: {
+						"intPtr": 0,
+					},
+				}),
+			},
+			want: &Config{
+				IntPtr: pointer.Int(0),
 			},
 		},
 	}
@@ -163,7 +340,7 @@ func TestConfigManager(t *testing.T) {
 				t.Fatalf("cannot start ConfigManager: %v", err)
 			}
 
-			checkJobControllerConfig(t, mgr, tt.want, tt.wantErr)
+			checkConfig(t, mgr, tt.want, tt.wantErr)
 		})
 	}
 }
@@ -172,7 +349,7 @@ func TestConfigManager_Dynamic(t *testing.T) {
 	type update struct {
 		name    string
 		config  MockConfig
-		want    *configv1.JobControllerConfig
+		want    *Config
 		wantErr bool
 	}
 	tests := []struct {
@@ -185,11 +362,11 @@ func TestConfigManager_Dynamic(t *testing.T) {
 			initial: update{
 				name: "initial value value",
 				config: MockConfig{
-					configv1.ConfigNameJobController: {
+					ConfigName: {
 						"defaultTTLSecondsAfterFinished": 180,
 					},
 				},
-				want: &configv1.JobControllerConfig{
+				want: &Config{
 					DefaultTTLSecondsAfterFinished: 180,
 				},
 			},
@@ -197,11 +374,11 @@ func TestConfigManager_Dynamic(t *testing.T) {
 				{
 					name: "correct update",
 					config: MockConfig{
-						configv1.ConfigNameJobController: {
+						ConfigName: {
 							"defaultTTLSecondsAfterFinished": 181,
 						},
 					},
-					want: &configv1.JobControllerConfig{
+					want: &Config{
 						DefaultTTLSecondsAfterFinished: 181,
 					},
 				},
@@ -212,7 +389,7 @@ func TestConfigManager_Dynamic(t *testing.T) {
 			initial: update{
 				name: "invalid initial config",
 				config: MockConfig{
-					configv1.ConfigNameJobController: {
+					ConfigName: {
 						"defaultTTLSecondsAfterFinished": "hello",
 					},
 				},
@@ -222,7 +399,7 @@ func TestConfigManager_Dynamic(t *testing.T) {
 				{
 					name: "return error with another invalid update",
 					config: MockConfig{
-						configv1.ConfigNameJobController: {
+						ConfigName: {
 							"defaultTTLSecondsAfterFinished": "hello 2",
 						},
 					},
@@ -231,11 +408,11 @@ func TestConfigManager_Dynamic(t *testing.T) {
 				{
 					name: "fixed with valid update",
 					config: MockConfig{
-						configv1.ConfigNameJobController: {
+						ConfigName: {
 							"defaultTTLSecondsAfterFinished": 180,
 						},
 					},
-					want: &configv1.JobControllerConfig{
+					want: &Config{
 						DefaultTTLSecondsAfterFinished: 180,
 					},
 				},
@@ -246,12 +423,12 @@ func TestConfigManager_Dynamic(t *testing.T) {
 			initial: update{
 				name: "valid initial config",
 				config: MockConfig{
-					configv1.ConfigNameJobController: {
+					ConfigName: {
 						"defaultTTLSecondsAfterFinished": 180,
 						"defaultPendingTimeoutSeconds":   900,
 					},
 				},
-				want: &configv1.JobControllerConfig{
+				want: &Config{
 					DefaultTTLSecondsAfterFinished: 180,
 					DefaultPendingTimeoutSeconds:   900,
 				},
@@ -260,12 +437,12 @@ func TestConfigManager_Dynamic(t *testing.T) {
 				{
 					name: "invalid update",
 					config: MockConfig{
-						configv1.ConfigNameJobController: {
+						ConfigName: {
 							"defaultTTLSecondsAfterFinished": "hello",
 							"defaultPendingTimeoutSeconds":   900,
 						},
 					},
-					want: &configv1.JobControllerConfig{
+					want: &Config{
 						DefaultTTLSecondsAfterFinished: 180,
 						DefaultPendingTimeoutSeconds:   900,
 					},
@@ -273,12 +450,12 @@ func TestConfigManager_Dynamic(t *testing.T) {
 				{
 					name: "still cannot decode previously value, other valid fields will be stale",
 					config: MockConfig{
-						configv1.ConfigNameJobController: {
+						ConfigName: {
 							"defaultTTLSecondsAfterFinished": "hello",
 							"defaultPendingTimeoutSeconds":   901,
 						},
 					},
-					want: &configv1.JobControllerConfig{
+					want: &Config{
 						DefaultTTLSecondsAfterFinished: 180,
 						DefaultPendingTimeoutSeconds:   900,
 					},
@@ -286,12 +463,12 @@ func TestConfigManager_Dynamic(t *testing.T) {
 				{
 					name: "finally fixed",
 					config: MockConfig{
-						configv1.ConfigNameJobController: {
+						ConfigName: {
 							"defaultTTLSecondsAfterFinished": 181,
 							"defaultPendingTimeoutSeconds":   901,
 						},
 					},
-					want: &configv1.JobControllerConfig{
+					want: &Config{
 						DefaultTTLSecondsAfterFinished: 181,
 						DefaultPendingTimeoutSeconds:   901,
 					},
@@ -308,13 +485,13 @@ func TestConfigManager_Dynamic(t *testing.T) {
 			if err := mgr.Start(context.Background()); err != nil {
 				t.Fatalf("cannot start ConfigManager: %v", err)
 			}
-			checkJobControllerConfig(t, mgr, tt.initial.want, tt.initial.wantErr)
+			checkConfig(t, mgr, tt.initial.want, tt.initial.wantErr)
 
 			for i, update := range tt.updates {
 				update := update
 				t.Run(fmt.Sprintf("step #%02d: %v", i+1, update.name), func(t *testing.T) {
 					loader.SetConfig(update.config)
-					checkJobControllerConfig(t, mgr, update.want, update.wantErr)
+					checkConfig(t, mgr, update.want, update.wantErr)
 				})
 			}
 		})
@@ -337,17 +514,13 @@ func loadCronControllerConfig(mgr *configloader.ConfigManager) (*configv1.CronCo
 	return &config, nil
 }
 
-func checkJobControllerConfig(
-	t *testing.T,
-	mgr *configloader.ConfigManager,
-	want *configv1.JobControllerConfig,
-	wantErr bool,
-) {
-	cfg, err := loadJobControllerConfig(mgr)
+func checkConfig(t *testing.T, mgr *configloader.ConfigManager, want *Config, wantErr bool) {
+	cfg := &Config{}
+	err := mgr.LoadAndUnmarshalConfig(ConfigName, cfg)
 	if (err != nil) != wantErr {
-		t.Errorf("ControllerConfiguration() want error = %v, got error %v", wantErr, err)
+		t.Errorf("LoadAndUnmarshalConfig() want error = %v, got error %v", wantErr, err)
 	}
 	if err == nil && !cmp.Equal(want, cfg, cmpopts.EquateEmpty()) {
-		t.Errorf("ControllerConfiguration() not equal, diff = %v", cmp.Diff(want, cfg))
+		t.Errorf("LoadAndUnmarshalConfig() not equal, diff = %v", cmp.Diff(want, cfg))
 	}
 }

@@ -35,12 +35,14 @@ const (
 	defaultScrtName      = "execution-dynamic-config"
 )
 
-// SecretLoader is a dynamic ConfigLoader that starts an informer to watch
+// SecretLoader is a dynamic Loader that starts an informer to watch
 // changes on a Secret with a specific name and namespace. Supports loading
 // both JSON and YAML configuration.
 type SecretLoader struct {
 	*ConfigMapLoader
 }
+
+var _ Loader = (*SecretLoader)(nil)
 
 func NewSecretLoader(client kubernetes.Interface, namespace, name string) *SecretLoader {
 	if namespace == "" {
@@ -100,7 +102,7 @@ func (c *SecretLoader) unmarshalSecret(data map[string][]byte) (*configCache, er
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot decode base64 data")
 		}
-		v, err := c.unmarshalToViper(string(bytes))
+		v, err := c.unmarshal(string(bytes))
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot unmarshal %v", name)
 		}
