@@ -2,7 +2,7 @@
 # These values are used for bootstrapping of the webhook server at startup,
 # so changing any values here require a restart of execution-webhook in order
 # to take effect.
-apiVersion: config.furiko.io/v1
+apiVersion: config.furiko.io/v1alpha1
 kind: ExecutionWebhookConfig
 
 # defaultResync controls the default resync duration.

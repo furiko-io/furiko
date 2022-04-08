@@ -21,10 +21,9 @@ package v1alpha1
 import (
 	"net/http"
 
-	rest "k8s.io/client-go/rest"
-
 	v1alpha1 "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/generated/clientset/versioned/scheme"
+	rest "k8s.io/client-go/rest"
 )
 
 type ExecutionV1alpha1Interface interface {

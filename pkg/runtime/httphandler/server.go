@@ -24,16 +24,16 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
 )
 
 var (
-	defaultHTTPConfig = &configv1.HTTPSpec{
+	defaultHTTPConfig = &configv1alpha1.HTTPSpec{
 		BindAddress: ":8080",
 	}
 
-	defaultWebhooksConfig = &configv1.WebhookServerSpec{
+	defaultWebhooksConfig = &configv1alpha1.WebhookServerSpec{
 		BindAddress: ":9443",
 	}
 )
@@ -45,7 +45,7 @@ type Manager interface {
 
 // ListenAndServe listens on the given TCP address and gracefully stops when the
 // given context is canceled, setting up all HTTP handlers.
-func ListenAndServe(ctx context.Context, config *configv1.HTTPSpec, mgr Manager) error {
+func ListenAndServe(ctx context.Context, config *configv1alpha1.HTTPSpec, mgr Manager) error {
 	if config == nil {
 		config = defaultHTTPConfig
 	}
@@ -69,7 +69,7 @@ func ListenAndServe(ctx context.Context, config *configv1.HTTPSpec, mgr Manager)
 // given context is canceled, setting up all webhooks handlers.
 func ListenAndServeWebhooks(
 	ctx context.Context,
-	config *configv1.WebhookServerSpec,
+	config *configv1alpha1.WebhookServerSpec,
 	webhooks []controllermanager.Webhook,
 ) error {
 	if config == nil {

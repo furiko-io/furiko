@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
@@ -54,7 +54,7 @@ func (c *secretLoaderTest) Update(ctx context.Context, client kubernetes.Interfa
 			Name:      secretName,
 		},
 		Data: map[string][]byte{
-			string(configv1.ConfigNameJobController): []byte(base64.StdEncoding.EncodeToString([]byte(data))),
+			string(configv1alpha1.JobExecutionConfigName): []byte(base64.StdEncoding.EncodeToString([]byte(data))),
 		},
 	}, metav1.UpdateOptions{})
 	return err

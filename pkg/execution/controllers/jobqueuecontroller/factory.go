@@ -17,7 +17,7 @@
 package jobqueuecontroller
 
 import (
-	v1 "github.com/furiko-io/furiko/apis/config/v1"
+	v1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
 )

@@ -19,12 +19,12 @@ package job
 import (
 	"time"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 )
 
 // GetPendingTimeout returns the pending timeout for the given Job.
-func GetPendingTimeout(rj *execution.Job, cfg *configv1.JobControllerConfig) time.Duration {
+func GetPendingTimeout(rj *execution.Job, cfg *configv1alpha1.JobExecutionConfig) time.Duration {
 	var sec int64
 	if spec := cfg.DefaultPendingTimeoutSeconds; spec != nil {
 		sec = *spec
@@ -36,7 +36,7 @@ func GetPendingTimeout(rj *execution.Job, cfg *configv1.JobControllerConfig) tim
 }
 
 // GetDeleteKillingTimeout returns the timeout before the controller starts killing tasks with deletion.
-func GetDeleteKillingTimeout(cfg *configv1.JobControllerConfig) time.Duration {
+func GetDeleteKillingTimeout(cfg *configv1alpha1.JobExecutionConfig) time.Duration {
 	var sec int64
 	if spec := cfg.DeleteKillingTasksTimeoutSeconds; spec != nil {
 		sec = *spec
@@ -45,7 +45,7 @@ func GetDeleteKillingTimeout(cfg *configv1.JobControllerConfig) time.Duration {
 }
 
 // GetForceDeleteKillingTimeout returns the timeout before the controller starts force deletion.
-func GetForceDeleteKillingTimeout(cfg *configv1.JobControllerConfig) time.Duration {
+func GetForceDeleteKillingTimeout(cfg *configv1alpha1.JobExecutionConfig) time.Duration {
 	var sec int64
 	if spec := cfg.ForceDeleteKillingTasksTimeoutSeconds; spec != nil {
 		sec = *spec
@@ -54,7 +54,7 @@ func GetForceDeleteKillingTimeout(cfg *configv1.JobControllerConfig) time.Durati
 }
 
 // GetTTLAfterFinished returns the TTL after a Job is finished.
-func GetTTLAfterFinished(rj *execution.Job, cfg *configv1.JobControllerConfig) time.Duration {
+func GetTTLAfterFinished(rj *execution.Job, cfg *configv1alpha1.JobExecutionConfig) time.Duration {
 	var sec int64
 	if spec := cfg.DefaultTTLSecondsAfterFinished; spec != nil {
 		sec = *spec

@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
 	"github.com/furiko-io/furiko/pkg/utils/execution/job"
@@ -40,10 +40,10 @@ import (
 
 type Reconciler struct {
 	*Context
-	concurrency *configv1.Concurrency
+	concurrency *configv1alpha1.Concurrency
 }
 
-func NewReconciler(ctrlContext *Context, concurrency *configv1.Concurrency) *Reconciler {
+func NewReconciler(ctrlContext *Context, concurrency *configv1alpha1.Concurrency) *Reconciler {
 	return &Reconciler{
 		Context:     ctrlContext,
 		concurrency: concurrency,

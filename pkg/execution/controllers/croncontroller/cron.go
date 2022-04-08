@@ -28,7 +28,7 @@ import (
 
 	utiltrace "k8s.io/utils/trace"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
 	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
@@ -135,7 +135,7 @@ func (w *CronWorker) flushKeys() {
 // syncOne reconciles a single JobConfig and enqueues Jobs to be created.
 func (w *CronWorker) syncOne(
 	jobConfig *execution.JobConfig,
-	cfg *configv1.CronControllerConfig,
+	cfg *configv1alpha1.CronExecutionConfig,
 	parser *cronparser.Parser,
 ) error {
 	schedule := jobConfig.Spec.Schedule
@@ -227,7 +227,7 @@ func (w *CronWorker) enqueueJob(jobConfig *execution.JobConfig, scheduleTime tim
 }
 
 // getTimezone returns the timezone for the given JobConfig.
-func (w *CronWorker) getTimezone(cronSchedule *execution.CronSchedule, cfg *configv1.CronControllerConfig) string {
+func (w *CronWorker) getTimezone(cronSchedule *execution.CronSchedule, cfg *configv1alpha1.CronExecutionConfig) string {
 	// Read from spec.
 	if cronSchedule.Timezone != "" {
 		return cronSchedule.Timezone

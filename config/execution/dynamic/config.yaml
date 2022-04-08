@@ -1,36 +1,41 @@
-# Here we define the dynamic config for execution-controller.
-# We can tune several knobs in execution-controller without requiring a restart.
-# Each file in the ConfigMap defines a group of configuration knobs available for
-# the user to tweak as desired. As a start, we have populated a set of sane default
-# values for you.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: dynamic-config
 data:
-  job-controller: |
+  execution-job: |
+    # Here we define the dynamic config for execution-controller without requiring
+    # a restart. This config file configures dynamic configuration for Jobs.
+    apiVersion: config.furiko.io/v1alpha1
+    kind: JobExecutionConfig
+
     # defaultTTLSecondsAfterFinished is the default time-to-live (TTL) for a Job
     # after it has finished. Lower this value to reduce the strain on the
-    # cluster/kubelet. This field can be set separately on each Job as well.
+    # cluster/kubelet. Set to 0 to delete immediately after the Job is finished.
     defaultTTLSecondsAfterFinished: 3600
 
     # defaultPendingTimeoutSeconds is default timeout to use if job does not
     # specify the pending timeout. By default, this is a non-zero value to prevent
-    # permanently stuck jobs. To disable default pending timeout, set this to 0 or
-    # a negative number.
+    # permanently stuck jobs. To disable default pending timeout, set this to 0.
     defaultPendingTimeoutSeconds: 900
 
     # deleteKillingTasksTimeoutSeconds is the duration we delete the task to kill
     # it instead of using active deadline, if previous efforts were ineffective.
+    # Set this value to 0 to immediately use deletion.
     deleteKillingTasksTimeoutSeconds: 180
 
     # forceDeleteKillingTasksTimeoutSeconds is the duration before we use force
     # deletion instead of normal deletion. This timeout is computed from the
     # deletionTimestamp of the object, which may also include an additional delay
-    # of deletionGracePeriodSeconds.
+    # of deletionGracePeriodSeconds. Set this value to 0 to disable force deletion.
     forceDeleteKillingTasksTimeoutSeconds: 120
 
-  cron-controller: |
+  execution-cron: |
+    # Here we define the dynamic config for execution-controller without requiring
+    # a restart. This config file configures dynamic configuration for Cron.
+    apiVersion: config.furiko.io/v1alpha1
+    kind: CronExecutionConfig
+
     # cronFormat specifies the format used to parse cron expressions. Select
     # between "standard" (default) or "quartz".
     cronFormat: "standard"
@@ -76,7 +81,8 @@ data:
     # maxMissedSchedules defines a maximum number of jobs that the controller
     # should back-schedule, or attempt to create after coming back up from
     # downtime. Having a sane value here would prevent a thundering herd of jobs
-    # being scheduled that would exhaust resources in the cluster.
+    # being scheduled that would exhaust resources in the cluster. Set this to 0 to
+    # disable back-scheduling.
     maxMissedSchedules: 5
 
     # maxDowntimeThresholdSeconds defines the maximum downtime that the controller

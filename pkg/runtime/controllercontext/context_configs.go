@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
@@ -34,9 +34,9 @@ func (c *Context) Configs() Configs {
 
 type Configs interface {
 	Start(ctx context.Context) error
-	AllConfigs() (map[configv1.ConfigName]runtime.Object, error)
-	JobController() (*configv1.JobControllerConfig, error)
-	CronController() (*configv1.CronControllerConfig, error)
+	AllConfigs() (map[configv1alpha1.ConfigName]runtime.Object, error)
+	JobController() (*configv1alpha1.JobExecutionConfig, error)
+	CronController() (*configv1alpha1.CronExecutionConfig, error)
 }
 
 type ContextConfigs struct {
@@ -48,17 +48,17 @@ func NewContextConfigs(mgr *configloader.ConfigManager) *ContextConfigs {
 }
 
 // AllConfigs returns a map of all configs.
-func (c *ContextConfigs) AllConfigs() (map[configv1.ConfigName]runtime.Object, error) {
-	configNameMap := map[configv1.ConfigName]func() (runtime.Object, error){
-		configv1.ConfigNameJobController: func() (runtime.Object, error) {
+func (c *ContextConfigs) AllConfigs() (map[configv1alpha1.ConfigName]runtime.Object, error) {
+	configNameMap := map[configv1alpha1.ConfigName]func() (runtime.Object, error){
+		configv1alpha1.JobExecutionConfigName: func() (runtime.Object, error) {
 			return c.JobController()
 		},
-		configv1.ConfigNameCronController: func() (runtime.Object, error) {
+		configv1alpha1.CronExecutionConfigName: func() (runtime.Object, error) {
 			return c.CronController()
 		},
 	}
 
-	configs := make(map[configv1.ConfigName]runtime.Object)
+	configs := make(map[configv1alpha1.ConfigName]runtime.Object)
 	for configName, load := range configNameMap {
 		cfg, err := load()
 		if err != nil {
@@ -71,25 +71,25 @@ func (c *ContextConfigs) AllConfigs() (map[configv1.ConfigName]runtime.Object, e
 }
 
 // JobController returns the job controller configuration.
-func (c *ContextConfigs) JobController() (*configv1.JobControllerConfig, error) {
-	var config configv1.JobControllerConfig
-	if err := c.LoadAndUnmarshalConfig(configv1.ConfigNameJobController, &config); err != nil {
+func (c *ContextConfigs) JobController() (*configv1alpha1.JobExecutionConfig, error) {
+	var config configv1alpha1.JobExecutionConfig
+	if err := c.LoadAndUnmarshalConfig(configv1alpha1.JobExecutionConfigName, &config); err != nil {
 		return nil, err
 	}
 	return &config, nil
 }
 
 // CronController returns the cron controller configuration.
-func (c *ContextConfigs) CronController() (*configv1.CronControllerConfig, error) {
-	var config configv1.CronControllerConfig
-	if err := c.LoadAndUnmarshalConfig(configv1.ConfigNameCronController, &config); err != nil {
+func (c *ContextConfigs) CronController() (*configv1alpha1.CronExecutionConfig, error) {
+	var config configv1alpha1.CronExecutionConfig
+	if err := c.LoadAndUnmarshalConfig(configv1alpha1.CronExecutionConfigName, &config); err != nil {
 		return nil, err
 	}
 	return &config, nil
 }
 
 // SetUpConfigManager sets up the ConfigManager and returns a composed Configs interface.
-func SetUpConfigManager(cfg *configv1.BootstrapConfigSpec, client kubernetes.Interface) Configs {
+func SetUpConfigManager(cfg *configv1alpha1.BootstrapConfigSpec, client kubernetes.Interface) Configs {
 	configManager := configloader.NewConfigManager()
 	var configMapNamespace, configMapName, secretNamespace, secretName string
 	if cfg := cfg.DynamicConfigs; cfg != nil {

@@ -28,7 +28,7 @@ import (
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
@@ -63,7 +63,7 @@ func (c *configMapLoaderTest) Update(ctx context.Context, client kubernetes.Inte
 			Name:      configMapName,
 		},
 		Data: map[string]string{
-			string(configv1.ConfigNameJobController): data,
+			string(configv1alpha1.JobExecutionConfigName): data,
 		},
 	}, metav1.UpdateOptions{})
 	return err

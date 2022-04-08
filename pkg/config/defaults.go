@@ -19,18 +19,18 @@ package config
 import (
 	"k8s.io/utils/pointer"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 var (
-	DefaultJobControllerConfig = &configv1.JobControllerConfig{
+	DefaultJobControllerConfig = &configv1alpha1.JobExecutionConfig{
 		DefaultTTLSecondsAfterFinished:        pointer.Int64(3600),
 		DefaultPendingTimeoutSeconds:          pointer.Int64(900),
 		DeleteKillingTasksTimeoutSeconds:      pointer.Int64(180),
 		ForceDeleteKillingTasksTimeoutSeconds: pointer.Int64(120),
 	}
 
-	DefaultCronControllerConfig = &configv1.CronControllerConfig{
+	DefaultCronControllerConfig = &configv1alpha1.CronExecutionConfig{
 		CronFormat:                  "standard",
 		CronHashNames:               pointer.Bool(true),
 		CronHashSecondsByDefault:    pointer.Bool(false),

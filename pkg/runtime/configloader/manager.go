@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 // ConfigManager manages ConfigLoaders and merges structured configuration
@@ -62,7 +62,7 @@ func (c *ConfigManager) Start(ctx context.Context) error {
 // If an error is encountered, it will return a previously known good value if
 // available, and log the error. Otherwise, if there is no previously cached
 // value for configName, then the error will be propagated back to the caller.
-func (c *ConfigManager) LoadAndUnmarshalConfig(configName configv1.ConfigName, out interface{}) error {
+func (c *ConfigManager) LoadAndUnmarshalConfig(configName configv1alpha1.ConfigName, out interface{}) error {
 	err := c.loadAndUnmarshalConfigWithError(configName, out)
 
 	// Return cached value and log error.
@@ -106,7 +106,7 @@ func (c *ConfigManager) LoadAndUnmarshalConfig(configName configv1.ConfigName, o
 	return nil
 }
 
-func (c *ConfigManager) loadAndUnmarshalConfigWithError(configName configv1.ConfigName, out interface{}) error {
+func (c *ConfigManager) loadAndUnmarshalConfigWithError(configName configv1alpha1.ConfigName, out interface{}) error {
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		TagName: "json",
 		Result:  out,
@@ -125,7 +125,7 @@ func (c *ConfigManager) loadAndUnmarshalConfigWithError(configName configv1.Conf
 }
 
 // loadConfig will load the given config name from all loaders.
-func (c *ConfigManager) loadConfig(configName configv1.ConfigName) (res Config, err error) {
+func (c *ConfigManager) loadConfig(configName configv1alpha1.ConfigName) (res Config, err error) {
 	if !c.started {
 		return nil, errors.New("config manager is not started")
 	}

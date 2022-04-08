@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
@@ -60,7 +60,7 @@ func TestReconciler(t *testing.T) {
 		coreReactors     []*ktesting.SimpleReactor
 		coreActions      runtimetesting.ActionTest
 		executionActions runtimetesting.ActionTest
-		configs          map[configv1.ConfigName]runtime.Object
+		configs          map[configv1alpha1.ConfigName]runtime.Object
 	}{
 		{
 			name:   "create pod",
@@ -157,8 +157,8 @@ func TestReconciler(t *testing.T) {
 			initialPods: []*corev1.Pod{
 				fakePodPending,
 			},
-			configs: map[configv1.ConfigName]runtime.Object{
-				configv1.ConfigNameJobController: &configv1.JobControllerConfig{
+			configs: map[configv1alpha1.ConfigName]runtime.Object{
+				configv1alpha1.JobExecutionConfigName: &configv1alpha1.JobExecutionConfig{
 					DefaultPendingTimeoutSeconds: pointer.Int64(0),
 				},
 			},
@@ -250,8 +250,8 @@ func TestReconciler(t *testing.T) {
 			initialPods: []*corev1.Pod{
 				fakePodDeleting,
 			},
-			configs: map[configv1.ConfigName]runtime.Object{
-				configv1.ConfigNameJobController: &configv1.JobControllerConfig{
+			configs: map[configv1alpha1.ConfigName]runtime.Object{
+				configv1alpha1.JobExecutionConfigName: &configv1alpha1.JobExecutionConfig{
 					ForceDeleteKillingTasksTimeoutSeconds: pointer.Int64(0),
 				},
 			},
@@ -350,8 +350,8 @@ func TestReconciler(t *testing.T) {
 					runtimetesting.NewDeleteAction(resourceJob, jobNamespace, fakeJob.Name),
 				},
 			},
-			configs: map[configv1.ConfigName]runtime.Object{
-				configv1.ConfigNameJobController: &configv1.JobControllerConfig{
+			configs: map[configv1alpha1.ConfigName]runtime.Object{
+				configv1alpha1.JobExecutionConfigName: &configv1alpha1.JobExecutionConfig{
 					DefaultTTLSecondsAfterFinished: pointer.Int64(0),
 				},
 			},
@@ -378,7 +378,7 @@ func TestReconciler(t *testing.T) {
 
 			c := mock.NewContext()
 			ctrlCtx := jobcontroller.NewContextWithRecorder(c, &record.FakeRecorder{})
-			reconciler := jobcontroller.NewReconciler(ctrlCtx, &configv1.Concurrency{
+			reconciler := jobcontroller.NewReconciler(ctrlCtx, &configv1alpha1.Concurrency{
 				Workers: 1,
 			})
 			for configName, cfg := range tt.configs {

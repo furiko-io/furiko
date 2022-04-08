@@ -22,7 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/client-go/rest"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 // Context is a shared controller context that can be safely shared between controllers.
@@ -37,7 +37,7 @@ type Context struct {
 var _ ContextInterface = &Context{}
 
 // NewForConfig prepares a new Context from a kubeconfig and controller manager config spec.
-func NewForConfig(cfg *rest.Config, ctrlConfig *configv1.BootstrapConfigSpec) (*Context, error) {
+func NewForConfig(cfg *rest.Config, ctrlConfig *configv1alpha1.BootstrapConfigSpec) (*Context, error) {
 	ctrlContext := &Context{
 		restConfig: cfg,
 	}

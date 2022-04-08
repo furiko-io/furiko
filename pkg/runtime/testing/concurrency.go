@@ -17,13 +17,13 @@
 package testing
 
 import (
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 var (
 	// ReconcilerDefaultConcurrency is the default concurrency to use for tests.
 	// For simplicity, reconcilers should not have concurrent workers.
-	ReconcilerDefaultConcurrency = &configv1.Concurrency{
+	ReconcilerDefaultConcurrency = &configv1alpha1.Concurrency{
 		Workers: 1,
 	}
 )

@@ -23,7 +23,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 const (
@@ -32,7 +32,7 @@ const (
 )
 
 // ServeHealth adds health probe handlers to the given serve mux.
-func ServeHealth(mux *http.ServeMux, cfg *configv1.HealthSpec, mgr Manager) {
+func ServeHealth(mux *http.ServeMux, cfg *configv1alpha1.HealthSpec, mgr Manager) {
 	// Not enabled.
 	if cfg == nil {
 		return

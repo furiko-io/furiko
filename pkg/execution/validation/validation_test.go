@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/validation"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
@@ -220,7 +220,7 @@ func TestValidateJobConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		rjc     *v1alpha1.JobConfig
-		cfgs    map[configv1.ConfigName]runtime.Object
+		cfgs    map[configv1alpha1.ConfigName]runtime.Object
 		wantErr string
 	}{
 		{
@@ -275,8 +275,8 @@ func TestValidateJobConfig(t *testing.T) {
 					Schedule:    &scheduleSpecWithHash,
 				},
 			},
-			cfgs: map[configv1.ConfigName]runtime.Object{
-				configv1.ConfigNameCronController: &configv1.CronControllerConfig{
+			cfgs: map[configv1alpha1.ConfigName]runtime.Object{
+				configv1alpha1.CronExecutionConfigName: &configv1alpha1.CronExecutionConfig{
 					CronHashNames: pointer.Bool(false),
 				},
 			},
@@ -1038,7 +1038,7 @@ func TestValidateJobCreate(t *testing.T) {
 	}
 }
 
-func setup(t *testing.T, cfgs map[configv1.ConfigName]runtime.Object, rjcs []*v1alpha1.JobConfig) *validation.Validator {
+func setup(t *testing.T, cfgs map[configv1alpha1.ConfigName]runtime.Object, rjcs []*v1alpha1.JobConfig) *validation.Validator {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

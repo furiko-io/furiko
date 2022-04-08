@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	v1 "github.com/furiko-io/furiko/apis/config/v1"
+	v1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/utils/eventhandler"
 )
 
