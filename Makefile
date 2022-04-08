@@ -28,6 +28,10 @@ LICENSE_HEADER_GO ?= hack/boilerplate.go.txt
 # Set image name prefix. The actual image name and tag will be appended to this.
 IMAGE_NAME_PREFIX ?= "docker.io/furikoio"
 
+# Define the image tag to use, otherwise will default to latest.
+# The latest tag always refers to the latest stable release.
+IMAGE_TAG ?= "latest"
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -52,7 +56,7 @@ all: manifests generate fmt build yaml ## Generate code, build Go binaries and Y
 
 .PHONY: help
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Development
 
@@ -90,15 +94,6 @@ tidy: ## Run go mod tidy.
 test: ## Run tests with coverage. Outputs to combined.cov.
 	./hack/run-tests.sh
 
-##@ Building
-
-.PHONY: build
-build: build-execution-controller ## Build all Go binaries.
-
-.PHONY: build-execution-controller
-build-execution-controller: ## Build execution-controller.
-	go build -o build/execution-controller ./cmd/execution-controller
-
 ##@ YAML Configuration
 
 ## Location to write YAMLs to
@@ -106,20 +101,20 @@ YAML_DEST ?= $(shell pwd)/yamls
 $(YAML_DEST): ## Ensure that the directory exists
 	mkdir -p $(YAML_DEST)
 
+KUSTOMIZE_DEST ?= $(shell pwd)/dist/kustomize
+$(KUSTOMIZE_DEST):
+	mkdir -p $(KUSTOMIZE_DEST)
+
 .PHONY: yaml
 yaml: yaml-execution ## Build kustomize configs. Outputs to dist folder.
 
 .PHONY: yaml-execution
-yaml-execution: manifests kustomize $(YAML_DEST) ## Build furiko-execution.yaml with Kustomize.
-	{ \
-	cd config/default ;\
-	$(KUSTOMIZE) edit set image execution-controller=$(IMAGE_NAME_PREFIX)/execution-controller:$(IMAGE_TAG)  ;\
-	$(KUSTOMIZE) edit set image execution-webhook=$(IMAGE_NAME_PREFIX)/execution-webhook:$(IMAGE_TAG) ;\
-	}
-	$(KUSTOMIZE) build config/default -o $(YAML_DEST)/furiko-execution.yaml
+yaml-execution: manifests kustomize $(YAML_DEST) $(KUSTOMIZE_DEST) ## Build furiko-execution.yaml with Kustomize.
+	DEST_DIR=$(KUSTOMIZE_DEST) ./hack/generate-kustomization.sh "$(IMAGE_NAME_PREFIX)" "$(IMAGE_TAG)"
+	$(KUSTOMIZE) build $(KUSTOMIZE_DEST) -o $(YAML_DEST)/furiko-execution.yaml
 
 .PHONY: manifests
-manifests: tidy controller-gen yq ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: tidy controller-gen yq ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects into the "config" directory.
 	# Generate CRDs
 	$(CONTROLLER_GEN) crd paths="./..." output:crd:artifacts:config=config/crd/bases
 	# Generate webhook manifests
@@ -137,20 +132,21 @@ ifndef ignore-not-found
 endif
 
 .PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+install: manifests kustomize ## Installs the CRDs into the K8s cluster.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
 .PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+deploy: manifests kustomize $(KUSTOMIZE_DEST) ## Deploys snapshot version of all components to the K8s cluster. Useful for testing current HEAD.
+	DEST_DIR=$(KUSTOMIZE_DEST) ./hack/generate-kustomization.sh "$(IMAGE_NAME_PREFIX)" "snapshot"
+	$(KUSTOMIZE) build $(KUSTOMIZE_DEST) | kubectl apply -f -
 
 .PHONY: undeploy
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+undeploy: $(KUSTOMIZE_DEST) ## Undeploy controller from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build $(KUSTOMIZE_DEST) | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Release
 
@@ -173,7 +169,6 @@ GOIMPORTS ?= $(LOCALBIN)/goimports
 YQ ?= $(LOCALBIN)/yq
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 LICENSE_HEADER_CHECKER ?= $(LOCALBIN)/license-header-checker
-GORELEASER ?= $(LOCALBIN)/goreleaser
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
@@ -181,7 +176,6 @@ CONTROLLER_TOOLS_VERSION ?= v0.8.0
 YQ_VERSION ?= v4.14.1
 GOLANGCILINT_VERSION ?= v1.45.2
 LICENSEHEADERCHECKER_VERSION ?= v1.3.0
-GORELEASER_VERSION ?= v1.7.0
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
