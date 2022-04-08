@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"flag"
-	"time"
 
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
@@ -37,10 +36,6 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/httphandler"
 )
 
-const (
-	defaultTeardownTimeout = 2 * time.Minute
-)
-
 // +kubebuilder:rbac:groups="",resources=events;pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs/status,verbs=get;update;patch
@@ -52,15 +47,6 @@ const (
 func main() {
 	klog.InitFlags(nil)
 	defer klog.Flush()
-
-	var configFile string
-	var teardownTimeout time.Duration
-
-	flag.StringVar(&configFile, "config", "",
-		"The controller will load its bootstrap configuration from this file. "+
-			"Omit this flag to use the default configuration values.")
-	flag.DurationVar(&teardownTimeout, "teardown-timeout", defaultTeardownTimeout,
-		"Timeout to tear down all controllers, before it will forcibly quit")
 	flag.Parse()
 
 	// Read bootstrap configuration from file. This set of configuration only
@@ -141,13 +127,11 @@ func main() {
 		}
 	}()
 
-	// Start controller manager.
-	go func() {
-		klog.Info("starting manager")
-		if err := mgr.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			klog.Fatalf("cannot start controller manager: %v", err)
-		}
-	}()
+	klog.Info("starting manager")
+	if err := mgr.Start(ctx, startupTimeout); err != nil && !errors.Is(err, context.Canceled) {
+		klog.Fatalf("cannot start controller manager: %v", err)
+	}
+	klog.Info("all controllers started")
 
 	// Wait for signal
 	<-ctx.Done()
@@ -162,7 +146,7 @@ func main() {
 // ControllerFactory is able to create a new Controller.
 type ControllerFactory interface {
 	Name() string
-	New(ctx controllercontext.ContextInterface,
+	New(ctx controllercontext.Context,
 		concurrency *configv1alpha1.ExecutionControllerConcurrencySpec) (controllermanager.Controller, error)
 }
 
@@ -179,7 +163,7 @@ func GetControllerFactories() []ControllerFactory {
 
 type StoreFactory interface {
 	Name() string
-	New(ctx controllercontext.ContextInterface) (controllermanager.Store, error)
+	New(ctx controllercontext.Context) (controllermanager.Store, error)
 }
 
 // GetStoreFactories returns a list of StoreFactory implementations

@@ -18,6 +18,8 @@ package httphandler
 
 import (
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 // tlsServer is a wrapper around *http.Server that overrides the ListenAndServe
@@ -39,5 +41,11 @@ func newTLSServer(server *http.Server, certFile, keyFile string) *tlsServer {
 var _ Server = (*tlsServer)(nil)
 
 func (s *tlsServer) ListenAndServe() error {
+	if s.certFile == "" {
+		return errors.New("certFile must be specified")
+	}
+	if s.keyFile == "" {
+		return errors.New("keyFile must be specified")
+	}
 	return s.ListenAndServeTLS(s.certFile, s.keyFile)
 }

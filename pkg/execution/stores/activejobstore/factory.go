@@ -35,6 +35,6 @@ func (f *Factory) Name() string {
 	return storeName
 }
 
-func (f *Factory) New(ctrlContext controllercontext.ContextInterface) (controllermanager.Store, error) {
+func (f *Factory) New(ctrlContext controllercontext.Context) (controllermanager.Store, error) {
 	return NewStore(ctrlContext)
 }

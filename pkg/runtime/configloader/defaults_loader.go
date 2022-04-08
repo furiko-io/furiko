@@ -24,7 +24,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	v1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
 )
 
@@ -35,16 +35,16 @@ type DefaultsLoader struct {
 
 	// Can override defaults here, but they are not expected to reload after Start()
 	// is called. Exposed for unit tests.
-	Defaults map[v1.ConfigName]runtime.Object
+	Defaults map[configv1alpha1.ConfigName]runtime.Object
 }
 
 var _ Loader = (*DefaultsLoader)(nil)
 
 func NewDefaultsLoader() *DefaultsLoader {
 	return &DefaultsLoader{
-		Defaults: map[v1.ConfigName]runtime.Object{
-			v1.JobExecutionConfigName:  config.DefaultJobControllerConfig,
-			v1.CronExecutionConfigName: config.DefaultCronControllerConfig,
+		Defaults: map[configv1alpha1.ConfigName]runtime.Object{
+			configv1alpha1.JobExecutionConfigName:  config.DefaultJobControllerConfig,
+			configv1alpha1.CronExecutionConfigName: config.DefaultCronControllerConfig,
 		},
 	}
 }
@@ -64,7 +64,7 @@ func (d *DefaultsLoader) Start(_ context.Context) error {
 	return nil
 }
 
-func (d *DefaultsLoader) Load(configName v1.ConfigName) (Config, error) {
+func (d *DefaultsLoader) Load(configName configv1alpha1.ConfigName) (Config, error) {
 	value, ok := d.cache.Load(configName)
 	if !ok {
 		return nil, nil

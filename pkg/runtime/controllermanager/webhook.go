@@ -18,6 +18,7 @@ package controllermanager
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -55,7 +56,7 @@ type WebhookManager struct {
 	webhooks []Webhook
 }
 
-func NewWebhookManager(ctrlContext *controllercontext.Context) *WebhookManager {
+func NewWebhookManager(ctrlContext controllercontext.Context) *WebhookManager {
 	return &WebhookManager{
 		BaseManager: NewBaseManager(ctrlContext),
 	}
@@ -95,8 +96,9 @@ func (m *WebhookManager) Start(ctx context.Context) error {
 	klog.Infof("controllermanager: webhooks started and ready")
 
 	// Webhook manager is now ready and started.
-	m.makeReady()
-	m.makeStarted()
+	atomic.StoreUint64(&m.readiness, 1)
+	atomic.StoreUint64(&m.starting, 1)
+	atomic.StoreUint64(&m.started, 1)
 
 	return nil
 }

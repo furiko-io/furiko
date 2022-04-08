@@ -55,10 +55,10 @@ var (
 
 // Validator encapsulates all validator methods.
 type Validator struct {
-	ctrlContext controllercontext.ContextInterface
+	ctrlContext controllercontext.Context
 }
 
-func NewValidator(ctrlContext controllercontext.ContextInterface) *Validator {
+func NewValidator(ctrlContext controllercontext.Context) *Validator {
 	return &Validator{ctrlContext: ctrlContext}
 }
 

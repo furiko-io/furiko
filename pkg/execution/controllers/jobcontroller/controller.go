@@ -19,7 +19,6 @@ package jobcontroller
 import (
 	"context"
 	"sync/atomic"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -41,26 +40,20 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/reconciler"
 )
 
-const (
-	controllerName          = "JobController"
-	waitForCacheSyncTimeout = time.Minute * 3
-)
-
-var (
-	healthStatus uint64
-)
-
 // Controller is responsible for reconciling Jobs with their downstream task
 // executor states.
 type Controller struct {
 	*Context
+	ctx            context.Context
+	terminate      context.CancelFunc
+	healthStatus   uint64
 	informerWorker *InformerWorker
 	reconciler     *reconciler.Controller
 }
 
 // Context extends the common controllercontext.Context.
 type Context struct {
-	controllercontext.ContextInterface
+	controllercontext.Context
 	podInformer coreinformers.PodInformer
 	jobInformer executioninformers.JobInformer
 	HasSynced   []cache.InformerSynced
@@ -70,7 +63,7 @@ type Context struct {
 }
 
 // NewContext returns a new Context.
-func NewContext(context controllercontext.ContextInterface) *Context {
+func NewContext(context controllercontext.Context) *Context {
 	// Create recorder.
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
@@ -82,8 +75,8 @@ func NewContext(context controllercontext.ContextInterface) *Context {
 }
 
 // NewContextWithRecorder returns a new Context with a custom EventRecorder.
-func NewContextWithRecorder(context controllercontext.ContextInterface, recorder record.EventRecorder) *Context {
-	c := &Context{ContextInterface: context}
+func NewContextWithRecorder(context controllercontext.Context, recorder record.EventRecorder) *Context {
+	c := &Context{Context: context}
 
 	// Set recorder.
 	c.recorder = recorder
@@ -107,11 +100,14 @@ func NewContextWithRecorder(context controllercontext.ContextInterface, recorder
 }
 
 func NewController(
-	ctrlContext controllercontext.ContextInterface,
+	ctrlContext controllercontext.Context,
 	concurrency *configv1alpha1.Concurrency,
 ) (*Controller, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	ctrl := &Controller{
-		Context: NewContext(ctrlContext),
+		Context:   NewContext(ctrlContext),
+		ctx:       ctx,
+		terminate: cancel,
 	}
 
 	ctrl.informerWorker = NewInformerWorker(ctrl.Context)
@@ -122,32 +118,26 @@ func NewController(
 
 func (c *Controller) Run(ctx context.Context) error {
 	defer utilruntime.HandleCrash()
-	defer c.queue.ShutDown()
 	klog.InfoS("jobcontroller: starting controller")
 
 	// Wait for cache sync up to a timeout.
-	if err := controllerutil.WaitForNamedCacheSyncWithTimeout(
-		ctx,
-		controllerName,
-		waitForCacheSyncTimeout,
-		c.HasSynced...,
-	); err != nil {
-		klog.ErrorS(err, "jobcontroller: cache sync timeout")
-		return err
+	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.HasSynced...); !ok {
+		klog.Error("jobcontroller: cache sync timeout")
+		return controllerutil.ErrWaitForCacheSyncTimeout
 	}
 
-	atomic.StoreUint64(&healthStatus, 1)
+	c.reconciler.Start(c.ctx)
+
+	atomic.StoreUint64(&c.healthStatus, 1)
 	klog.InfoS("jobcontroller: started controller")
 
-	// Start workers
-	c.reconciler.Start(ctx)
-
-	<-ctx.Done()
 	return nil
 }
 
 func (c *Controller) Shutdown(ctx context.Context) {
 	klog.InfoS("jobcontroller: shutting down")
+	c.terminate()
+	c.queue.ShutDown()
 	c.reconciler.Wait()
 	klog.InfoS("jobcontroller: stopped controller")
 }
@@ -155,6 +145,6 @@ func (c *Controller) Shutdown(ctx context.Context) {
 func (c *Controller) GetHealth() controllermanager.HealthStatus {
 	return controllermanager.HealthStatus{
 		Name:    controllerName,
-		Healthy: atomic.LoadUint64(&healthStatus) == 1,
+		Healthy: atomic.LoadUint64(&c.healthStatus) == 1,
 	}
 }

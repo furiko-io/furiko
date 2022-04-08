@@ -31,6 +31,6 @@ func (f *Factory) Name() string {
 	return webhookName
 }
 
-func (f *Factory) New(ctrlContext controllercontext.ContextInterface) (controllermanager.Webhook, error) {
+func (f *Factory) New(ctrlContext controllercontext.Context) (controllermanager.Webhook, error) {
 	return NewWebhook(ctrlContext)
 }

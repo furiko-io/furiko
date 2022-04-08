@@ -50,10 +50,10 @@ var (
 
 // Mutator encapsulates all mutation methods.
 type Mutator struct {
-	ctrlContext controllercontext.ContextInterface
+	ctrlContext controllercontext.Context
 }
 
-func NewMutator(ctrlContext controllercontext.ContextInterface) *Mutator {
+func NewMutator(ctrlContext controllercontext.Context) *Mutator {
 	return &Mutator{ctrlContext: ctrlContext}
 }
 

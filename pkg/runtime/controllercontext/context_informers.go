@@ -31,7 +31,7 @@ const (
 	defaultDefaultResync = time.Minute * 10
 )
 
-func (c *Context) Informers() Informers {
+func (c *ctrlContext) Informers() Informers {
 	return c.informers
 }
 

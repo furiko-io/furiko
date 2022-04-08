@@ -24,7 +24,7 @@ import (
 	furiko "github.com/furiko-io/furiko/pkg/generated/clientset/versioned"
 )
 
-func (c *Context) Clientsets() Clientsets {
+func (c *ctrlContext) Clientsets() Clientsets {
 	return c.clientsets
 }
 
