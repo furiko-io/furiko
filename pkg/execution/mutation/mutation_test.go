@@ -35,7 +35,7 @@ import (
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/apis/execution"
 	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
@@ -584,7 +584,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 func TestMutator_MutateJob(t *testing.T) {
 	tests := []struct {
 		name         string
-		cfgs         map[configv1.ConfigName]runtime.Object
+		cfgs         map[configv1alpha1.ConfigName]runtime.Object
 		rj           *v1alpha1.Job
 		want         *v1alpha1.Job
 		wantErrors   string
@@ -648,7 +648,7 @@ func TestMutator_MutateJob(t *testing.T) {
 func TestMutator_MutateCreateJob(t *testing.T) {
 	tests := []struct {
 		name         string
-		cfgs         map[configv1.ConfigName]runtime.Object
+		cfgs         map[configv1alpha1.ConfigName]runtime.Object
 		rj           *v1alpha1.Job
 		want         *v1alpha1.Job
 		rjcs         []*v1alpha1.JobConfig
@@ -1201,7 +1201,7 @@ func (m *mockProvider) MakeVariablesFromTask(rj *v1alpha1.Job, task *tasks.TaskT
 	return nil
 }
 
-func setup(t *testing.T, cfgs map[configv1.ConfigName]runtime.Object, rjcs []*v1alpha1.JobConfig) *mutation.Mutator {
+func setup(t *testing.T, cfgs map[configv1alpha1.ConfigName]runtime.Object, rjcs []*v1alpha1.JobConfig) *mutation.Mutator {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

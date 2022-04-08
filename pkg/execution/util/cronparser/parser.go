@@ -19,7 +19,7 @@ package cronparser
 import (
 	"github.com/furiko-io/cronexpr"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 // Parser wraps the raw cronexpr parser to encapsulate common configuration.
@@ -29,7 +29,7 @@ type Parser struct {
 	opts      []cronexpr.ParseOption
 }
 
-func NewParser(cfg *configv1.CronControllerConfig) *Parser {
+func NewParser(cfg *configv1alpha1.CronExecutionConfig) *Parser {
 	format := cronexpr.CronFormatStandard
 	if cronexpr.CronFormat(cfg.CronFormat) == cronexpr.CronFormatQuartz {
 		format = cronexpr.CronFormatQuartz

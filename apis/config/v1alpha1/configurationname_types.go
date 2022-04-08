@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package v1
+package v1alpha1
 
-// ConfigName denotes a named configuration, and refers to the name in the
-// ConfigMap configuration.
+// ConfigName refers to the name of a dynamic configuration.
 type ConfigName string
 
 const (
-	ConfigNameJobController  ConfigName = "job-controller"
-	ConfigNameCronController ConfigName = "cron-controller"
+	// JobExecutionConfigName refers to JobExecutionConfig.
+	JobExecutionConfigName ConfigName = "execution-job"
+
+	// CronExecutionConfigName refers to CronExecutionConfig.
+	CronExecutionConfigName ConfigName = "execution-cron"
 )

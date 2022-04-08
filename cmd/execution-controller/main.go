@@ -25,7 +25,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/bootstrap"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobconfigcontroller"
@@ -69,7 +69,7 @@ func main() {
 	// ConfigMap or some dynamic configuration source.
 	//
 	// Changes will not take effect until the server is restarted.
-	var options configv1.ExecutionControllerConfig
+	var options configv1alpha1.ExecutionControllerConfig
 	if configFile != "" {
 		klog.Infof("loading configuration from %v", configFile)
 		if err := bootstrap.UnmarshalFromFile(configFile, &options); err != nil {
@@ -122,7 +122,7 @@ func main() {
 	for _, factory := range GetControllerFactories() {
 		concurrencySpec := options.ControllerConcurrency
 		if concurrencySpec == nil {
-			concurrencySpec = &configv1.ExecutionControllerConcurrencySpec{}
+			concurrencySpec = &configv1alpha1.ExecutionControllerConcurrencySpec{}
 		}
 		klog.Infof("setting up controller %v", factory.Name())
 		controller, err := factory.New(ctrlContext, concurrencySpec)
@@ -163,7 +163,7 @@ func main() {
 type ControllerFactory interface {
 	Name() string
 	New(ctx controllercontext.ContextInterface,
-		concurrency *configv1.ExecutionControllerConcurrencySpec) (controllermanager.Controller, error)
+		concurrency *configv1alpha1.ExecutionControllerConcurrencySpec) (controllermanager.Controller, error)
 }
 
 // GetControllerFactories returns a list of ControllerFactory implementations

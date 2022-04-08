@@ -22,7 +22,7 @@ import (
 
 	kubernetes "k8s.io/client-go/informers"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	furiko "github.com/furiko-io/furiko/pkg/generated/informers/externalversions"
 )
 
@@ -56,7 +56,7 @@ func (c *contextInformers) Furiko() furiko.SharedInformerFactory {
 	return c.furiko
 }
 
-func SetUpInformers(clientsets Clientsets, cfg *configv1.BootstrapConfigSpec) Informers {
+func SetUpInformers(clientsets Clientsets, cfg *configv1alpha1.BootstrapConfigSpec) Informers {
 	defaultResync := cfg.DefaultResync.Duration
 	if defaultResync == 0 {
 		defaultResync = defaultDefaultResync

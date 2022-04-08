@@ -24,7 +24,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	v1 "github.com/furiko-io/furiko/apis/config/v1"
+	v1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
 )
 
@@ -43,8 +43,8 @@ var _ Loader = (*DefaultsLoader)(nil)
 func NewDefaultsLoader() *DefaultsLoader {
 	return &DefaultsLoader{
 		Defaults: map[v1.ConfigName]runtime.Object{
-			v1.ConfigNameJobController:  config.DefaultJobControllerConfig,
-			v1.ConfigNameCronController: config.DefaultCronControllerConfig,
+			v1.JobExecutionConfigName:  config.DefaultJobControllerConfig,
+			v1.CronExecutionConfigName: config.DefaultCronControllerConfig,
 		},
 	}
 }

@@ -24,7 +24,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"k8s.io/klog/v2"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/leaderelection"
 )
@@ -53,7 +53,7 @@ type ControllerManager struct {
 
 func NewManager(
 	ctrlContext *controllercontext.Context,
-	ctrlCfg configv1.ControllerManagerConfigSpec,
+	ctrlCfg configv1alpha1.ControllerManagerConfigSpec,
 	defaultLeaseName string,
 ) (*ControllerManager, error) {
 	m := &ControllerManager{

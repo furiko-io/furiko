@@ -19,7 +19,7 @@ package configloader
 import (
 	"context"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 // Config is a dynamic config value.
@@ -29,5 +29,5 @@ type Config map[string]interface{}
 type Loader interface {
 	Name() string
 	Start(context.Context) error
-	Load(configName configv1.ConfigName) (Config, error)
+	Load(configName configv1alpha1.ConfigName) (Config, error)
 }

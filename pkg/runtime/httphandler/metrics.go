@@ -23,7 +23,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 )
 
 // ServeMetrics adds Prometheus metrics handlers to the given serve mux.
-func ServeMetrics(mux *http.ServeMux, cfg *configv1.MetricsSpec) {
+func ServeMetrics(mux *http.ServeMux, cfg *configv1alpha1.MetricsSpec) {
 	// Not enabled.
 	if cfg == nil {
 		return

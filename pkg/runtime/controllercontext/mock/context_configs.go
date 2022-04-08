@@ -23,7 +23,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
@@ -56,7 +56,7 @@ func (c *Configs) MockConfigLoader() *ConfigLoader {
 var _ controllercontext.Configs = (*Configs)(nil)
 
 type ConfigLoader struct {
-	configs map[configv1.ConfigName]runtime.Object
+	configs map[configv1alpha1.ConfigName]runtime.Object
 	mu      sync.RWMutex
 }
 
@@ -64,7 +64,7 @@ var _ configloader.Loader = (*ConfigLoader)(nil)
 
 func NewMockConfigLoader() *ConfigLoader {
 	return &ConfigLoader{
-		configs: make(map[configv1.ConfigName]runtime.Object),
+		configs: make(map[configv1alpha1.ConfigName]runtime.Object),
 	}
 }
 
@@ -76,7 +76,7 @@ func (c *ConfigLoader) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *ConfigLoader) Load(configName configv1.ConfigName) (configloader.Config, error) {
+func (c *ConfigLoader) Load(configName configv1alpha1.ConfigName) (configloader.Config, error) {
 	config, ok := c.configs[configName]
 	if !ok {
 		return nil, nil
@@ -92,7 +92,7 @@ func (c *ConfigLoader) Load(configName configv1.ConfigName) (configloader.Config
 	return m, nil
 }
 
-func (c *ConfigLoader) SetConfig(configName configv1.ConfigName, config runtime.Object) {
+func (c *ConfigLoader) SetConfig(configName configv1alpha1.ConfigName, config runtime.Object) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.configs[configName] = config

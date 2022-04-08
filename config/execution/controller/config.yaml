@@ -2,7 +2,7 @@
 # These values are used for bootstrapping of the controller manager at startup,
 # so changing any values here require a restart of execution-controller in order
 # to take effect.
-apiVersion: config.furiko.io/v1
+apiVersion: config.furiko.io/v1alpha1
 kind: ExecutionControllerConfig
 
 # defaultResync controls the default resync duration.

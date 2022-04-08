@@ -26,7 +26,7 @@ import (
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
@@ -39,7 +39,7 @@ import (
 // same JobConfig concurrently.
 type Reconciler struct {
 	*Context
-	concurrency *configv1.Concurrency
+	concurrency *configv1alpha1.Concurrency
 	client      ExecutionControlInterface
 	store       controllercontext.ActiveJobStore
 }
@@ -48,7 +48,7 @@ func NewReconciler(
 	ctrlContext *Context,
 	client ExecutionControlInterface,
 	store controllercontext.ActiveJobStore,
-	concurrency *configv1.Concurrency,
+	concurrency *configv1alpha1.Concurrency,
 ) *Reconciler {
 	return &Reconciler{
 		Context:     ctrlContext,

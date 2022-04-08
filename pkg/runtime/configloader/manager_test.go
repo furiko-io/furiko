@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/utils/pointer"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
@@ -35,7 +35,7 @@ const (
 )
 
 type Config struct {
-	// Fields from JobControllerConfig.
+	// Fields from JobExecutionConfig.
 	DefaultTTLSecondsAfterFinished   int64 `json:"defaultTTLSecondsAfterFinished,omitempty"`
 	DefaultPendingTimeoutSeconds     int64 `json:"defaultPendingTimeoutSeconds,omitempty"`
 	DeleteKillingTasksTimeoutSeconds int64 `json:"deleteKillingTasksTimeoutSeconds,omitempty"`
@@ -47,7 +47,7 @@ type Config struct {
 	IntPtr  *int  `json:"intPtr,omitempty"`
 }
 
-type MockConfig map[configv1.ConfigName]configloader.Config
+type MockConfig map[configv1alpha1.ConfigName]configloader.Config
 
 type mockLoader struct {
 }
@@ -70,7 +70,7 @@ func newMockErrorLoader() *mockErrorLoader {
 	}
 }
 
-func (m *mockErrorLoader) Load(_ configv1.ConfigName) (configloader.Config, error) {
+func (m *mockErrorLoader) Load(_ configv1alpha1.ConfigName) (configloader.Config, error) {
 	return nil, errors.New("load config error")
 }
 
@@ -86,7 +86,7 @@ func newMockConfigLoader(values MockConfig) *mockConfigLoader {
 	}
 }
 
-func (m *mockConfigLoader) Load(configName configv1.ConfigName) (configloader.Config, error) {
+func (m *mockConfigLoader) Load(configName configv1alpha1.ConfigName) (configloader.Config, error) {
 	return m.values[configName], nil
 }
 
@@ -498,17 +498,17 @@ func TestConfigManager_Dynamic(t *testing.T) {
 	}
 }
 
-func loadJobControllerConfig(mgr *configloader.ConfigManager) (*configv1.JobControllerConfig, error) {
-	var config configv1.JobControllerConfig
-	if err := mgr.LoadAndUnmarshalConfig(configv1.ConfigNameJobController, &config); err != nil {
+func loadJobControllerConfig(mgr *configloader.ConfigManager) (*configv1alpha1.JobExecutionConfig, error) {
+	var config configv1alpha1.JobExecutionConfig
+	if err := mgr.LoadAndUnmarshalConfig(configv1alpha1.JobExecutionConfigName, &config); err != nil {
 		return nil, err
 	}
 	return &config, nil
 }
 
-func loadCronControllerConfig(mgr *configloader.ConfigManager) (*configv1.CronControllerConfig, error) {
-	var config configv1.CronControllerConfig
-	if err := mgr.LoadAndUnmarshalConfig(configv1.ConfigNameCronController, &config); err != nil {
+func loadCronControllerConfig(mgr *configloader.ConfigManager) (*configv1alpha1.CronExecutionConfig, error) {
+	var config configv1alpha1.CronExecutionConfig
+	if err := mgr.LoadAndUnmarshalConfig(configv1alpha1.CronExecutionConfigName, &config); err != nil {
 		return nil, err
 	}
 	return &config, nil

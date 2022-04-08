@@ -26,18 +26,18 @@ import (
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
 )
 
 // IndependentReconciler reconciles independent Jobs that do not have any JobConfig.
 type IndependentReconciler struct {
 	*Context
-	concurrency *configv1.Concurrency
+	concurrency *configv1alpha1.Concurrency
 	client      JobControlInterface
 }
 
-func NewIndependentReconciler(ctrlContext *Context, concurrency *configv1.Concurrency) *IndependentReconciler {
+func NewIndependentReconciler(ctrlContext *Context, concurrency *configv1alpha1.Concurrency) *IndependentReconciler {
 	reconciler := &IndependentReconciler{
 		Context:     ctrlContext,
 		concurrency: concurrency,

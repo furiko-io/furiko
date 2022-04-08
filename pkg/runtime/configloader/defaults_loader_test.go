@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
@@ -34,8 +34,8 @@ func TestDefaultsLoader(t *testing.T) {
 	defer cancel()
 
 	loader := configloader.NewDefaultsLoader()
-	loader.Defaults = map[configv1.ConfigName]runtime.Object{
-		configv1.ConfigNameJobController: &configv1.JobControllerConfig{
+	loader.Defaults = map[configv1alpha1.ConfigName]runtime.Object{
+		configv1alpha1.JobExecutionConfigName: &configv1alpha1.JobExecutionConfig{
 			DefaultTTLSecondsAfterFinished: pointer.Int64(123),
 			DefaultPendingTimeoutSeconds:   pointer.Int64(234),
 		},
@@ -67,14 +67,14 @@ func TestDefaultsLoader_LoaderOverride(t *testing.T) {
 	defer cancel()
 
 	defaultLoader := configloader.NewDefaultsLoader()
-	defaultLoader.Defaults = map[configv1.ConfigName]runtime.Object{
-		configv1.ConfigNameJobController: &configv1.JobControllerConfig{
+	defaultLoader.Defaults = map[configv1alpha1.ConfigName]runtime.Object{
+		configv1alpha1.JobExecutionConfigName: &configv1alpha1.JobExecutionConfig{
 			DefaultTTLSecondsAfterFinished: pointer.Int64(123),
 			DefaultPendingTimeoutSeconds:   pointer.Int64(234),
 		},
 	}
 	mockLoader := newMockConfigLoader(MockConfig{
-		configv1.ConfigNameCronController: map[string]interface{}{
+		configv1alpha1.CronExecutionConfigName: map[string]interface{}{
 			"maxMissedSchedules": 100,
 		},
 	})
@@ -84,7 +84,7 @@ func TestDefaultsLoader_LoaderOverride(t *testing.T) {
 	err := mgr.Start(ctx)
 	assert.NoError(t, err)
 
-	// Non-empty CronControllerConfig overridden by mock loader.
+	// Non-empty CronExecutionConfig overridden by mock loader.
 	cronCfg, err := loadCronControllerConfig(mgr)
 	assert.NoError(t, err)
 	assert.Equal(t, pointer.Int64(100), cronCfg.MaxMissedSchedules)

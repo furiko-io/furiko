@@ -25,7 +25,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/bootstrap"
 	"github.com/furiko-io/furiko/pkg/execution/webhooks/jobconfigmutatingwebhook"
 	"github.com/furiko-io/furiko/pkg/execution/webhooks/jobconfigvalidatingwebhook"
@@ -65,7 +65,7 @@ func main() {
 	// ConfigMap or some dynamic configuration source.
 	//
 	// Changes will not take effect until the server is restarted.
-	var options configv1.ExecutionWebhookConfig
+	var options configv1alpha1.ExecutionWebhookConfig
 	if configFile != "" {
 		klog.Infof("loading configuration from %v", configFile)
 		if err := bootstrap.UnmarshalFromFile(configFile, &options); err != nil {

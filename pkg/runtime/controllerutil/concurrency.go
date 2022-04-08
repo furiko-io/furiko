@@ -19,18 +19,18 @@ package controllerutil
 import (
 	"runtime"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 // GetConcurrencyOrDefaultCPUFactor returns the configured concurrency, or a
 // default factor on the number of CPUs.
-func GetConcurrencyOrDefaultCPUFactor(concurrency *configv1.Concurrency, defaultFactor int) int {
+func GetConcurrencyOrDefaultCPUFactor(concurrency *configv1alpha1.Concurrency, defaultFactor int) int {
 	return GetConcurrencyOrDefaultNumber(concurrency, runtime.NumCPU()*defaultFactor)
 }
 
 // GetConcurrencyOrDefaultNumber returns the configured concurrency, or a
 // default number.
-func GetConcurrencyOrDefaultNumber(concurrency *configv1.Concurrency, defaultNumber int) int {
+func GetConcurrencyOrDefaultNumber(concurrency *configv1alpha1.Concurrency, defaultNumber int) int {
 	if concurrency != nil {
 		if num := concurrency.Workers; num > 0 {
 			return int(num)

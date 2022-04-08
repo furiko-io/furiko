@@ -30,7 +30,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/generated/clientset/versioned/scheme"
@@ -108,7 +108,7 @@ func NewContextWithRecorder(context controllercontext.ContextInterface, recorder
 
 func NewController(
 	ctrlContext controllercontext.ContextInterface,
-	concurrency *configv1.Concurrency,
+	concurrency *configv1alpha1.Concurrency,
 ) (*Controller, error) {
 	ctrl := &Controller{
 		Context: NewContext(ctrlContext),

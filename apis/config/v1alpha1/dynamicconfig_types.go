@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package v1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,8 +23,8 @@ import (
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// JobControllerConfig defines runtime configuration for the Job controller.
-type JobControllerConfig struct {
+// JobExecutionConfig defines runtime global configuration for Jobs in the cluster.
+type JobExecutionConfig struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// DefaultTTLSecondsAfterFinished is the default time-to-live (TTL) for a Job
@@ -64,8 +64,8 @@ type JobControllerConfig struct {
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// CronControllerConfig defines runtime configuration for the Cron controller.
-type CronControllerConfig struct {
+// CronExecutionConfig defines runtime global configuration for Cron in the cluster.
+type CronExecutionConfig struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// CronFormat specifies the format used to parse cron expressions. Select
@@ -147,5 +147,5 @@ type CronControllerConfig struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&JobControllerConfig{}, &CronControllerConfig{})
+	SchemeBuilder.Register(&JobExecutionConfig{}, &CronExecutionConfig{})
 }

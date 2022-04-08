@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
 
-	configv1 "github.com/furiko-io/furiko/apis/config/v1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	rerrors "github.com/furiko-io/furiko/pkg/errors"
@@ -45,10 +45,10 @@ import (
 type Reconciler struct {
 	*Context
 	client      *ExecutionControl
-	concurrency *configv1.Concurrency
+	concurrency *configv1alpha1.Concurrency
 }
 
-func NewReconciler(ctrlContext *Context, concurrency *configv1.Concurrency) *Reconciler {
+func NewReconciler(ctrlContext *Context, concurrency *configv1alpha1.Concurrency) *Reconciler {
 	worker := &Reconciler{
 		Context:     ctrlContext,
 		concurrency: concurrency,
@@ -124,7 +124,7 @@ func (w *Reconciler) SyncOne(ctx context.Context, namespace, name string, _ int)
 // sync performs the main logic for the controller.
 // IMPORTANT: This method MUST returns the latest Job we want to update, even if an error was met midway.
 func (w *Reconciler) sync(
-	ctx context.Context, rj *execution.Job, cfg *configv1.JobControllerConfig, trace *utiltrace.Trace,
+	ctx context.Context, rj *execution.Job, cfg *configv1alpha1.JobExecutionConfig, trace *utiltrace.Trace,
 ) (*execution.Job, error) {
 	// Main logic: Perform task creation/adoption and reconciliation. If Job is not
 	// started or is being deleted, this is a no-op.
@@ -161,7 +161,7 @@ func (w *Reconciler) sync(
 
 // syncJobTasks performs the main reconciliation logic for managing tasks and reconciling the status with the tasks.
 func (w *Reconciler) syncJobTasks(
-	ctx context.Context, rj *execution.Job, cfg *configv1.JobControllerConfig, trace *utiltrace.Trace,
+	ctx context.Context, rj *execution.Job, cfg *configv1alpha1.JobExecutionConfig, trace *utiltrace.Trace,
 ) (*execution.Job, error) {
 	taskMgr, err := w.tasks.ForJob(rj)
 	if err != nil {
@@ -427,7 +427,7 @@ func (w *Reconciler) createTask(ctx context.Context, rj *execution.Job) (jobtask
 // handlePendingTasks looks for pending tasks that have exceeded their pending timeout, and subsequently
 // kill those tasks.
 func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, tasks []jobtasks.Task,
-	cfg *configv1.JobControllerConfig) error {
+	cfg *configv1alpha1.JobExecutionConfig) error {
 	now := ktime.Now().Time
 
 	pendingTimeout := jobutil.GetPendingTimeout(rj, cfg)
@@ -539,7 +539,7 @@ func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks
 
 // handleDeleteKillingTasks uses deletion to kill tasks if prior efforts to set kill timestamp on tasks are ineffective.
 func (w *Reconciler) handleDeleteKillingTasks(
-	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1.JobControllerConfig,
+	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1alpha1.JobExecutionConfig,
 ) (*execution.Job, error) {
 	timeout := jobutil.GetDeleteKillingTimeout(cfg)
 	needDelete := make([]jobtasks.Task, 0, len(tasks))
@@ -624,7 +624,7 @@ func (w *Reconciler) handleDeleteKillingTasks(
 // handleForceDeleteKillingTasks will perform non-graceful deletion of tasks if it cannot be deleted gracefully.
 // For example, when kubelet is not running, normal deletion will not be effective.
 func (w *Reconciler) handleForceDeleteKillingTasks(
-	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1.JobControllerConfig,
+	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1alpha1.JobExecutionConfig,
 ) (*execution.Job, error) {
 	timeout := jobutil.GetForceDeleteKillingTimeout(cfg)
 
@@ -714,7 +714,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 func (w *Reconciler) handleTTLAfterFinished(
 	ctx context.Context,
 	rj *execution.Job,
-	cfg *configv1.JobControllerConfig,
+	cfg *configv1alpha1.JobExecutionConfig,
 ) error {
 	ttl := jobutil.GetTTLAfterFinished(rj, cfg)
 
