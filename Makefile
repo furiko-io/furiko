@@ -140,8 +140,8 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster. Call with
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize $(KUSTOMIZE_DEST) ## Deploys snapshot version of all components to the K8s cluster. Useful for testing current HEAD.
-	DEST_DIR=$(KUSTOMIZE_DEST) ./hack/generate-kustomization.sh "$(IMAGE_NAME_PREFIX)" "snapshot"
+deploy: manifests kustomize $(KUSTOMIZE_DEST) ## Deploys snapshot version of all components to the K8s cluster. Use the IMAGE_TAG environment variable to override the image to be deployed.
+	DEST_DIR=$(KUSTOMIZE_DEST) ./hack/generate-kustomization.sh "$(IMAGE_NAME_PREFIX)" "$(IMAGE_TAG)"
 	$(KUSTOMIZE) build $(KUSTOMIZE_DEST) | kubectl apply -f -
 
 .PHONY: undeploy
