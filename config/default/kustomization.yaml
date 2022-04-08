@@ -5,14 +5,7 @@ namespace: furiko-system
 commonLabels:
   app.kubernetes.io/name: furiko
 
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-- ../common
-- ../crd
-- ../execution
-images:
-- name: execution-controller
-  newName: docker.io/furikoio/execution-controller
-- name: execution-webhook
-  newName: docker.io/furikoio/execution-webhook
+bases:
+  - ../common
+  - ../crd
+  - ../execution

@@ -51,7 +51,7 @@ dockers:
     ids:
       - execution-controller
     image_templates:
-      - "furikoio/execution-controller:{{ if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
+      - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
       - "furikoio/execution-controller:latest"
     build_flag_templates:
       - "--platform=linux/amd64"
@@ -61,7 +61,7 @@ dockers:
     ids:
       - execution-webhook
     image_templates:
-      - "furikoio/execution-webhook:{{ if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
+      - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
       - "furikoio/execution-webhook:latest"
     build_flag_templates:
       - "--platform=linux/amd64"
