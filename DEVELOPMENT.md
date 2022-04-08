@@ -126,13 +126,42 @@ We employ `go fmt` and `goimports` applied to all Go code, including generated c
 
 ## Testing
 
+### Unit Tests
+
 As much as possible, write unit tests to verify the correctness of the changes that you make. We use [Codecov](https://codecov.io/) to track and visualize code coverage over time.
 
-We currently don't have a testing/staging enviroment for validating changes and performing regression/end-to-end tests. As such, please perform integration tests manually for now.
+### Testing Locally
 
-If you are experienced or wish to explore setting up of testing infra, we more than welcome your contributions :)
+Some complex changes or addition of new features may require testing that goes beyond unit tests that we can write. In such a case, please run your code locally and demonstrate that it works with a Kubernetes cluster, such as via a screenshot, video capture, or logs in your pull request.
 
-## Release Flow
+See [Running the Code Locally](#running-the-code-locally) for more information.
+
+### Testing Against a Real Cluster
+
+If you want to test with your code actually running in the Kubernetes cluster (e.g. for testing interaction with webhooks), you will need to be able to package your local changes as a container image, and be able to pull them in your testing cluster.
+
+If you are using `kind`, you can refer to their guide on [how to set up a local registry](https://kind.sigs.k8s.io/docs/user/local-registry/).
+
+The `Makefile` supports deploying all components to your configured Kubernetes cluster for convenience. Assuming you have set up a local registry, and you have built your images using the `dev` image tag, you can deploy all components with one line:
+
+```sh
+IMAGE_TAG=dev make deploy
+```
+
+This will generate YAMLs and immediately apply them with `kubectl apply`, using the `dev` Docker image tag for all components.
+
+Some possible values for `IMAGE_TAG`:
+
+- `latest` (default): Points to the current latest stable release of Furiko.
+- `snapshot`: Points to the latest `HEAD` of Furiko (i.e. HEAD of `main`).
+
+### Staging Environment
+
+We currently don't have a staging enviroment for validating changes and performing regression/end-to-end tests. If you are experienced or wish to explore setting up of testing infra, we more than welcome your contributions :)
+
+## Releases
+
+### Official Releases
 
 Releases are determined by Git tags, and will be published primarily via the [Releases page](https://github.com/furiko-io/furiko/releases).
 
@@ -148,3 +177,17 @@ Finally, releases are minimally expected to contain the following artifacts, dow
 2. Combined YAML manifest, for installation [as described on the website](https://furiko.io/guide/setup/install/#from-yaml)
 
 When we introduce additional components (i.e. Federation and Telemetry), release workflows (and this guide) may be further revised.
+
+### Snapshot Releases
+
+We also publish a snapshot of the current `HEAD` of the `main` branch, which will help facilitate testing and allow users to install the latest cutting-edge version if desired.
+
+Docker images are pushed with the `snapshot` tags to denote these snapshot releases, and are built from the `main` branch. Additional tags like `v0.1.2-next` also will be pushed, which denotes the next planned version's snapshot.
+
+To install the current snapshot release via Kustomize, you can run the following:
+
+```sh
+IMAGE_TAG=snapshot make deploy
+```
+
+For more information, see [Testing Against a Real Cluster](#testing-against-a-real-cluster)
