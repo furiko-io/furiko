@@ -24,10 +24,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
@@ -64,6 +67,33 @@ var (
 			},
 		},
 	}
+
+	cronWorkerJobConfigDaily = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-daily",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "0 10 * * *",
+				},
+			},
+		},
+	}
+
+	cronWorkerJobConfigDailySingapore = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-daily-singapore",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "0 10 * * *",
+					Timezone:   "Asia/Singapore",
+				},
+			},
+		},
+	}
 )
 
 type CronWorkerStep struct {
@@ -86,6 +116,7 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 	tests := []struct {
 		name       string
 		jobConfigs []*execution.JobConfig
+		configs    map[configv1alpha1.ConfigName]runtime.Object
 		log        klog.Level
 		steps      []CronWorkerStep
 	}{
@@ -235,6 +266,139 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 				},
 			},
 		},
+		{
+			name: "Scheduled daily",
+			jobConfigs: []*execution.JobConfig{
+				cronWorkerJobConfigDaily,
+			},
+			steps: []CronWorkerStep{
+				{
+					Name: "Initial time",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T10:52:04Z"),
+					},
+				},
+				{
+					Name: "Enqueue next day",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-02T10:00:00Z"),
+						WantEnqueue: []string{
+							keyFunc(cronWorkerJobConfigDaily, testutils.Mktime("2022-04-02T10:00:00Z")),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Scheduled daily with default configured timezone",
+			jobConfigs: []*execution.JobConfig{
+				cronWorkerJobConfigDaily,
+			},
+			configs: map[configv1alpha1.ConfigName]runtime.Object{
+				configv1alpha1.CronExecutionConfigName: &configv1alpha1.CronExecutionConfig{
+					DefaultTimezone: pointer.String("America/New_York"),
+				},
+			},
+			steps: []CronWorkerStep{
+				{
+					Name: "Initial time",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T10:52:04Z"),
+					},
+				},
+				{
+					Name: "Enqueue at 14:00 UTC",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T14:00:00Z"),
+						WantEnqueue: []string{
+							keyFunc(cronWorkerJobConfigDaily, testutils.Mktime("2022-04-01T14:00:00Z")),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Scheduled daily with job configured timezone",
+			jobConfigs: []*execution.JobConfig{
+				cronWorkerJobConfigDailySingapore,
+			},
+			configs: map[configv1alpha1.ConfigName]runtime.Object{
+				configv1alpha1.CronExecutionConfigName: &configv1alpha1.CronExecutionConfig{
+					DefaultTimezone: pointer.String("America/New_York"),
+				},
+			},
+			steps: []CronWorkerStep{
+				{
+					Name: "Initial time",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T10:52:04Z"),
+					},
+				},
+				{
+					Name: "No enqueue at 14:00 UTC",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T14:00:00Z"),
+					},
+				},
+				{
+					Name: "Enqueue at 02:00 UTC next day",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-02T02:00:00Z"),
+						WantEnqueue: []string{
+							keyFunc(cronWorkerJobConfigDailySingapore, testutils.Mktime("2022-04-02T02:00:00Z")),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Missed too many schedules",
+			jobConfigs: []*execution.JobConfig{
+				cronWorkerJobConfig,
+			},
+			configs: map[configv1alpha1.ConfigName]runtime.Object{
+				configv1alpha1.CronExecutionConfigName: &configv1alpha1.CronExecutionConfig{
+					MaxMissedSchedules: pointer.Int64(3),
+				},
+			},
+			steps: []CronWorkerStep{
+				{
+					Name: "Initial time",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T10:52:04Z"),
+					},
+				},
+				{
+					Name: "Want enqueue at start of minute",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T10:53:00Z"),
+						WantEnqueue: []string{
+							keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:53:00Z")),
+						},
+					},
+				},
+				{
+					Name: "Enqueue only 3 jobs",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T10:59:00Z"),
+						WantEnqueue: []string{
+							keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:54:00Z")),
+							keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:55:00Z")),
+							keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:56:00Z")),
+						},
+					},
+				},
+				{
+					Name: "Enqueue once for next minute",
+					Time: &CronWorkerTimeStep{
+						Now: testutils.Mktime("2022-04-01T11:00:00Z"),
+						WantEnqueue: []string{
+							keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T11:00:00Z")),
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -249,6 +413,7 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 
 			// Initialize contexts and worker
 			c := mock.NewContext()
+			c.MockConfigs().SetConfigs(tt.configs)
 			ctrlContext := croncontroller.NewContext(c)
 			worker := croncontroller.NewCronWorker(ctrlContext)
 			executionClient := c.MockClientsets().Furiko().ExecutionV1alpha1()

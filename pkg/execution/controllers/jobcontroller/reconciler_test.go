@@ -381,9 +381,7 @@ func TestReconciler(t *testing.T) {
 			reconciler := jobcontroller.NewReconciler(ctrlCtx, &configv1alpha1.Concurrency{
 				Workers: 1,
 			})
-			for configName, cfg := range tt.configs {
-				c.MockConfigs().MockConfigLoader().SetConfig(configName, cfg)
-			}
+			c.MockConfigs().SetConfigs(tt.configs)
 
 			err := c.Start(ctx)
 			assert.NoError(t, err)

@@ -33,7 +33,7 @@ type Configs struct {
 	configLoader *ConfigLoader
 }
 
-// NewConfigs returns a new dynamic Configs manager that supports overriding a
+// NewConfigs returns a new dynamic config manager that supports overriding a
 // defaults configloader with configs from memory.
 func NewConfigs() *Configs {
 	mgr := configloader.NewConfigManager()
@@ -45,6 +45,13 @@ func NewConfigs() *Configs {
 	return &Configs{
 		Configs:      controllercontext.NewContextConfigs(mgr),
 		configLoader: configLoader,
+	}
+}
+
+// SetConfigs is a convenience method to set configs from a map.
+func (c *Configs) SetConfigs(cfgs map[configv1alpha1.ConfigName]runtime.Object) {
+	for configName, cfg := range cfgs {
+		c.MockConfigLoader().SetConfig(configName, cfg)
 	}
 }
 

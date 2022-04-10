@@ -402,9 +402,7 @@ func TestValidateJobConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			original := tt.rjc.DeepCopy()
 			ctrlContext := mock.NewContext()
-			for configName, cfg := range tt.cfgs {
-				ctrlContext.MockConfigs().MockConfigLoader().SetConfig(configName, cfg)
-			}
+			ctrlContext.MockConfigs().SetConfigs(tt.cfgs)
 			if err := ctrlContext.Start(context.Background()); err != nil {
 				t.Fatal(err)
 			}
@@ -1043,9 +1041,7 @@ func setup(t *testing.T, cfgs map[configv1alpha1.ConfigName]runtime.Object, rjcs
 	defer cancel()
 
 	ctrlContext := mock.NewContext()
-	for configName, cfg := range cfgs {
-		ctrlContext.MockConfigs().MockConfigLoader().SetConfig(configName, cfg)
-	}
+	ctrlContext.MockConfigs().SetConfigs(cfgs)
 	hasSynced := ctrlContext.Informers().Furiko().Execution().V1alpha1().JobConfigs().Informer().HasSynced
 	if err := ctrlContext.Start(ctx); err != nil {
 		t.Fatal(err)
