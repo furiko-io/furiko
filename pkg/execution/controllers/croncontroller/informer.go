@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
+	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/utils/eventhandler"
 )
 
@@ -30,11 +31,18 @@ import (
 // for the controller.
 type InformerWorker struct {
 	*Context
+	handler UpdateHandler
 }
 
-func NewInformerWorker(ctrlContext *Context) *InformerWorker {
+// UpdateHandler knows how to handle updates for a JobConfig.
+type UpdateHandler interface {
+	OnUpdate(*execution.JobConfig)
+}
+
+func NewInformerWorker(ctrlContext *Context, handler UpdateHandler) *InformerWorker {
 	w := &InformerWorker{
 		Context: ctrlContext,
+		handler: handler,
 	}
 
 	return w
@@ -91,6 +99,20 @@ func (w *InformerWorker) enqueueFlush(obj interface{}) {
 			"name", rjc.GetName(),
 			"schedule", spew.Sdump(rjc.Spec.Schedule),
 		)
-		w.updatedConfigs <- rjc
+		w.handler.OnUpdate(rjc)
 	}
+}
+
+type updateHandler struct {
+	updateChan chan *execution.JobConfig
+}
+
+var _ UpdateHandler = (*updateHandler)(nil)
+
+func NewUpdateHandler(ctrlContext *Context) UpdateHandler {
+	return &updateHandler{updateChan: ctrlContext.updatedConfigs}
+}
+
+func (d *updateHandler) OnUpdate(jobConfig *execution.JobConfig) {
+	d.updateChan <- jobConfig
 }

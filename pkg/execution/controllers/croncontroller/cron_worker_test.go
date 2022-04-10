@@ -353,9 +353,12 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 			worker := croncontroller.NewCronWorker(ctrlContext)
 			executionClient := c.MockClientsets().Furiko().ExecutionV1alpha1()
 
+			// Use custom handler to intercept updates.
+			handler := newNotifyingUpdateHandler(croncontroller.NewUpdateHandler(ctrlContext))
+
 			// Initialize InformerWorker, so that we can receive events from clientset
 			// updates.
-			informer := croncontroller.NewInformerWorker(ctrlContext)
+			informer := croncontroller.NewInformerWorker(ctrlContext, handler)
 			informer.Init()
 
 			// Start context.
@@ -396,7 +399,7 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 					_, err := executionClient.JobConfigs(jobConfig.Namespace).
 						Update(ctx, jobConfig, metav1.UpdateOptions{})
 					assert.NoError(t, err)
-					time.Sleep(realTimeProcessingDelay)
+					handler.Wait()
 				}
 
 				// Perform delete step.
@@ -404,7 +407,7 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 					err := executionClient.JobConfigs(jobConfig.Namespace).
 						Delete(ctx, jobConfig.Name, metav1.DeleteOptions{})
 					assert.NoError(t, err)
-					time.Sleep(realTimeProcessingDelay)
+					handler.Wait()
 				}
 
 				// Trigger work manually.
@@ -433,4 +436,27 @@ func keyFunc(jobConfig *execution.JobConfig, scheduleTime time.Time) string {
 		panic(err)
 	}
 	return key
+}
+
+type notifyingUpdateHandler struct {
+	handler croncontroller.UpdateHandler
+	cond    chan struct{}
+}
+
+func newNotifyingUpdateHandler(handler croncontroller.UpdateHandler) *notifyingUpdateHandler {
+	return &notifyingUpdateHandler{
+		handler: handler,
+		cond:    make(chan struct{}),
+	}
+}
+
+var _ croncontroller.UpdateHandler = (*notifyingUpdateHandler)(nil)
+
+func (h *notifyingUpdateHandler) Wait() {
+	<-h.cond
+}
+
+func (h *notifyingUpdateHandler) OnUpdate(jobConfig *execution.JobConfig) {
+	h.handler.OnUpdate(jobConfig)
+	h.cond <- struct{}{}
 }

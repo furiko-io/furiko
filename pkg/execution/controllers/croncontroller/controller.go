@@ -110,7 +110,7 @@ func NewController(
 	}
 
 	ctrl.cronWorker = NewCronWorker(ctrl.Context)
-	ctrl.informerWorker = NewInformerWorker(ctrl.Context)
+	ctrl.informerWorker = NewInformerWorker(ctrl.Context, NewUpdateHandler(ctrl.Context))
 
 	client := NewExecutionControl(
 		(&Reconciler{}).Name(),
