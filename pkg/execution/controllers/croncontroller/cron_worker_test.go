@@ -19,6 +19,7 @@ package croncontroller_test
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,10 +36,6 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
-)
-
-const (
-	getTimeout = time.Millisecond * 100
 )
 
 var (
@@ -350,7 +347,8 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 			c := mock.NewContext()
 			c.MockConfigs().SetConfigs(tt.configs)
 			ctrlContext := croncontroller.NewContext(c)
-			worker := croncontroller.NewCronWorker(ctrlContext)
+			queue := newEnqueueHandler()
+			worker := croncontroller.NewCronWorker(ctrlContext, queue)
 			executionClient := c.MockClientsets().Furiko().ExecutionV1alpha1()
 
 			// Use custom handler to intercept updates.
@@ -413,21 +411,53 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 				// Trigger work manually.
 				worker.Work()
 
-				// Consume from queue or timeout.
+				// Consume from queue.
 				for _, key := range step.WantEnqueue {
-					item, _, err := testutils.WorkqueueGetWithTimeout(worker.Queue, getTimeout)
-					if err != nil {
-						assert.NoError(t, err, msgAndArgs...)
-						break
-					}
+					item, ok := queue.Get()
+					assert.True(t, ok, msgAndArgs...)
 					assert.Equal(t, item, key, msgAndArgs...)
 				}
 
 				// Queue should now be empty.
-				assert.Equal(t, 0, worker.Queue.Len(), msgAndArgs...)
+				assert.Equal(t, 0, queue.Len(), msgAndArgs...)
 			}
 		})
 	}
+}
+
+type enqueueHandler struct {
+	queue []string
+	mu    sync.RWMutex
+}
+
+func newEnqueueHandler() *enqueueHandler {
+	return &enqueueHandler{}
+}
+
+var _ croncontroller.EnqueueHandler = (*enqueueHandler)(nil)
+
+func (h *enqueueHandler) EnqueueJobConfig(jobConfig *execution.JobConfig, scheduleTime time.Time) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.queue = append(h.queue, keyFunc(jobConfig, scheduleTime))
+	return nil
+}
+
+func (h *enqueueHandler) Get() (string, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.queue) == 0 {
+		return "", false
+	}
+	item := h.queue[0]
+	h.queue = h.queue[1:]
+	return item, true
+}
+
+func (h *enqueueHandler) Len() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.queue)
 }
 
 func keyFunc(jobConfig *execution.JobConfig, scheduleTime time.Time) string {

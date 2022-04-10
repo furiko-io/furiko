@@ -64,7 +64,7 @@ type Context struct {
 	jobInformer       executioninformers.JobInformer
 	jobconfigInformer executioninformers.JobConfigInformer
 	HasSynced         []cache.InformerSynced
-	Queue             workqueue.RateLimitingInterface
+	queue             workqueue.RateLimitingInterface
 	updatedConfigs    chan *execution.JobConfig
 }
 
@@ -74,7 +74,7 @@ func NewContext(context controllercontext.Context) *Context {
 
 	// Create workqueue.
 	ratelimiter := workqueue.DefaultControllerRateLimiter()
-	c.Queue = workqueue.NewNamedRateLimitingQueue(ratelimiter, controllerName)
+	c.queue = workqueue.NewNamedRateLimitingQueue(ratelimiter, controllerName)
 
 	// Bind informers.
 	c.jobInformer = c.Informers().Furiko().Execution().V1alpha1().Jobs()
@@ -109,7 +109,7 @@ func NewController(
 		terminate: cancel,
 	}
 
-	ctrl.cronWorker = NewCronWorker(ctrl.Context)
+	ctrl.cronWorker = NewCronWorker(ctrl.Context, newEnqueueHandler(ctrl.Context))
 	ctrl.informerWorker = NewInformerWorker(ctrl.Context, NewUpdateHandler(ctrl.Context))
 
 	client := NewExecutionControl(
@@ -122,7 +122,7 @@ func NewController(
 		return nil, errors.Wrapf(err, "cannot load ActiveJobStore")
 	}
 	recon := NewReconciler(ctrl.Context, client, store, concurrency)
-	ctrl.reconciler = reconciler.NewController(recon, ctrl.Queue)
+	ctrl.reconciler = reconciler.NewController(recon, ctrl.queue)
 
 	return ctrl, nil
 }
@@ -150,7 +150,7 @@ func (c *Controller) Run(ctx context.Context) error {
 func (c *Controller) Shutdown(ctx context.Context) {
 	klog.InfoS("croncontroller: shutting down")
 	c.terminate()
-	c.Queue.ShutDown()
+	c.queue.ShutDown()
 	c.reconciler.Wait()
 	klog.InfoS("croncontroller: stopped controller")
 }

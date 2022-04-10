@@ -48,12 +48,19 @@ const (
 type CronWorker struct {
 	*Context
 	schedule *Schedule
+	handler  EnqueueHandler
 	mu       sync.Mutex
 }
 
-func NewCronWorker(ctrlContext *Context) *CronWorker {
+// EnqueueHandler knows how to enqueue a JobConfig to be created.
+type EnqueueHandler interface {
+	EnqueueJobConfig(jobConfig *execution.JobConfig, scheduleTime time.Time) error
+}
+
+func NewCronWorker(ctrlContext *Context, handler EnqueueHandler) *CronWorker {
 	return &CronWorker{
 		Context:  ctrlContext,
+		handler:  handler,
 		schedule: NewSchedule(ctrlContext),
 	}
 }
@@ -195,7 +202,7 @@ func (w *CronWorker) syncOne(
 		}
 
 		// Enqueue the job.
-		if err := w.enqueueJob(jobConfig, next); err != nil {
+		if err := w.handler.EnqueueJobConfig(jobConfig, next); err != nil {
 			return errors.Wrapf(err, "cannot enqueue job for %v", next)
 		}
 
@@ -225,20 +232,6 @@ func (w *CronWorker) syncOne(
 	return nil
 }
 
-// enqueueJob enqueues a single job to be scheduled.
-func (w *CronWorker) enqueueJob(jobConfig *execution.JobConfig, scheduleTime time.Time) error {
-	// Use our custom KeyFunc.
-	key, err := JobConfigKeyFunc(jobConfig, scheduleTime)
-	if err != nil {
-		return errors.Wrapf(err, "keyfunc error")
-	}
-
-	// Add the (JobConfig, ScheduleTime) to the workqueue.
-	w.Queue.Add(key)
-
-	return nil
-}
-
 // getTimezone returns the timezone for the given JobConfig.
 func (w *CronWorker) getTimezone(cronSchedule *execution.CronSchedule, cfg *configv1alpha1.CronExecutionConfig) string {
 	// Read from spec.
@@ -253,4 +246,27 @@ func (w *CronWorker) getTimezone(cronSchedule *execution.CronSchedule, cfg *conf
 
 	// Fallback to controller default.
 	return defaultTimezone
+}
+
+type enqueueHandler struct {
+	*Context
+}
+
+func newEnqueueHandler(ctrlContext *Context) *enqueueHandler {
+	return &enqueueHandler{
+		Context: ctrlContext,
+	}
+}
+
+func (h *enqueueHandler) EnqueueJobConfig(jobConfig *execution.JobConfig, scheduleTime time.Time) error {
+	// Use our custom KeyFunc.
+	key, err := JobConfigKeyFunc(jobConfig, scheduleTime)
+	if err != nil {
+		return errors.Wrapf(err, "keyfunc error")
+	}
+
+	// Add the (JobConfig, ScheduleTime) to the workqueue.
+	h.queue.Add(key)
+
+	return nil
 }
