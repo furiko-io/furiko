@@ -17,6 +17,7 @@
 package croncontroller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -45,13 +46,13 @@ const (
 // to be created.
 type CronWorker struct {
 	*Context
-	*Schedule
+	schedule *Schedule
 }
 
 func NewCronWorker(ctrlContext *Context) *CronWorker {
 	return &CronWorker{
 		Context:  ctrlContext,
-		Schedule: NewSchedule(ctrlContext),
+		schedule: NewSchedule(ctrlContext),
 	}
 }
 
@@ -59,8 +60,8 @@ func (w *CronWorker) WorkerName() string {
 	return fmt.Sprintf("%v.CronWorker", controllerName)
 }
 
-func (w *CronWorker) Start(stopCh <-chan struct{}) {
-	go ClockTickUntil(instrumentWorkerMetrics(w.WorkerName(), w.work), CronWorkerInterval, stopCh)
+func (w *CronWorker) Start(ctx context.Context) {
+	go ClockTickUntil(instrumentWorkerMetrics(w.WorkerName(), w.work), CronWorkerInterval, ctx.Done())
 }
 
 // work runs a single iteration of synchronizing JobConfigs.
@@ -122,8 +123,8 @@ func (w *CronWorker) flushKeys() {
 	// Perform at most 1000 flushes per iteration to prevent backlogging.
 	for flushes < 1000 {
 		select {
-		case jobConfig := <-w.updatedConfigs:
-			w.FlushNextScheduleTime(jobConfig)
+		case jobConfig := <-w.UpdatedConfigs:
+			w.schedule.FlushNextScheduleTime(jobConfig)
 			flushes++
 		default:
 			// Nothing more to flush.
@@ -169,7 +170,14 @@ func (w *CronWorker) syncOne(
 	// Get next scheduled time repeatedly and enqueue for each scheduled time.
 	// This helps to prevent missed executions (maybe due to worker stuck).
 	for i := 0; i < maxMissedSchedules; i++ {
-		next := w.GetNextScheduleTime(jobConfig, now, expr)
+		next := w.schedule.GetNextScheduleTime(jobConfig, now, expr)
+
+		klog.V(6).InfoS("croncontroller: get next schedule for job config",
+			"namespace", jobConfig.Namespace,
+			"name", jobConfig.Name,
+			"now", now,
+			"next", next,
+		)
 
 		// There is no next schedule time.
 		if next.IsZero() {
@@ -187,7 +195,7 @@ func (w *CronWorker) syncOne(
 		}
 
 		// Bump the next schedule time for the job config.
-		w.BumpNextScheduleTime(jobConfig, next, expr)
+		w.schedule.BumpNextScheduleTime(jobConfig, next, expr)
 
 		klog.V(2).InfoS("croncontroller: scheduled job by cron",
 			"worker", w.WorkerName(),
@@ -207,7 +215,7 @@ func (w *CronWorker) syncOne(
 		"namespace", jobConfig.GetNamespace(),
 		"name", jobConfig.GetName(),
 	)
-	w.BumpNextScheduleTime(jobConfig, now, expr)
+	w.schedule.BumpNextScheduleTime(jobConfig, now, expr)
 
 	return nil
 }
@@ -221,7 +229,7 @@ func (w *CronWorker) enqueueJob(jobConfig *execution.JobConfig, scheduleTime tim
 	}
 
 	// Add the (JobConfig, ScheduleTime) to the workqueue.
-	w.queue.Add(key)
+	w.Queue.Add(key)
 
 	return nil
 }

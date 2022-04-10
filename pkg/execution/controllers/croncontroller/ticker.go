@@ -19,6 +19,8 @@ package croncontroller
 import (
 	"math"
 	"time"
+
+	"k8s.io/klog/v2"
 )
 
 // ClockTickUntil runs work every timestep until stopCh is signaled.
@@ -36,6 +38,7 @@ func ClockTickUntil(work func(), timestep time.Duration, stopCh <-chan struct{})
 		case <-Clock.After(nextInterval):
 		}
 
+		klog.V(6).InfoS("croncontroller: clock tick", "now", Clock.Now())
 		work()
 
 		// Reset timer to start of next timestep.

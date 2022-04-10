@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	realTimeProcessingDelay = time.Millisecond * 10
+	realTimeProcessingDelay = time.Millisecond * 20
 )
 
 var initialTime = time.Unix(1629701607, 5e8)
@@ -132,7 +132,7 @@ func TestCronTimerUntil_Seconds(t *testing.T) {
 	assert.Equal(t, int64(4), i, "work() should be called immediately at start of next timestep")
 
 	// Jump a few timesteps.
-	jump := 300
+	jump := 10
 	for i := 1; i <= jump; i++ {
 		set(time.Unix(int64(1629701610+i), 0))
 	}

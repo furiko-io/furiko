@@ -89,6 +89,6 @@ func (w *InformerWorker) enqueueFlush(obj interface{}) {
 			"name", rjc.GetName(),
 			"schedule", spew.Sdump(rjc.Spec.Schedule),
 		)
-		w.updatedConfigs <- rjc
+		w.UpdatedConfigs <- rjc
 	}
 }
