@@ -65,7 +65,7 @@ type Context struct {
 	jobconfigInformer executioninformers.JobConfigInformer
 	HasSynced         []cache.InformerSynced
 	Queue             workqueue.RateLimitingInterface
-	UpdatedConfigs    chan *execution.JobConfig
+	updatedConfigs    chan *execution.JobConfig
 }
 
 // NewContext returns a new Context.
@@ -84,7 +84,7 @@ func NewContext(context controllercontext.Context) *Context {
 		c.jobconfigInformer.Informer().HasSynced,
 	}
 
-	c.UpdatedConfigs = make(chan *execution.JobConfig, updatedConfigsBufferSize)
+	c.updatedConfigs = make(chan *execution.JobConfig, updatedConfigsBufferSize)
 
 	return c
 }
@@ -130,6 +130,8 @@ func NewController(
 func (c *Controller) Run(ctx context.Context) error {
 	defer utilruntime.HandleCrash()
 	klog.InfoS("croncontroller: starting controller")
+
+	c.informerWorker.Init()
 
 	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.HasSynced...); !ok {
 		klog.Error("croncontroller: cache sync timeout")

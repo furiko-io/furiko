@@ -19,6 +19,7 @@ package croncontroller
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -47,6 +48,7 @@ const (
 type CronWorker struct {
 	*Context
 	schedule *Schedule
+	mu       sync.Mutex
 }
 
 func NewCronWorker(ctrlContext *Context) *CronWorker {
@@ -61,11 +63,14 @@ func (w *CronWorker) WorkerName() string {
 }
 
 func (w *CronWorker) Start(ctx context.Context) {
-	go ClockTickUntil(instrumentWorkerMetrics(w.WorkerName(), w.work), CronWorkerInterval, ctx.Done())
+	go ClockTickUntil(instrumentWorkerMetrics(w.WorkerName(), w.Work), CronWorkerInterval, ctx.Done())
 }
 
-// work runs a single iteration of synchronizing JobConfigs.
-func (w *CronWorker) work() {
+// Work runs a single iteration of synchronizing all JobConfigs.
+func (w *CronWorker) Work() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	trace := utiltrace.New(
 		"cron_schedule_all",
 	)
@@ -123,7 +128,7 @@ func (w *CronWorker) flushKeys() {
 	// Perform at most 1000 flushes per iteration to prevent backlogging.
 	for flushes < 1000 {
 		select {
-		case jobConfig := <-w.UpdatedConfigs:
+		case jobConfig := <-w.updatedConfigs:
 			w.schedule.FlushNextScheduleTime(jobConfig)
 			flushes++
 		default:

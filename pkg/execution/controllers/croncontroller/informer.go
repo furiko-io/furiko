@@ -37,6 +37,14 @@ func NewInformerWorker(ctrlContext *Context) *InformerWorker {
 		Context: ctrlContext,
 	}
 
+	return w
+}
+
+func (w *InformerWorker) WorkerName() string {
+	return fmt.Sprintf("%v.Informer", controllerName)
+}
+
+func (w *InformerWorker) Init() {
 	// Add event handler when we get JobConfig updates.
 	w.jobconfigInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
@@ -44,12 +52,6 @@ func NewInformerWorker(ctrlContext *Context) *InformerWorker {
 		},
 		DeleteFunc: w.enqueueFlush,
 	})
-
-	return w
-}
-
-func (w *InformerWorker) WorkerName() string {
-	return fmt.Sprintf("%v.Informer", controllerName)
 }
 
 func (w *InformerWorker) handleUpdate(oldObj, newObj interface{}) {
@@ -89,6 +91,6 @@ func (w *InformerWorker) enqueueFlush(obj interface{}) {
 			"name", rjc.GetName(),
 			"schedule", spew.Sdump(rjc.Spec.Schedule),
 		)
-		w.UpdatedConfigs <- rjc
+		w.updatedConfigs <- rjc
 	}
 }

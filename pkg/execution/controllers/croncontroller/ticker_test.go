@@ -53,7 +53,6 @@ func TestClockTickUntil(t *testing.T) {
 
 	// Initialise with fake time.
 	set(initialTime)
-	assert.Equal(t, int64(0), i, "should be initialized to 0")
 
 	// Should be called immediately (i.e. 1ns later).
 	set(initialTime.Add(time.Nanosecond))
@@ -105,7 +104,6 @@ func TestCronTimerUntil_Seconds(t *testing.T) {
 
 	// Initialise with fake time.
 	set(initialTime)
-	assert.Equal(t, int64(0), i, "should be initialized to 0")
 
 	// Should be called immediately (i.e. 1ns later).
 	set(initialTime.Add(time.Nanosecond))
