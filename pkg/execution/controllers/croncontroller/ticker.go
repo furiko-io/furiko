@@ -21,11 +21,11 @@ import (
 	"time"
 )
 
-// CronTimerUntil runs work every timestep until stopCh is signaled.
+// ClockTickUntil runs work every timestep until stopCh is signaled.
 // The work function will first be called immediately on initial call, followed by
 // rounding up to the nearest timestep for every subsequent step.
 // The smallest timestep that is admissible is a second.
-func CronTimerUntil(work func(), timestep time.Duration, stopCh <-chan struct{}) {
+func ClockTickUntil(work func(), timestep time.Duration, stopCh <-chan struct{}) {
 	step := timestep.Seconds()
 	var nextInterval time.Duration
 

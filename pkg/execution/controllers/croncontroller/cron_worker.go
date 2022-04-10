@@ -60,7 +60,7 @@ func (w *CronWorker) WorkerName() string {
 }
 
 func (w *CronWorker) Start(stopCh <-chan struct{}) {
-	go CronTimerUntil(instrumentWorkerMetrics(w.WorkerName(), w.work), CronWorkerInterval, stopCh)
+	go ClockTickUntil(instrumentWorkerMetrics(w.WorkerName(), w.work), CronWorkerInterval, stopCh)
 }
 
 // work runs a single iteration of synchronizing JobConfigs.

@@ -33,7 +33,7 @@ const (
 
 var initialTime = time.Unix(1629701607, 5e8)
 
-func TestCronTimerUntil(t *testing.T) {
+func TestClockTickUntil(t *testing.T) {
 	var i int64
 	work := func() {
 		atomic.AddInt64(&i, 1)
@@ -44,7 +44,7 @@ func TestCronTimerUntil(t *testing.T) {
 	step := 5
 	timestep := time.Second * time.Duration(step)
 	stopCh := make(chan struct{}, 1)
-	go croncontroller.CronTimerUntil(work, timestep, stopCh)
+	go croncontroller.ClockTickUntil(work, timestep, stopCh)
 
 	set := func(t time.Time) {
 		fakeClock.SetTime(t)
@@ -96,7 +96,7 @@ func TestCronTimerUntil_Seconds(t *testing.T) {
 
 	timestep := time.Second
 	stopCh := make(chan struct{}, 1)
-	go croncontroller.CronTimerUntil(work, timestep, stopCh)
+	go croncontroller.ClockTickUntil(work, timestep, stopCh)
 
 	set := func(t time.Time) {
 		fakeClock.SetTime(t)
