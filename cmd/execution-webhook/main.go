@@ -41,6 +41,7 @@ import (
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobconfigs/status,verbs=get
 
 func main() {
+	initFlags()
 	klog.InitFlags(nil)
 	defer klog.Flush()
 	flag.Parse()

@@ -32,7 +32,7 @@ var (
 	teardownTimeout time.Duration
 )
 
-func init() {
+func initFlags() {
 	flag.StringVar(&configFile, "config", "",
 		"The controller will load its bootstrap configuration from this file.")
 	flag.DurationVar(&startupTimeout, "startup-timeout", defaultStartupTimeout,
