@@ -39,6 +39,7 @@ type Configs interface {
 	Start(ctx context.Context) error
 	AllConfigs() (map[configv1alpha1.ConfigName]runtime.Object, error)
 	Jobs() (*configv1alpha1.JobExecutionConfig, error)
+	JobConfigs() (*configv1alpha1.JobConfigExecutionConfig, error)
 	Cron() (*configv1alpha1.CronExecutionConfig, error)
 }
 
@@ -55,6 +56,9 @@ func (c *ContextConfigs) AllConfigs() (map[configv1alpha1.ConfigName]runtime.Obj
 	configNameMap := map[configv1alpha1.ConfigName]func() (runtime.Object, error){
 		configv1alpha1.JobExecutionConfigName: func() (runtime.Object, error) {
 			return c.Jobs()
+		},
+		configv1alpha1.JobConfigExecutionConfigName: func() (runtime.Object, error) {
+			return c.JobConfigs()
 		},
 		configv1alpha1.CronExecutionConfigName: func() (runtime.Object, error) {
 			return c.Cron()
@@ -77,6 +81,15 @@ func (c *ContextConfigs) AllConfigs() (map[configv1alpha1.ConfigName]runtime.Obj
 func (c *ContextConfigs) Jobs() (*configv1alpha1.JobExecutionConfig, error) {
 	var config configv1alpha1.JobExecutionConfig
 	if err := c.LoadAndUnmarshalConfig(configv1alpha1.JobExecutionConfigName, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+// JobConfigs returns the job config dynamic configuration.
+func (c *ContextConfigs) JobConfigs() (*configv1alpha1.JobConfigExecutionConfig, error) {
+	var config configv1alpha1.JobConfigExecutionConfig
+	if err := c.LoadAndUnmarshalConfig(configv1alpha1.JobConfigExecutionConfigName, &config); err != nil {
 		return nil, err
 	}
 	return &config, nil

@@ -30,6 +30,10 @@ var (
 		ForceDeleteKillingTasksTimeoutSeconds: pointer.Int64(120),
 	}
 
+	DefaultJobConfigExecutionConfig = &configv1alpha1.JobConfigExecutionConfig{
+		MaxEnqueuedJobs: pointer.Int64(20),
+	}
+
 	DefaultCronExecutionConfig = &configv1alpha1.CronExecutionConfig{
 		CronFormat:                  "standard",
 		CronHashNames:               pointer.Bool(true),
