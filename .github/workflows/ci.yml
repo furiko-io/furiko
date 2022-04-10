@@ -66,9 +66,6 @@ jobs:
       - run: make lint-license
 
   go-test:
-    needs:
-      - golangci-lint
-      - generate-lint
     strategy:
       matrix:
         go-version: [ 1.17 ]
