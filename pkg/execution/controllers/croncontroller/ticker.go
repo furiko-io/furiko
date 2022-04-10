@@ -19,13 +19,15 @@ package croncontroller
 import (
 	"math"
 	"time"
+
+	"k8s.io/klog/v2"
 )
 
-// CronTimerUntil runs work every timestep until stopCh is signaled.
+// ClockTickUntil runs work every timestep until stopCh is signaled.
 // The work function will first be called immediately on initial call, followed by
 // rounding up to the nearest timestep for every subsequent step.
 // The smallest timestep that is admissible is a second.
-func CronTimerUntil(work func(), timestep time.Duration, stopCh <-chan struct{}) {
+func ClockTickUntil(work func(), timestep time.Duration, stopCh <-chan struct{}) {
 	step := timestep.Seconds()
 	var nextInterval time.Duration
 
@@ -36,6 +38,7 @@ func CronTimerUntil(work func(), timestep time.Duration, stopCh <-chan struct{})
 		case <-Clock.After(nextInterval):
 		}
 
+		klog.V(6).InfoS("croncontroller: clock tick", "now", Clock.Now())
 		work()
 
 		// Reset timer to start of next timestep.

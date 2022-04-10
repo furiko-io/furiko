@@ -109,8 +109,8 @@ func NewController(
 		terminate: cancel,
 	}
 
-	ctrl.cronWorker = NewCronWorker(ctrl.Context)
-	ctrl.informerWorker = NewInformerWorker(ctrl.Context)
+	ctrl.cronWorker = NewCronWorker(ctrl.Context, newEnqueueHandler(ctrl.Context))
+	ctrl.informerWorker = NewInformerWorker(ctrl.Context, NewUpdateHandler(ctrl.Context))
 
 	client := NewExecutionControl(
 		(&Reconciler{}).Name(),
@@ -131,13 +131,15 @@ func (c *Controller) Run(ctx context.Context) error {
 	defer utilruntime.HandleCrash()
 	klog.InfoS("croncontroller: starting controller")
 
+	c.informerWorker.Init()
+
 	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.HasSynced...); !ok {
 		klog.Error("croncontroller: cache sync timeout")
 		return controllerutil.ErrWaitForCacheSyncTimeout
 	}
 
 	c.reconciler.Start(c.ctx)
-	c.cronWorker.Start(c.ctx.Done())
+	c.cronWorker.Start(c.ctx)
 
 	atomic.StoreUint64(&c.healthStatus, 1)
 	klog.InfoS("croncontroller: started controller")

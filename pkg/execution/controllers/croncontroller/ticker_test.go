@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	realTimeProcessingDelay = time.Millisecond * 10
+	realTimeProcessingDelay = time.Millisecond * 20
 )
 
 var initialTime = time.Unix(1629701607, 5e8)
 
-func TestCronTimerUntil(t *testing.T) {
+func TestClockTickUntil(t *testing.T) {
 	var i int64
 	work := func() {
 		atomic.AddInt64(&i, 1)
@@ -44,7 +44,7 @@ func TestCronTimerUntil(t *testing.T) {
 	step := 5
 	timestep := time.Second * time.Duration(step)
 	stopCh := make(chan struct{}, 1)
-	go croncontroller.CronTimerUntil(work, timestep, stopCh)
+	go croncontroller.ClockTickUntil(work, timestep, stopCh)
 
 	set := func(t time.Time) {
 		fakeClock.SetTime(t)
@@ -53,7 +53,6 @@ func TestCronTimerUntil(t *testing.T) {
 
 	// Initialise with fake time.
 	set(initialTime)
-	assert.Equal(t, int64(0), i, "should be initialized to 0")
 
 	// Should be called immediately (i.e. 1ns later).
 	set(initialTime.Add(time.Nanosecond))
@@ -96,7 +95,7 @@ func TestCronTimerUntil_Seconds(t *testing.T) {
 
 	timestep := time.Second
 	stopCh := make(chan struct{}, 1)
-	go croncontroller.CronTimerUntil(work, timestep, stopCh)
+	go croncontroller.ClockTickUntil(work, timestep, stopCh)
 
 	set := func(t time.Time) {
 		fakeClock.SetTime(t)
@@ -105,7 +104,6 @@ func TestCronTimerUntil_Seconds(t *testing.T) {
 
 	// Initialise with fake time.
 	set(initialTime)
-	assert.Equal(t, int64(0), i, "should be initialized to 0")
 
 	// Should be called immediately (i.e. 1ns later).
 	set(initialTime.Add(time.Nanosecond))
@@ -132,7 +130,7 @@ func TestCronTimerUntil_Seconds(t *testing.T) {
 	assert.Equal(t, int64(4), i, "work() should be called immediately at start of next timestep")
 
 	// Jump a few timesteps.
-	jump := 300
+	jump := 10
 	for i := 1; i <= jump; i++ {
 		set(time.Unix(int64(1629701610+i), 0))
 	}
