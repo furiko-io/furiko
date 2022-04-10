@@ -252,6 +252,8 @@ type enqueueHandler struct {
 	*Context
 }
 
+var _ EnqueueHandler = (*enqueueHandler)(nil)
+
 func newEnqueueHandler(ctrlContext *Context) *enqueueHandler {
 	return &enqueueHandler{
 		Context: ctrlContext,

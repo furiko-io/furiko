@@ -93,7 +93,7 @@ var (
 	}
 )
 
-func TestNewCronWorker(t *testing.T) { // nolint:gocognit
+func TestCronWorker(t *testing.T) { // nolint:gocognit
 	type step struct {
 		Name        string
 		Time        time.Time
@@ -328,6 +328,29 @@ func TestNewCronWorker(t *testing.T) { // nolint:gocognit
 					WantEnqueue: []string{
 						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T11:00:00Z")),
 					},
+				},
+			},
+		},
+		{
+			name: "No future schedules",
+			jobConfigs: []*execution.JobConfig{
+				jobConfigPointInTime,
+			},
+			steps: []step{
+				{
+					Name: "Initial time",
+					Time: testutils.Mktime("2021-02-09T10:52:04Z"),
+				},
+				{
+					Name: "Enqueue job",
+					Time: testutils.Mktime("2021-02-09T12:00:00Z"),
+					WantEnqueue: []string{
+						keyFunc(jobConfigPointInTime, testutils.Mktime("2021-02-09T12:00:00Z")),
+					},
+				},
+				{
+					Name: "No more future schedules",
+					Time: testutils.Mktime("2099-12-31T23:59:59Z"),
 				},
 			},
 		},
