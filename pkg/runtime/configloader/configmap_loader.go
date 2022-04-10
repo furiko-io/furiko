@@ -30,7 +30,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	v1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/utils/eventhandler"
 )
 
@@ -106,7 +106,7 @@ func (c *ConfigMapLoader) startInformer(
 // Load returns the unmarshaled config data stored in a given ConfigMap. If the
 // ConfigMap or config name in the ConfigMap does not exist, an empty config
 // will be returned.
-func (c *ConfigMapLoader) Load(configName v1.ConfigName) (Config, error) {
+func (c *ConfigMapLoader) Load(configName configv1alpha1.ConfigName) (Config, error) {
 	if value, ok := c.cache.Load(configName); ok {
 		return value, nil
 	}
@@ -147,7 +147,7 @@ func (c *ConfigMapLoader) unmarshalConfigMap(data map[string]string) (*configCac
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot unmarshal %v: %v", name, value)
 		}
-		newConfigMap.Store(v1.ConfigName(name), v)
+		newConfigMap.Store(configv1alpha1.ConfigName(name), v)
 	}
 	return newConfigMap, nil
 }
@@ -171,11 +171,11 @@ func newConfigCache() *configCache {
 	}
 }
 
-func (c *configCache) Store(configName v1.ConfigName, config Config) {
+func (c *configCache) Store(configName configv1alpha1.ConfigName, config Config) {
 	c.m.Store(configName, config)
 }
 
-func (c *configCache) Load(configName v1.ConfigName) (Config, bool) {
+func (c *configCache) Load(configName configv1alpha1.ConfigName) (Config, bool) {
 	v, ok := c.m.Load(configName)
 	if !ok {
 		return nil, false

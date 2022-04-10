@@ -39,23 +39,16 @@ type HealthStatus struct {
 // BaseManager is the base manager that manages runnables, readiness and
 // liveness status.
 type BaseManager struct {
-	ctrlContext *controllercontext.Context
-	ready       context.Context
-	makeReady   context.CancelFunc
-	started     context.Context
-	makeStarted context.CancelFunc
+	ctrlContext controllercontext.Context
+	readiness   uint64
+	starting    uint64
+	started     uint64
 	runnables   []Runnable
 }
 
-func NewBaseManager(ctrlContext *controllercontext.Context) *BaseManager {
-	ready, makeReady := context.WithCancel(context.Background())
-	started, makeStarted := context.WithCancel(context.Background())
+func NewBaseManager(ctrlContext controllercontext.Context) *BaseManager {
 	return &BaseManager{
 		ctrlContext: ctrlContext,
-		ready:       ready,
-		makeReady:   makeReady,
-		started:     started,
-		makeStarted: makeStarted,
 	}
 }
 
@@ -65,8 +58,7 @@ func (m *BaseManager) Add(runnables ...Runnable) {
 	m.runnables = append(m.runnables, runnables...)
 }
 
-// Start will perform shared start routines. Note that sub-managers have to call
-// Start() and makeReady() in order to mark the manager as ready.
+// Start will perform shared start routines.
 func (m *BaseManager) Start(ctx context.Context) error {
 	// Start the context.
 	if err := m.ctrlContext.Start(ctx); err != nil {
@@ -85,9 +77,9 @@ func (m *BaseManager) Start(ctx context.Context) error {
 	return nil
 }
 
-// GetReadiness returns an error if the base manager is not yet fully initialized..
+// GetReadiness returns an error if the base manager is not yet fully initialized.
 func (m *BaseManager) GetReadiness() error {
-	if m.ready.Err() == nil {
+	if m.readiness == 0 {
 		return errors.New("manager not fully initialized")
 	}
 	return nil
@@ -101,4 +93,12 @@ func (m *BaseManager) GetHealth() []HealthStatus {
 
 func (m *BaseManager) ShutdownAndWait(ctx context.Context) {
 	ShutdownRunnables(ctx, m.runnables)
+}
+
+func (m *BaseManager) IsStarting() bool {
+	return m.starting != 0
+}
+
+func (m *BaseManager) IsStarted() bool {
+	return m.started != 0
 }

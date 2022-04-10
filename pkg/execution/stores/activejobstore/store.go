@@ -51,7 +51,7 @@ type Store struct {
 	informer *InformerWorker
 }
 
-func NewStore(ctrlContext controllercontext.ContextInterface) (*Store, error) {
+func NewStore(ctrlContext controllercontext.Context) (*Store, error) {
 	store := &Store{
 		counter: utilatomic.NewCounter(),
 	}

@@ -26,7 +26,15 @@ import (
 )
 
 // Context is a shared controller context that can be safely shared between controllers.
-type Context struct {
+type Context interface {
+	Start(ctx context.Context) error
+	Clientsets() Clientsets
+	Configs() Configs
+	Stores() Stores
+	Informers() Informers
+}
+
+type ctrlContext struct {
 	restConfig *rest.Config
 	configMgr  Configs
 	storeMgr   Stores
@@ -34,11 +42,11 @@ type Context struct {
 	informers  Informers
 }
 
-var _ ContextInterface = &Context{}
+var _ Context = &ctrlContext{}
 
 // NewForConfig prepares a new Context from a kubeconfig and controller manager config spec.
-func NewForConfig(cfg *rest.Config, ctrlConfig *configv1alpha1.BootstrapConfigSpec) (*Context, error) {
-	ctrlContext := &Context{
+func NewForConfig(cfg *rest.Config, ctrlConfig *configv1alpha1.BootstrapConfigSpec) (Context, error) {
+	c := &ctrlContext{
 		restConfig: cfg,
 	}
 
@@ -47,21 +55,21 @@ func NewForConfig(cfg *rest.Config, ctrlConfig *configv1alpha1.BootstrapConfigSp
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot set up clientsets")
 	}
-	ctrlContext.clientsets = clientsets
+	c.clientsets = clientsets
 
 	// Set up shared informer factories.
-	ctrlContext.informers = SetUpInformers(ctrlContext.clientsets, ctrlConfig)
+	c.informers = SetUpInformers(c.clientsets, ctrlConfig)
 
 	// Set up config manager.
-	ctrlContext.configMgr = SetUpConfigManager(ctrlConfig, ctrlContext.Clientsets().Kubernetes())
+	c.configMgr = SetUpConfigManager(ctrlConfig, c.Clientsets().Kubernetes())
 
 	// Set up stores.
-	ctrlContext.storeMgr = NewContextStores()
+	c.storeMgr = NewContextStores()
 
-	return ctrlContext, nil
+	return c, nil
 }
 
-func (c *Context) Start(ctx context.Context) error {
+func (c *ctrlContext) Start(ctx context.Context) error {
 	// Start config manager.
 	if err := c.configMgr.Start(ctx); err != nil {
 		return errors.Wrapf(err, "cannot start dynamic config manager")

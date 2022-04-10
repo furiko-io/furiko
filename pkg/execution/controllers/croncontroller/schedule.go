@@ -43,13 +43,13 @@ var (
 
 // Schedule is a thread-safe store for the next schedule time of JobConfigs.
 type Schedule struct {
-	ctrlContext controllercontext.ContextInterface
+	ctrlContext controllercontext.Context
 
 	// Internal computed state of next schedule time for each JobConfig.
 	nextScheduleTime sync.Map
 }
 
-func NewSchedule(ctrlContext controllercontext.ContextInterface) *Schedule {
+func NewSchedule(ctrlContext controllercontext.Context) *Schedule {
 	return &Schedule{
 		ctrlContext: ctrlContext,
 	}

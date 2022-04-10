@@ -24,8 +24,8 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
 
-// Context is a mock context that implements controllercontext.ContextInterface
-// and is made up of mock components that can be used for unit tests.
+// Context is a mock context that implements controllercontext.Context and is
+// made up of mock components that can be used for unit tests.
 type Context struct {
 	clientsets *Clientsets
 	configs    *Configs
@@ -33,7 +33,7 @@ type Context struct {
 	stores     controllercontext.Stores
 }
 
-var _ controllercontext.ContextInterface = &Context{}
+var _ controllercontext.Context = &Context{}
 
 func NewContext() *Context {
 	clientsets := NewClientsets()

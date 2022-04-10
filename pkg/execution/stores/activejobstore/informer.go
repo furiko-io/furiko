@@ -38,16 +38,16 @@ type EventHandler interface {
 //
 // It is acceptable for Update and Delete events to be delayed (but not missed).
 type InformerWorker struct {
-	controllercontext.ContextInterface
+	controllercontext.Context
 	jobInformer executioninformers.JobInformer
 	handler     EventHandler
 }
 
-func NewInformerWorker(ctrlContext controllercontext.ContextInterface, handler EventHandler) *InformerWorker {
+func NewInformerWorker(ctrlContext controllercontext.Context, handler EventHandler) *InformerWorker {
 	return &InformerWorker{
-		ContextInterface: ctrlContext,
-		jobInformer:      ctrlContext.Informers().Furiko().Execution().V1alpha1().Jobs(),
-		handler:          handler,
+		Context:     ctrlContext,
+		jobInformer: ctrlContext.Informers().Furiko().Execution().V1alpha1().Jobs(),
+		handler:     handler,
 	}
 }
 

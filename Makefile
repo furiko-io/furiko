@@ -94,6 +94,19 @@ tidy: ## Run go mod tidy.
 test: ## Run tests with coverage. Outputs to combined.cov.
 	./hack/run-tests.sh
 
+##@ Building
+
+.PHONY: build
+build: build-execution-controller build-execution-webhook ## Build all Go binaries.
+
+.PHONY: build-execution-controller
+build-execution-controller: ## Build execution-controller.
+	go build -o build/execution-controller ./cmd/execution-controller
+
+.PHONY: build-execution-webhook
+build-execution-webhook: ## Build execution-webhook.
+	go build -o build/execution-webhook ./cmd/execution-webhook
+
 ##@ YAML Configuration
 
 ## Location to write YAMLs to

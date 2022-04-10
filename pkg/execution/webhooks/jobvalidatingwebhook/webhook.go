@@ -51,18 +51,18 @@ var (
 )
 
 type Webhook struct {
-	controllercontext.ContextInterface
+	controllercontext.Context
 	jobconfigInformer executioninformers.JobConfigInformer
 	hasSynced         []cache.InformerSynced
 }
 
 var _ controllermanager.Webhook = (*Webhook)(nil)
 
-func NewWebhook(ctrlContext controllercontext.ContextInterface) (*Webhook, error) {
+func NewWebhook(ctrlContext controllercontext.Context) (*Webhook, error) {
 	jobconfigInformer := ctrlContext.Informers().Furiko().Execution().V1alpha1().JobConfigs()
 
 	webhook := &Webhook{
-		ContextInterface:  ctrlContext,
+		Context:           ctrlContext,
 		jobconfigInformer: jobconfigInformer,
 		hasSynced: []cache.InformerSynced{
 			jobconfigInformer.Informer().HasSynced,

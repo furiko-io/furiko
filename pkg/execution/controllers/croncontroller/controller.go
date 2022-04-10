@@ -19,7 +19,6 @@ package croncontroller
 import (
 	"context"
 	"sync/atomic"
-	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -41,23 +40,19 @@ import (
 )
 
 const (
-	controllerName          = "CronController"
-	waitForCacheSyncTimeout = time.Minute * 3
-
 	// updatedConfigsBufferSize is the size of the buffered channel to process
 	// JobConfig updates. To reduce duplicate work, only enqueue when the
 	// JobConfig's schedule is updated.
 	updatedConfigsBufferSize = 10_000
 )
 
-var (
-	healthStatus uint64
-)
-
 // Controller is responsible for creating new Jobs from JobConfigs based on
 // their cron schedule.
 type Controller struct {
 	*Context
+	ctx            context.Context
+	terminate      context.CancelFunc
+	healthStatus   uint64
 	cronWorker     *CronWorker
 	informerWorker *InformerWorker
 	reconciler     *reconciler.Controller
@@ -65,7 +60,7 @@ type Controller struct {
 
 // Context extends the common controllercontext.Context.
 type Context struct {
-	controllercontext.ContextInterface
+	controllercontext.Context
 	jobInformer       executioninformers.JobInformer
 	jobconfigInformer executioninformers.JobConfigInformer
 	HasSynced         []cache.InformerSynced
@@ -74,8 +69,8 @@ type Context struct {
 }
 
 // NewContext returns a new Context.
-func NewContext(context controllercontext.ContextInterface) *Context {
-	c := &Context{ContextInterface: context}
+func NewContext(context controllercontext.Context) *Context {
+	c := &Context{Context: context}
 
 	// Create workqueue.
 	ratelimiter := workqueue.DefaultControllerRateLimiter()
@@ -95,7 +90,7 @@ func NewContext(context controllercontext.ContextInterface) *Context {
 }
 
 // NewRecorder returns a new Recorder for the controller.
-func NewRecorder(context controllercontext.ContextInterface) record.EventRecorder {
+func NewRecorder(context controllercontext.Context) record.EventRecorder {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
 		Interface: context.Clientsets().Kubernetes().CoreV1().Events(""),
@@ -104,11 +99,14 @@ func NewRecorder(context controllercontext.ContextInterface) record.EventRecorde
 }
 
 func NewController(
-	ctrlContext controllercontext.ContextInterface,
+	ctrlContext controllercontext.Context,
 	concurrency *configv1alpha1.Concurrency,
 ) (*Controller, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	ctrl := &Controller{
-		Context: NewContext(ctrlContext),
+		Context:   NewContext(ctrlContext),
+		ctx:       ctx,
+		terminate: cancel,
 	}
 
 	ctrl.cronWorker = NewCronWorker(ctrl.Context)
@@ -131,33 +129,26 @@ func NewController(
 
 func (c *Controller) Run(ctx context.Context) error {
 	defer utilruntime.HandleCrash()
-	defer c.queue.ShutDown()
 	klog.InfoS("croncontroller: starting controller")
 
-	// Wait for cache sync up to a timeout.
-	if err := controllerutil.WaitForNamedCacheSyncWithTimeout(
-		ctx,
-		controllerName,
-		waitForCacheSyncTimeout,
-		c.HasSynced...,
-	); err != nil {
-		klog.ErrorS(err, "croncontroller: cache sync timeout")
-		return err
+	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.HasSynced...); !ok {
+		klog.Error("croncontroller: cache sync timeout")
+		return controllerutil.ErrWaitForCacheSyncTimeout
 	}
 
-	atomic.StoreUint64(&healthStatus, 1)
+	c.reconciler.Start(c.ctx)
+	c.cronWorker.Start(c.ctx.Done())
+
+	atomic.StoreUint64(&c.healthStatus, 1)
 	klog.InfoS("croncontroller: started controller")
 
-	// Start workers
-	c.reconciler.Start(ctx)
-	c.cronWorker.Start(ctx.Done())
-
-	<-ctx.Done()
 	return nil
 }
 
 func (c *Controller) Shutdown(ctx context.Context) {
 	klog.InfoS("croncontroller: shutting down")
+	c.terminate()
+	c.queue.ShutDown()
 	c.reconciler.Wait()
 	klog.InfoS("croncontroller: stopped controller")
 }
@@ -165,6 +156,6 @@ func (c *Controller) Shutdown(ctx context.Context) {
 func (c *Controller) GetHealth() controllermanager.HealthStatus {
 	return controllermanager.HealthStatus{
 		Name:    controllerName,
-		Healthy: atomic.LoadUint64(&healthStatus) == 1,
+		Healthy: atomic.LoadUint64(&c.healthStatus) == 1,
 	}
 }

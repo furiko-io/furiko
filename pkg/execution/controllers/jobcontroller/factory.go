@@ -17,10 +17,12 @@
 package jobcontroller
 
 import (
-	v1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
 )
+
+const controllerName = "JobController"
 
 type Factory struct{}
 
@@ -33,8 +35,8 @@ func (f *Factory) Name() string {
 }
 
 func (f *Factory) New(
-	ctrlContext controllercontext.ContextInterface,
-	concurrencySpec *v1.ExecutionControllerConcurrencySpec,
+	ctrlContext controllercontext.Context,
+	concurrencySpec *configv1alpha1.ExecutionControllerConcurrencySpec,
 ) (controllermanager.Controller, error) {
 	return NewController(ctrlContext, concurrencySpec.Job)
 }

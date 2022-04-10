@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	v1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/utils/eventhandler"
 )
 
@@ -106,7 +106,7 @@ func (c *SecretLoader) unmarshalSecret(data map[string][]byte) (*configCache, er
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot unmarshal %v", name)
 		}
-		newSecret.Store(v1.ConfigName(name), v)
+		newSecret.Store(configv1alpha1.ConfigName(name), v)
 	}
 	return newSecret, nil
 }

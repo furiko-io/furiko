@@ -27,7 +27,7 @@ var (
 )
 
 // Stores returns shared in-memory stores, and is used for dependency injection.
-func (c *Context) Stores() Stores {
+func (c *ctrlContext) Stores() Stores {
 	return c.storeMgr
 }
 

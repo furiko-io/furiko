@@ -46,14 +46,14 @@ var (
 )
 
 type Webhook struct {
-	controllercontext.ContextInterface
+	controllercontext.Context
 }
 
 var _ controllermanager.Webhook = (*Webhook)(nil)
 
-func NewWebhook(ctrlContext controllercontext.ContextInterface) (*Webhook, error) {
+func NewWebhook(ctrlContext controllercontext.Context) (*Webhook, error) {
 	webhook := &Webhook{
-		ContextInterface: ctrlContext,
+		Context: ctrlContext,
 	}
 	return webhook, nil
 }

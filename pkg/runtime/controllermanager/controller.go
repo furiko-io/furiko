@@ -19,6 +19,8 @@ package controllermanager
 import (
 	"context"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -52,7 +54,7 @@ type ControllerManager struct {
 }
 
 func NewManager(
-	ctrlContext *controllercontext.Context,
+	ctrlContext controllercontext.Context,
 	ctrlCfg configv1alpha1.ControllerManagerConfigSpec,
 	defaultLeaseName string,
 ) (*ControllerManager, error) {
@@ -109,13 +111,13 @@ func (m *ControllerManager) AddStore(stores ...Store) {
 	m.stores = append(m.stores, stores...)
 }
 
-// Start will start up all controllers and block. This method will first block
-// until we are elected, and once elected, it will block until the controllers
-// terminate.
+// Start will start up all controllers and blocks until all of them are started
+// and ready. This method will first block until elected, and once elected it
+// will block until the controllers are fully started.
 //
 // If there is an error in starting, this method returns an error. When the
-// context is canceled, all controllers should stop as well.
-func (m *ControllerManager) Start(ctx context.Context) error {
+// context is canceled, all controllers should stop their start process as well.
+func (m *ControllerManager) Start(ctx context.Context, startTimeout time.Duration) error {
 	klog.Infof("controllermanager: starting controller manager")
 
 	// Start the base manager.
@@ -123,10 +125,9 @@ func (m *ControllerManager) Start(ctx context.Context) error {
 		return err
 	}
 
-	// We only mark the controller manager as "starting" at this phase once all
-	// pre-flight checks are done. This helps to ensure that it does not pass the
-	// readiness probe until then.
-	m.makeReady()
+	// We only let the controller manager pass the readiness probe at this phase
+	// once all pre-flight checks are done.
+	atomic.StoreUint64(&m.readiness, 1)
 
 	// Start election and block until we are elected.
 	if m.coordinator != nil {
@@ -139,6 +140,15 @@ func (m *ControllerManager) Start(ctx context.Context) error {
 		leaderelection.ObserveLeaderElected(m.coordinator.GetLeaseName(), m.coordinator.GetLeaseID(), true)
 	}
 
+	atomic.StoreUint64(&m.starting, 1)
+
+	// Begin recovery and starting all controllers within a timeout.
+	if startTimeout > 0 {
+		newCtx, cancel := context.WithTimeout(ctx, startTimeout)
+		defer cancel()
+		ctx = newCtx
+	}
+
 	// Recover stores.
 	if len(m.stores) > 0 {
 		klog.Infof("controllermanager: recovering stores")
@@ -148,18 +158,24 @@ func (m *ControllerManager) Start(ctx context.Context) error {
 		klog.Infof("controllermanager: recovered all stores")
 	}
 
-	m.makeStarted()
+	startTime := time.Now()
 	klog.Infof("controllermanager: starting controllers")
-	return RunControllers(ctx, m.controllers)
+	if err := RunControllers(ctx, m.controllers); err != nil {
+		return errors.Wrapf(err, "cannot start controllers")
+	}
+
+	atomic.StoreUint64(&m.started, 1)
+	klog.Infof("controllermanager: controllers started in %v", time.Since(startTime))
+
+	return nil
 }
 
 // GetHealth returns a list of all controllers' health statuses.
 func (m *ControllerManager) GetHealth() []HealthStatus {
 	healths := make([]HealthStatus, 0, len(m.controllers))
 
-	// Not yet started (either not initialized or not elected).
-	// No controllers are running yet, thus their health status is by default healthy.
-	if m.started.Err() == nil {
+	// If not yet starting (i.e. not elected), do not return false unhealthy state.
+	if m.IsStarting() {
 		return healths
 	}
 
@@ -185,11 +201,12 @@ func (m *ControllerManager) ShutdownAndWait(ctx context.Context) {
 	klog.Infof("controllermanager: shut down complete")
 }
 
-// RunControllers starts all the given Controllers in the background and blocks.
-// If any controller's Run method returns an error, this method returns and cancels all other runs.
-// To terminate controllers, cancel the passed context.
+// RunControllers starts all the given Controllers in the background and blocks
+// until all of them are started. If any controller's Run method returns an
+// error, this method returns and cancels all other runs. if the context is
+// canceled, it will cancel starting up.
 func RunControllers(ctx context.Context, controllers []Controller) error {
-	grp, ctx := errgroup.WithContext(ctx)
+	grp, _ := errgroup.WithContext(ctx)
 
 	for _, controller := range controllers {
 		controller := controller

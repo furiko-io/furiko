@@ -28,7 +28,7 @@ import (
 )
 
 // Configs returns the dynamic controller configurations.
-func (c *Context) Configs() Configs {
+func (c *ctrlContext) Configs() Configs {
 	return c.configMgr
 }
 

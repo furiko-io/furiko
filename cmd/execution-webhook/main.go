@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"time"
 
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,27 +35,15 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/httphandler"
 )
 
-const (
-	defaultTeardownTimeout = 2 * time.Minute
-)
-
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs/status,verbs=get
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobconfigs/status,verbs=get
 
 func main() {
+	initFlags()
 	klog.InitFlags(nil)
 	defer klog.Flush()
-
-	var configFile string
-	var teardownTimeout time.Duration
-
-	flag.StringVar(&configFile, "config", "",
-		"The webhook server will load its bootstrap configuration from this file. "+
-			"Omit this flag to use the default configuration values.")
-	flag.DurationVar(&teardownTimeout, "teardown-timeout", defaultTeardownTimeout,
-		"Timeout to tear down all webhooks, before it will forcibly quit")
 	flag.Parse()
 
 	// Read bootstrap configuration from file. This set of configuration only
@@ -143,7 +130,7 @@ func main() {
 // WebhookFactory is able to create a new Webhook.
 type WebhookFactory interface {
 	Name() string
-	New(ctx controllercontext.ContextInterface) (controllermanager.Webhook, error)
+	New(ctx controllercontext.Context) (controllermanager.Webhook, error)
 }
 
 // GetWebhookFactories returns a list of WebhookFactory implementations that
