@@ -1,0 +1,20 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  status:
+    project:
+      default:
+        # Compute target coverage based on previous base commit
+        target: auto
+
+        # Don't fail CI if it falls within a small threshold.
+        threshold: 2%
+
+    patch:
+      default:
+        # Compute target patch based on previous base commit
+        target: auto
+
+        # Relax current patch threshold.
+        threshold: 50%
