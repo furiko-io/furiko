@@ -35,6 +35,14 @@ data:
     # of deletionGracePeriodSeconds. Set this value to 0 to disable force deletion.
     forceDeleteKillingTasksTimeoutSeconds: 120
 
+  jobConfigs: |
+    apiVersion: config.furiko.io/v1alpha1
+    kind: JobConfigExecutionConfig
+
+    # maxEnqueuedJobs is the global maximum enqueued jobs that can be enqueued for
+    # a single JobConfig.
+    maxEnqueuedJobs: 20
+
   cron: |
     apiVersion: config.furiko.io/v1alpha1
     kind: CronExecutionConfig

@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
 
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/core/options"
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
@@ -99,13 +100,33 @@ func (v *Validator) ValidateJobMetadata(metadata *metav1.ObjectMeta, fldPath *fi
 
 // ValidateJobCreate validates creation of a *v1alpha1.Job with the parent JobConfig.
 func (v *Validator) ValidateJobCreate(rj *v1alpha1.Job) field.ErrorList {
-	allErrs := field.ErrorList{}
-
 	// Look up JobConfig for the job.
 	rjc, errs := jobconfig.ValidateLookupJobOwner(rj, v.getJobConfigLister(rj.Namespace))
 	if errs != nil {
 		return errs
 	}
+
+	cfg, err := v.ctrlContext.Configs().JobConfigs()
+	if err != nil {
+		return field.ErrorList{
+			field.InternalError(field.NewPath(""), errors.Wrapf(err, "cannot load config")),
+		}
+	}
+
+	// Validation specific to case when it belongs to JobConfig.
+	if rjc != nil {
+		return v.validateJobCreateWithJobConfig(rj, rjc, cfg)
+	}
+
+	return nil
+}
+
+func (v *Validator) validateJobCreateWithJobConfig(
+	rj *v1alpha1.Job,
+	rjc *v1alpha1.JobConfig,
+	cfg *configv1alpha1.JobConfigExecutionConfig,
+) field.ErrorList {
+	allErrs := field.ErrorList{}
 
 	// Reject Job if ConcurrencyPolicyForbid and JobConfig has active Jobs.
 	if spec := rj.Spec.StartPolicy; spec != nil && rjc != nil &&
@@ -117,6 +138,14 @@ func (v *Validator) ValidateJobCreate(rj *v1alpha1.Job) field.ErrorList {
 				"cannot create new Job for JobConfig %v, concurrencyPolicy is Forbid but there are %v active jobs",
 				rjc.Name, rjc.Status.Active,
 			),
+		))
+	}
+
+	// Cannot enqueue beyond max queue length.
+	if max := cfg.MaxEnqueuedJobs; max != nil && rjc != nil && rjc.Status.Queued >= *max {
+		allErrs = append(allErrs, field.Forbidden(
+			field.NewPath("spec.startPolicy"),
+			fmt.Sprintf("cannot create new Job for JobConfig %v, which would exceed maximum queue length of %v", rjc.Name, *max),
 		))
 	}
 

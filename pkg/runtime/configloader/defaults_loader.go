@@ -43,8 +43,9 @@ var _ Loader = (*DefaultsLoader)(nil)
 func NewDefaultsLoader() *DefaultsLoader {
 	return &DefaultsLoader{
 		Defaults: map[configv1alpha1.ConfigName]runtime.Object{
-			configv1alpha1.JobExecutionConfigName:  config.DefaultJobExecutionConfig,
-			configv1alpha1.CronExecutionConfigName: config.DefaultCronExecutionConfig,
+			configv1alpha1.JobExecutionConfigName:       config.DefaultJobExecutionConfig,
+			configv1alpha1.JobConfigExecutionConfigName: config.DefaultJobConfigExecutionConfig,
+			configv1alpha1.CronExecutionConfigName:      config.DefaultCronExecutionConfig,
 		},
 	}
 }

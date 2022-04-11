@@ -23,6 +23,9 @@ const (
 	// JobExecutionConfigName refers to JobExecutionConfig.
 	JobExecutionConfigName ConfigName = "jobs"
 
+	// JobConfigExecutionConfigName refers to JobConfigExecutionConfig.
+	JobConfigExecutionConfigName ConfigName = "jobConfigs"
+
 	// CronExecutionConfigName refers to CronExecutionConfig.
 	CronExecutionConfigName ConfigName = "cron"
 )

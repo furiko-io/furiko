@@ -64,6 +64,21 @@ type JobExecutionConfig struct {
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// JobConfigExecutionConfig defines runtime global configuration for JobConfigs in the cluster.
+type JobConfigExecutionConfig struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// MaxEnqueuedJobs is the global maximum enqueued jobs that can be enqueued for
+	// a single JobConfig.
+	//
+	// Default: 20
+	// +optional
+	MaxEnqueuedJobs *int64 `json:"maxEnqueuedJobs,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // CronExecutionConfig defines runtime global configuration for Cron in the cluster.
 type CronExecutionConfig struct {
 	metav1.TypeMeta `json:",inline"`
