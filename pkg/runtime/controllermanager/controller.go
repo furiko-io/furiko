@@ -53,7 +53,7 @@ type ControllerManager struct {
 	coordinator leaderelection.Coordinator
 }
 
-func NewManager(
+func NewControllerManager(
 	ctrlContext controllercontext.Context,
 	ctrlCfg configv1alpha1.ControllerManagerConfigSpec,
 	defaultLeaseName string,
@@ -175,7 +175,7 @@ func (m *ControllerManager) GetHealth() []HealthStatus {
 	healths := make([]HealthStatus, 0, len(m.controllers))
 
 	// If not yet starting (i.e. not elected), do not return false unhealthy state.
-	if m.IsStarting() {
+	if !m.IsStarting() {
 		return healths
 	}
 

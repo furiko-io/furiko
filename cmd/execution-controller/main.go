@@ -85,7 +85,7 @@ func main() {
 
 	// Create controller manager.
 	klog.Info("setting up controller manager")
-	mgr, err := controllermanager.NewManager(
+	mgr, err := controllermanager.NewControllerManager(
 		ctrlContext,
 		options.ControllerManagerConfigSpec,
 		"execution-controller",
