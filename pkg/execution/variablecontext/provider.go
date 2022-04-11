@@ -59,6 +59,7 @@ func (c *defaultProvider) GetAllPrefixes() []string {
 
 func (c *defaultProvider) MakeVariablesFromJobConfig(rjc *execution.JobConfig) map[string]string {
 	subs := map[string]string{
+		"jobconfig.uid":       string(rjc.GetUID()),
 		"jobconfig.name":      rjc.GetName(),
 		"jobconfig.namespace": rjc.GetNamespace(),
 	}
@@ -74,6 +75,7 @@ func (c *defaultProvider) MakeVariablesFromJobConfig(rjc *execution.JobConfig) m
 
 func (c *defaultProvider) MakeVariablesFromJob(rj *execution.Job) map[string]string {
 	subs := map[string]string{
+		"job.uid":       string(rj.GetUID()),
 		"job.name":      rj.GetName(),
 		"job.namespace": rj.GetNamespace(),
 		"job.type":      string(rj.Spec.Type),
