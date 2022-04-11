@@ -27,6 +27,9 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/configloader"
 )
 
+// ConfigsMap is a map of ConfigName to Config object.
+type ConfigsMap = map[configv1alpha1.ConfigName]runtime.Object
+
 // Configs returns the dynamic controller configurations.
 func (c *ctrlContext) Configs() Configs {
 	return c.configMgr
@@ -35,8 +38,8 @@ func (c *ctrlContext) Configs() Configs {
 type Configs interface {
 	Start(ctx context.Context) error
 	AllConfigs() (map[configv1alpha1.ConfigName]runtime.Object, error)
-	JobController() (*configv1alpha1.JobExecutionConfig, error)
-	CronController() (*configv1alpha1.CronExecutionConfig, error)
+	Jobs() (*configv1alpha1.JobExecutionConfig, error)
+	Cron() (*configv1alpha1.CronExecutionConfig, error)
 }
 
 type ContextConfigs struct {
@@ -51,10 +54,10 @@ func NewContextConfigs(mgr *configloader.ConfigManager) *ContextConfigs {
 func (c *ContextConfigs) AllConfigs() (map[configv1alpha1.ConfigName]runtime.Object, error) {
 	configNameMap := map[configv1alpha1.ConfigName]func() (runtime.Object, error){
 		configv1alpha1.JobExecutionConfigName: func() (runtime.Object, error) {
-			return c.JobController()
+			return c.Jobs()
 		},
 		configv1alpha1.CronExecutionConfigName: func() (runtime.Object, error) {
-			return c.CronController()
+			return c.Cron()
 		},
 	}
 
@@ -70,8 +73,8 @@ func (c *ContextConfigs) AllConfigs() (map[configv1alpha1.ConfigName]runtime.Obj
 	return configs, nil
 }
 
-// JobController returns the job controller configuration.
-func (c *ContextConfigs) JobController() (*configv1alpha1.JobExecutionConfig, error) {
+// Jobs returns the job dynamic configuration.
+func (c *ContextConfigs) Jobs() (*configv1alpha1.JobExecutionConfig, error) {
 	var config configv1alpha1.JobExecutionConfig
 	if err := c.LoadAndUnmarshalConfig(configv1alpha1.JobExecutionConfigName, &config); err != nil {
 		return nil, err
@@ -79,8 +82,8 @@ func (c *ContextConfigs) JobController() (*configv1alpha1.JobExecutionConfig, er
 	return &config, nil
 }
 
-// CronController returns the cron controller configuration.
-func (c *ContextConfigs) CronController() (*configv1alpha1.CronExecutionConfig, error) {
+// Cron returns the cron dynamic configuration.
+func (c *ContextConfigs) Cron() (*configv1alpha1.CronExecutionConfig, error) {
 	var config configv1alpha1.CronExecutionConfig
 	if err := c.LoadAndUnmarshalConfig(configv1alpha1.CronExecutionConfigName, &config); err != nil {
 		return nil, err

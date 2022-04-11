@@ -274,7 +274,7 @@ func TestSchedule(t *testing.T) {
 				t.Fatalf("cannot start context: %v", err)
 			}
 
-			cfg, err := ctrlContext.Configs().CronController()
+			cfg, err := ctrlContext.Configs().Cron()
 			if err != nil {
 				t.Fatalf("cannot get controller configuration: %v", err)
 			}
@@ -318,7 +318,7 @@ func TestSchedule_FlushNextScheduleTime(t *testing.T) {
 		t.Fatalf("cannot start context: %v", err)
 	}
 
-	cfg, err := ctrlContext.Configs().CronController()
+	cfg, err := ctrlContext.Configs().Cron()
 	if err != nil {
 		t.Fatalf("cannot get controller configuration: %v", err)
 	}

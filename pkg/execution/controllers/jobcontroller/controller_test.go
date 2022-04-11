@@ -256,7 +256,7 @@ var (
 	fakePodDeleting = func() *corev1.Pod {
 		newPod := fakePodTerminating.DeepCopy()
 		deleteTime := metav1.NewTime(testutils.Mkmtimep(killTime).
-			Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second))
+			Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second))
 		newPod.DeletionTimestamp = &deleteTime
 		return newPod
 	}()

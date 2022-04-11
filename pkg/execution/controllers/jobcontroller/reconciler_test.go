@@ -205,7 +205,7 @@ func TestReconciler(t *testing.T) {
 		{
 			name: "delete pod with kill timestamp",
 			now: testutils.Mktime(killTime).
-				Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second),
+				Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second),
 			target: fakeJobWithKillTimestamp,
 			initialPods: []*corev1.Pod{
 				fakePodTerminating,
@@ -224,8 +224,8 @@ func TestReconciler(t *testing.T) {
 		{
 			name: "force delete pod with kill timestamp",
 			now: testutils.Mktime(killTime).
-				Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
-				Add(time.Duration(*config.DefaultJobControllerConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+				Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
+				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
 			target: fakeJobPodDeleting,
 			initialPods: []*corev1.Pod{
 				fakePodDeleting,
@@ -244,8 +244,8 @@ func TestReconciler(t *testing.T) {
 		{
 			name: "do not force delete pod if disabled via config",
 			now: testutils.Mktime(killTime).
-				Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
-				Add(time.Duration(*config.DefaultJobControllerConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+				Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
+				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
 			target: fakeJobPodDeleting,
 			initialPods: []*corev1.Pod{
 				fakePodDeleting,
@@ -259,8 +259,8 @@ func TestReconciler(t *testing.T) {
 		{
 			name: "do not force delete pod if disabled via JobSpec",
 			now: testutils.Mktime(killTime).
-				Add(time.Duration(*config.DefaultJobControllerConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
-				Add(time.Duration(*config.DefaultJobControllerConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+				Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
+				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
 			target: fakeJobPodDeletingForbidForceDeletion,
 			initialPods: []*corev1.Pod{
 				fakePodDeleting,
@@ -327,7 +327,7 @@ func TestReconciler(t *testing.T) {
 		{
 			name: "delete finished job on TTL after finished",
 			now: testutils.Mktime(finishTime).
-				Add(time.Duration(*config.DefaultJobControllerConfig.DefaultTTLSecondsAfterFinished) * time.Second),
+				Add(time.Duration(*config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished) * time.Second),
 			target: fakeJobFinished,
 			initialPods: []*corev1.Pod{
 				fakePodFinished,

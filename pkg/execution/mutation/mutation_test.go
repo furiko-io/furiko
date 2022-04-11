@@ -603,7 +603,7 @@ func TestMutator_MutateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:                    v1alpha1.JobTypeAdhoc,
 					Template:                &jobTemplateSpecBasic.Spec,
-					TTLSecondsAfterFinished: config.DefaultJobControllerConfig.DefaultTTLSecondsAfterFinished,
+					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,
 				},
 			},
 		},
@@ -614,7 +614,7 @@ func TestMutator_MutateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type:                    v1alpha1.JobTypeAdhoc,
 					Template:                &jobTemplateSpecBasic.Spec,
-					TTLSecondsAfterFinished: config.DefaultJobControllerConfig.DefaultTTLSecondsAfterFinished,
+					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,
 				},
 			},
 		},

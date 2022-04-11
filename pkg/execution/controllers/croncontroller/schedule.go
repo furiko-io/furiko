@@ -65,7 +65,7 @@ func (w *Schedule) GetNextScheduleTime(
 	timezone := fromTime.Location()
 
 	maxDowntimeThreshold := defaultMaxDowntimeThreshold
-	if cfg, err := w.ctrlContext.Configs().CronController(); err == nil && cfg.MaxDowntimeThresholdSeconds > 0 {
+	if cfg, err := w.ctrlContext.Configs().Cron(); err == nil && cfg.MaxDowntimeThresholdSeconds > 0 {
 		maxDowntimeThreshold = time.Second * time.Duration(cfg.MaxDowntimeThresholdSeconds)
 	}
 

@@ -3,9 +3,14 @@ kind: ConfigMap
 metadata:
   name: dynamic-config
 data:
-  execution-job: |
-    # Here we define the dynamic config for execution-controller without requiring
-    # a restart. This config file configures dynamic configuration for Jobs.
+  _readme: |
+    # This ConfigMap contains the dynamic config for execution-controller.
+    # We can tune several knobs in execution-controller without requiring a restart.
+    # Each file in this ConfigMap groups together configuration of a single sub-component.
+    # As a start, we have populated a set of sane default values for you.
+    # More info: https://furiko.io/reference/configuration/dynamic/
+
+  jobs: |
     apiVersion: config.furiko.io/v1alpha1
     kind: JobExecutionConfig
 
@@ -30,9 +35,7 @@ data:
     # of deletionGracePeriodSeconds. Set this value to 0 to disable force deletion.
     forceDeleteKillingTasksTimeoutSeconds: 120
 
-  execution-cron: |
-    # Here we define the dynamic config for execution-controller without requiring
-    # a restart. This config file configures dynamic configuration for Cron.
+  cron: |
     apiVersion: config.furiko.io/v1alpha1
     kind: CronExecutionConfig
 
