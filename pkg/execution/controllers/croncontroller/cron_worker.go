@@ -84,7 +84,7 @@ func (w *CronWorker) Work() {
 	defer trace.LogIfLong(CronWorkerInterval / 2)
 
 	// Load dynamic configuration.
-	cfg, err := w.Configs().CronController()
+	cfg, err := w.Configs().Cron()
 	if err != nil {
 		klog.ErrorS(err, "croncontroller: cannot load controller configuration")
 		return

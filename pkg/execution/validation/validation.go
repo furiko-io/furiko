@@ -237,8 +237,8 @@ func (v *Validator) ValidateConcurrencyPolicy(concurrencyPolicy v1alpha1.Concurr
 func (v *Validator) ValidateCronScheduleExpression(cronSchedule string, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	// Load the CronController config to determine how to parse the cron expression.
-	cfg, err := v.ctrlContext.Configs().CronController()
+	// Load the Cron config to determine how to parse the cron expression.
+	cfg, err := v.ctrlContext.Configs().Cron()
 	if err != nil {
 		allErrs = append(allErrs, field.InternalError(fldPath, errors.Wrapf(err, "cannot load cron config")))
 		return allErrs

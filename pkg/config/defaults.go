@@ -23,14 +23,14 @@ import (
 )
 
 var (
-	DefaultJobControllerConfig = &configv1alpha1.JobExecutionConfig{
+	DefaultJobExecutionConfig = &configv1alpha1.JobExecutionConfig{
 		DefaultTTLSecondsAfterFinished:        pointer.Int64(3600),
 		DefaultPendingTimeoutSeconds:          pointer.Int64(900),
 		DeleteKillingTasksTimeoutSeconds:      pointer.Int64(180),
 		ForceDeleteKillingTasksTimeoutSeconds: pointer.Int64(120),
 	}
 
-	DefaultCronControllerConfig = &configv1alpha1.CronExecutionConfig{
+	DefaultCronExecutionConfig = &configv1alpha1.CronExecutionConfig{
 		CronFormat:                  "standard",
 		CronHashNames:               pointer.Bool(true),
 		CronHashSecondsByDefault:    pointer.Bool(false),

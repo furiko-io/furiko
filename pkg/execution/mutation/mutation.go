@@ -124,7 +124,7 @@ func (m *Mutator) MutateUpdateJobConfig(oldRjc, rjc *v1alpha1.JobConfig) *webhoo
 func (m *Mutator) MutateJob(rj *v1alpha1.Job) *webhook.Result {
 	result := webhook.NewResult()
 
-	cfg, err := m.ctrlContext.Configs().JobController()
+	cfg, err := m.ctrlContext.Configs().Jobs()
 	if err != nil {
 		result.Errors = append(result.Errors, field.InternalError(field.NewPath(""), err))
 	}

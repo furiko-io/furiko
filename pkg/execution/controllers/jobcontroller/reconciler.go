@@ -72,7 +72,7 @@ func (w *Reconciler) MaxRequeues() int {
 func (w *Reconciler) SyncOne(ctx context.Context, namespace, name string, _ int) error {
 	var err error
 
-	cfg, err := w.Configs().JobController()
+	cfg, err := w.Configs().Jobs()
 	if err != nil {
 		return errors.Wrapf(err, "cannot load controller configuration")
 	}

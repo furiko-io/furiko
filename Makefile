@@ -72,8 +72,7 @@ generate-groups: generate-groups.sh ## Generate code such as client, lister, inf
 
 .PHONY: fmt
 fmt: goimports ## Format code.
-	go fmt ./...
-	$(GOIMPORTS) -w -local "$(PKG)" .
+	./hack/run-fmt.sh "$(PKG)"
 
 .PHONY: lint
 lint: lint-go lint-license ## Lint all code.

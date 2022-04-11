@@ -21,8 +21,8 @@ type ConfigName string
 
 const (
 	// JobExecutionConfigName refers to JobExecutionConfig.
-	JobExecutionConfigName ConfigName = "execution-job"
+	JobExecutionConfigName ConfigName = "jobs"
 
 	// CronExecutionConfigName refers to CronExecutionConfig.
-	CronExecutionConfigName ConfigName = "execution-cron"
+	CronExecutionConfigName ConfigName = "cron"
 )
