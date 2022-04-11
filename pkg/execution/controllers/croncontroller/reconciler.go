@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
@@ -41,12 +40,14 @@ type Reconciler struct {
 	*Context
 	concurrency *configv1alpha1.Concurrency
 	client      ExecutionControlInterface
+	recorder    Recorder
 	store       controllercontext.ActiveJobStore
 }
 
 func NewReconciler(
 	ctrlContext *Context,
 	client ExecutionControlInterface,
+	recorder Recorder,
 	store controllercontext.ActiveJobStore,
 	concurrency *configv1alpha1.Concurrency,
 ) *Reconciler {
@@ -54,6 +55,7 @@ func NewReconciler(
 		Context:     ctrlContext,
 		concurrency: concurrency,
 		client:      client,
+		recorder:    recorder,
 		store:       store,
 	}
 }
@@ -87,6 +89,11 @@ func (w *Reconciler) processCronForConfig(ctx context.Context, namespace, name s
 	)
 	defer trace.LogIfLong(500 * time.Millisecond)
 
+	cfg, err := w.Configs().JobConfigs()
+	if err != nil {
+		return errors.Wrapf(err, "cannot get jobconfig configuration")
+	}
+
 	// Get JobConfig from cache
 	jobConfig, err := w.jobconfigInformer.Lister().JobConfigs(namespace).Get(name)
 
@@ -103,16 +110,18 @@ func (w *Reconciler) processCronForConfig(ctx context.Context, namespace, name s
 	// Check concurrency policy.
 	concurrencyPolicy := jobConfig.Spec.Concurrency.Policy
 
-	// Skip if not allowed.
+	// Handle Forbid concurrency policy.
 	if concurrencyPolicy == execution.ConcurrencyPolicyForbid && activeJobCount > 0 {
-		klog.V(3).InfoS("croncontroller: skip create job due to concurrency policy",
-			"worker", w.Name(),
-			"namespace", jobConfig.GetNamespace(),
-			"name", jobConfig.GetName(),
-			"schedule_time", scheduleTime,
-			"concurrency_policy", concurrencyPolicy,
-			"active_count", activeJobCount,
-		)
+		w.recorder.SkippedJobSchedule(ctx, jobConfig, scheduleTime,
+			"Skipped creating job due to concurrency policy Forbid")
+		return nil
+	}
+
+	// Cannot enqueue beyond max queue length.
+	// TODO(irvinlim): We use the status here, which may not be fully up-to-date.
+	if max := cfg.MaxEnqueuedJobs; max != nil && jobConfig.Status.Queued >= *max {
+		w.recorder.SkippedJobSchedule(ctx, jobConfig, scheduleTime,
+			fmt.Sprintf("Skipped creating job, cannot exceed maximum queue length of %v", *max))
 		return nil
 	}
 

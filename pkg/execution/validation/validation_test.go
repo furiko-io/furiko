@@ -34,6 +34,7 @@ import (
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/validation"
+	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
@@ -867,6 +868,7 @@ func TestValidateJobUpdate(t *testing.T) {
 func TestValidateJobCreate(t *testing.T) {
 	tests := []struct {
 		name    string
+		cfgs    controllercontext.ConfigsMap
 		rj      *v1alpha1.Job
 		rjcs    []*v1alpha1.JobConfig
 		wantErr string
@@ -1019,12 +1021,39 @@ func TestValidateJobCreate(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "cannot create Job with too many Queued",
+			cfgs: controllercontext.ConfigsMap{
+				configv1alpha1.JobConfigExecutionConfigName: &configv1alpha1.JobConfigExecutionConfig{
+					MaxEnqueuedJobs: pointer.Int64(5),
+				},
+			},
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJobWithAllReferences,
+				Spec: v1alpha1.JobSpec{
+					Type:     v1alpha1.JobTypeAdhoc,
+					Template: &jobTemplateSpecBasic.Spec,
+					StartPolicy: &v1alpha1.StartPolicySpec{
+						ConcurrencyPolicy: v1alpha1.ConcurrencyPolicyEnqueue,
+					},
+				},
+			},
+			rjcs: []*v1alpha1.JobConfig{
+				{
+					ObjectMeta: objectMetaJobConfig,
+					Status: v1alpha1.JobConfigStatus{
+						Queued: 5,
+					},
+				},
+			},
+			wantErr: "spec.startPolicy: Forbidden: cannot create new Job for JobConfig jobconfig-sample, which would exceed maximum queue length of 5",
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			originalRj := tt.rj.DeepCopy()
-			validator := setup(t, nil, tt.rjcs)
+			validator := setup(t, tt.cfgs, tt.rjcs)
 			err := validator.ValidateJobCreate(tt.rj).ToAggregate()
 			if checkError(err, tt.wantErr) {
 				t.Errorf("ValidateJobCreate() error = %v, wantErr = %v", err, tt.wantErr)

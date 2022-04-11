@@ -22,15 +22,11 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	executionv1alpha1 "github.com/furiko-io/furiko/pkg/generated/clientset/versioned/typed/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/utils/logvalues"
 )
 
 type ExecutionControlInterface interface {
@@ -41,7 +37,7 @@ type ExecutionControlInterface interface {
 type ExecutionControl struct {
 	name     string
 	client   executionv1alpha1.ExecutionV1alpha1Interface
-	recorder record.EventRecorder
+	recorder Recorder
 }
 
 var _ ExecutionControlInterface = (*ExecutionControl)(nil)
@@ -49,7 +45,7 @@ var _ ExecutionControlInterface = (*ExecutionControl)(nil)
 func NewExecutionControl(
 	name string,
 	client executionv1alpha1.ExecutionV1alpha1Interface,
-	recorder record.EventRecorder,
+	recorder Recorder,
 ) *ExecutionControl {
 	return &ExecutionControl{
 		name:     name,
@@ -76,13 +72,7 @@ func (c *ExecutionControl) CreateJob(ctx context.Context, rjc *execution.JobConf
 			}
 		}
 
-		klog.ErrorS(err, "croncontroller: failed to create job", logvalues.
-			Values("worker", c.name, "namespace", rj.GetNamespace(), "name", rj.GetName()).
-			Level(4, "job", rj).
-			Build()...,
-		)
-		c.recorder.Eventf(rjc, corev1.EventTypeWarning, "CronScheduleFailed",
-			"Failed to create Job %v from cron schedule: %v", rj.GetName(), errMessage)
+		c.recorder.CreateJobFailed(ctx, rjc, rj, errMessage)
 		return nil
 	}
 
@@ -90,14 +80,6 @@ func (c *ExecutionControl) CreateJob(ctx context.Context, rjc *execution.JobConf
 		return errors.Wrapf(err, "cannot create job")
 	}
 
-	klog.InfoS("croncontroller: created job", logvalues.
-		Values("worker", c.name, "namespace", createdRj.GetNamespace(), "name", createdRj.GetName()).
-		Level(4, "job", createdRj).
-		Build()...,
-	)
-
-	c.recorder.Eventf(rjc, corev1.EventTypeNormal, "CronSchedule",
-		"Created Job %v from cron schedule", createdRj.GetName())
-
+	c.recorder.CreatedJob(ctx, rjc, createdRj)
 	return nil
 }

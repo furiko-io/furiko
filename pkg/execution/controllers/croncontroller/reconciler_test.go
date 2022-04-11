@@ -25,7 +25,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
+	"k8s.io/utils/strings/slices"
 
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -55,6 +58,20 @@ var (
 			Policy: execution.ConcurrencyPolicyAllow,
 		},
 	})
+
+	jobConfigEnqueue = func() *execution.JobConfig {
+		jobConfig := makeJobConfig("job-config-enqueued-jobs", execution.JobConfigSpec{
+			Schedule: scheduleSpecEvery5Min,
+			Concurrency: execution.ConcurrencySpec{
+				Policy: execution.ConcurrencyPolicyEnqueue,
+			},
+		})
+		jobConfig.Status = execution.JobConfigStatus{
+			State:  execution.JobConfigJobQueued,
+			Queued: 5,
+		}
+		return jobConfig
+	}()
 )
 
 func TestReconciler(t *testing.T) {
@@ -64,11 +81,13 @@ func TestReconciler(t *testing.T) {
 	}
 	tests := []struct {
 		name              string
+		cfgs              controllercontext.ConfigsMap
 		syncTarget        syncTarget
 		initialJobConfigs []*execution.JobConfig
 		initialCounts     map[*execution.JobConfig]int64
 		control           MockControl
 		wantNumCreated    int
+		wantSkipped       int
 		wantErr           bool
 	}{
 		{
@@ -153,6 +172,7 @@ func TestReconciler(t *testing.T) {
 				namespace: jobConfigForbid.Namespace,
 				name:      croncontroller.JoinJobConfigKeyName(jobConfigForbid.Name, testutils.Mktime(scheduleTime)),
 			},
+			wantSkipped: 1,
 		},
 		{
 			name: "can create job for Forbid with other job active",
@@ -169,6 +189,22 @@ func TestReconciler(t *testing.T) {
 			},
 			wantNumCreated: 1,
 		},
+		{
+			name: "cannot create more than maxEnqueuedJobs",
+			cfgs: controllercontext.ConfigsMap{
+				configv1alpha1.JobConfigExecutionConfigName: &configv1alpha1.JobConfigExecutionConfig{
+					MaxEnqueuedJobs: pointer.Int64(5),
+				},
+			},
+			initialJobConfigs: []*execution.JobConfig{
+				jobConfigEnqueue,
+			},
+			syncTarget: syncTarget{
+				namespace: jobConfigEnqueue.Namespace,
+				name:      croncontroller.JoinJobConfigKeyName(jobConfigEnqueue.Name, testutils.Mktime(scheduleTime)),
+			},
+			wantSkipped: 1,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -177,13 +213,16 @@ func TestReconciler(t *testing.T) {
 			defer cancel()
 
 			c := mock.NewContext()
+			c.MockConfigs().SetConfigs(tt.cfgs)
 			ctrlCtx := croncontroller.NewContext(c)
 			control := tt.control
 			if control == nil {
 				control = &mockControl{}
 			}
+			recorder := newFakeRecorder()
 			store := newMockStore(tt.initialCounts)
-			reconciler := croncontroller.NewReconciler(ctrlCtx, control, store, runtimetesting.ReconcilerDefaultConcurrency)
+			reconciler := croncontroller.NewReconciler(ctrlCtx, control, recorder, store,
+				runtimetesting.ReconcilerDefaultConcurrency)
 
 			err := c.Start(ctx)
 			assert.NoError(t, err)
@@ -213,6 +252,9 @@ func TestReconciler(t *testing.T) {
 
 			// Assert call count.
 			assert.Equal(t, control.CountCreatedJobs(), tt.wantNumCreated)
+			assert.Len(t, slices.Filter(nil, recorder.Events, func(s string) bool {
+				return s == "SkippedJobSchedule"
+			}), tt.wantSkipped)
 		})
 	}
 }

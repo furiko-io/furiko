@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ktesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
@@ -80,7 +79,7 @@ func TestExecutionControl(t *testing.T) {
 	c := mock.NewContext()
 	fakeClient := c.MockClientsets().FurikoMock()
 	client := fakeClient.ExecutionV1alpha1()
-	recorder := record.NewFakeRecorder(1024)
+	recorder := newFakeRecorder()
 	control := croncontroller.NewExecutionControl("test", client, recorder)
 	err := c.Start(ctx)
 	assert.NoError(t, err)
@@ -90,6 +89,8 @@ func TestExecutionControl(t *testing.T) {
 	err = control.CreateJob(ctx, jobConfigAllow, fakeJob)
 	assert.NoError(t, err)
 	assert.Len(t, recorder.Events, 1)
+	assert.Equal(t, "CreatedJob", recorder.Events[0])
+	recorder.Clear()
 
 	// Should be created
 	_, err = client.Jobs(fakeJob.Namespace).Get(ctx, fakeJob.Name, metav1.GetOptions{})
@@ -112,10 +113,11 @@ func TestExecutionControl(t *testing.T) {
 		})
 
 	// Create Job with InvalidError, should not throw error but recorded an event
-	assert.Len(t, recorder.Events, 1)
+	assert.Len(t, recorder.Events, 0)
 	err = control.CreateJob(ctx, jobConfigAllow, fakeJob)
 	assert.NoError(t, err)
-	assert.Len(t, recorder.Events, 2)
+	assert.Len(t, recorder.Events, 1)
+	assert.Equal(t, "CreateJobFailed", recorder.Events[0])
 
 	// Should not be created
 	_, err = client.Jobs(fakeJob.Namespace).Get(ctx, fakeJob.Name, metav1.GetOptions{})

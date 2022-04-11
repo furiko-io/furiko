@@ -21,17 +21,13 @@ import (
 	"sync/atomic"
 
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/generated/clientset/versioned/scheme"
 	executioninformers "github.com/furiko-io/furiko/pkg/generated/informers/externalversions/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
@@ -89,15 +85,6 @@ func NewContext(context controllercontext.Context) *Context {
 	return c
 }
 
-// NewRecorder returns a new Recorder for the controller.
-func NewRecorder(context controllercontext.Context) record.EventRecorder {
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
-		Interface: context.Clientsets().Kubernetes().CoreV1().Events(""),
-	})
-	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
-}
-
 func NewController(
 	ctrlContext controllercontext.Context,
 	concurrency *configv1alpha1.Concurrency,
@@ -112,16 +99,18 @@ func NewController(
 	ctrl.cronWorker = NewCronWorker(ctrl.Context, newEnqueueHandler(ctrl.Context))
 	ctrl.informerWorker = NewInformerWorker(ctrl.Context, NewUpdateHandler(ctrl.Context))
 
+	name := (&Reconciler{}).Name()
+	recorder := newDefaultRecorder(ctrl.Context, name)
 	client := NewExecutionControl(
-		(&Reconciler{}).Name(),
+		name,
 		ctrlContext.Clientsets().Furiko().ExecutionV1alpha1(),
-		NewRecorder(ctrl.Context),
+		recorder,
 	)
 	store, err := ctrlContext.Stores().ActiveJobStore()
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot load ActiveJobStore")
 	}
-	recon := NewReconciler(ctrl.Context, client, store, concurrency)
+	recon := NewReconciler(ctrl.Context, client, recorder, store, concurrency)
 	ctrl.reconciler = reconciler.NewController(recon, ctrl.queue)
 
 	return ctrl, nil

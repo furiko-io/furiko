@@ -127,6 +127,7 @@ func (m *Mutator) MutateJob(rj *v1alpha1.Job) *webhook.Result {
 	cfg, err := m.ctrlContext.Configs().Jobs()
 	if err != nil {
 		result.Errors = append(result.Errors, field.InternalError(field.NewPath(""), err))
+		return result
 	}
 
 	// Add default values.
