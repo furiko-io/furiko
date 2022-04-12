@@ -49,13 +49,13 @@ func IsTaskFinished(task jobtasks.Task) bool {
 
 // GetMaxAllowedTasks returns the maximum number of allowed tasks that a Job can have.
 func GetMaxAllowedTasks(rj *execution.Job) int64 {
-	var maxRetries int64
+	var maxAttempts int64 = 1
 	if template := rj.Spec.Template; template != nil {
-		if rj.Spec.Template.MaxRetryAttempts != nil {
-			maxRetries = int64(*rj.Spec.Template.MaxRetryAttempts)
+		if rj.Spec.Template.MaxAttempts != nil {
+			maxAttempts = int64(*rj.Spec.Template.MaxAttempts)
 		}
 	}
-	return maxRetries + 1
+	return maxAttempts
 }
 
 // GetNextAllowedRetry checks if we can create a new task, and if so, returns

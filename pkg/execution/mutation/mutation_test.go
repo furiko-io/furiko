@@ -595,14 +595,23 @@ func TestMutator_MutateJob(t *testing.T) {
 			rj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
-					Template: &jobTemplateSpecBasic.Spec,
+					Template: &v1alpha1.JobTemplateSpec{
+						Task: v1alpha1.JobTaskSpec{
+							Template: podTemplateSpecBasic,
+						},
+					},
 				},
 			},
 			want: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
-					Type:                    v1alpha1.JobTypeAdhoc,
-					Template:                &jobTemplateSpecBasic.Spec,
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplateSpec{
+						Task: v1alpha1.JobTaskSpec{
+							Template: podTemplateSpecBasic,
+						},
+						MaxAttempts: pointer.Int32(1),
+					},
 					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,
 				},
 			},
@@ -612,8 +621,13 @@ func TestMutator_MutateJob(t *testing.T) {
 			rj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
-					Type:                    v1alpha1.JobTypeAdhoc,
-					Template:                &jobTemplateSpecBasic.Spec,
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplateSpec{
+						Task: v1alpha1.JobTaskSpec{
+							Template: podTemplateSpecBasic,
+						},
+						MaxAttempts: pointer.Int32(1),
+					},
 					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,
 				},
 			},

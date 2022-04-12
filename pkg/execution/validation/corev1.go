@@ -26,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/kubernetes/pkg/apis/core"
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
+
+	"github.com/furiko-io/furiko/pkg/core/validation"
 )
 
 var (
@@ -52,7 +54,7 @@ func ValidatePodTemplateSpec(spec *corev1.PodTemplateSpec, fieldPath *field.Path
 		err = corev1.SchemeBuilder.AddToScheme(scheme)
 	})
 	if err != nil {
-		return ToInternalErrorList(fieldPath, errors.Wrapf(err, "cannot add to scheme"))
+		return validation.ToInternalErrorList(fieldPath, errors.Wrapf(err, "cannot add to scheme"))
 	}
 
 	// Wrap into a new PodTemplate and perform defaulting.
@@ -65,7 +67,7 @@ func ValidatePodTemplateSpec(spec *corev1.PodTemplateSpec, fieldPath *field.Path
 	// corev1.PodTemplateSpec to core.PodTemplateSpec.
 	var corePodTemplateSpec core.PodTemplateSpec
 	if err := scheme.Convert(&podTemplate.Template, &corePodTemplateSpec, &conversion.Meta{}); err != nil {
-		return ToInternalErrorList(fieldPath, errors.Wrapf(err, "conversion error"))
+		return validation.ToInternalErrorList(fieldPath, errors.Wrapf(err, "conversion error"))
 	}
 
 	// Validate core.PodTemplateSpec using default Kubernetes validators.

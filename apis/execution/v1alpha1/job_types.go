@@ -138,21 +138,19 @@ type JobTemplateSpec struct {
 	// Describes the tasks to be created for the Job.
 	Task JobTaskSpec `json:"task"`
 
-	// Specifies maximum number of retry attempts for the Job if the job exceeds its
-	// pending timeout or active deadline. Each retry attempt will create a single
-	// task at a time. The controller will create up to MaxRetryAttempts+1 tasks for
-	// the job, before terminating in RetryLimitExceeded or PendingTimeout. Defaults
-	// to 0, which means no retry. Value must be a non-negative integer.
+	// Specifies maximum number of attempts for the Job. Each attempt will create a
+	// single task at a time, and if the task fails, the controller will wait
+	// retryDelaySeconds before creating the next task attempt. Once maxAttempts is
+	// reached, the Job terminates in RetryLimitExceeded. Value must be a positive
+	// integer. Defaults to 1.
 	//
-	// +kubebuilder:validation:Minimum=0
 	// +optional
-	MaxRetryAttempts *int32 `json:"maxRetryAttempts,omitempty"`
+	MaxAttempts *int32 `json:"maxAttempts,omitempty"`
 
 	// Optional duration in seconds to wait between retries. If left empty or zero,
 	// it means no delay (i.e. retry immediately). Value must be a non-negative
 	// integer.
 	//
-	// +kubebuilder:validation:Minimum=0
 	// +optional
 	RetryDelaySeconds *int64 `json:"retryDelaySeconds,omitempty"`
 }

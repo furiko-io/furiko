@@ -38,7 +38,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxRetryAttempts: &two,
+						MaxAttempts: &three,
 					},
 				},
 			},
@@ -49,7 +49,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxRetryAttempts:  &two,
+						MaxAttempts:       &three,
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
@@ -82,7 +82,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxRetryAttempts: &two,
+						MaxAttempts: &three,
 					},
 				},
 				Status: execution.JobStatus{
@@ -107,7 +107,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxRetryAttempts:  &two,
+						MaxAttempts:       &three,
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
@@ -133,7 +133,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxRetryAttempts:  &two,
+						MaxAttempts:       &three,
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
@@ -158,7 +158,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxRetryAttempts:  &two,
+						MaxAttempts:       &three,
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 					KillTimestamp: &killTime,
@@ -185,7 +185,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxRetryAttempts:  &one,
+						MaxAttempts:       &two,
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
@@ -220,7 +220,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxRetryAttempts:  &one,
+						MaxAttempts:       &two,
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},

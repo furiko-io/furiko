@@ -40,8 +40,8 @@ spec:
       # Maximum duration that a task can be Pending for.
       pendingTimeoutSeconds: 1800
 
-    # Defines how many additional tasks to retry in case of failure.
-    maxRetryAttempts: 2
+    # Defines how many tasks can be created in case of failure.
+    maxAttempts: 3
 
     # Defines how long to wait between retries.
     retryDelaySeconds: 15

@@ -168,7 +168,6 @@ func (w *Reconciler) syncJobTasks(
 		return nil, errors.Wrapf(err, "cannot create task manager")
 	}
 
-	// Note that max number of allowed tasks is maxRetries + 1.
 	maxAllowedTasks := jobutil.GetMaxAllowedTasks(rj)
 
 	// Get all tasks for job from cache.

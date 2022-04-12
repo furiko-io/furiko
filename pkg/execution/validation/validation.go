@@ -32,6 +32,7 @@ import (
 	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/core/options"
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
+	"github.com/furiko-io/furiko/pkg/core/validation"
 	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
 	executionlister "github.com/furiko-io/furiko/pkg/generated/listers/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -66,7 +67,7 @@ func NewValidator(ctrlContext controllercontext.Context) *Validator {
 // ValidateJobConfig validates a *v1alpha1.JobConfig.
 func (v *Validator) ValidateJobConfig(rjc *v1alpha1.JobConfig) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, ValidateMaxLength(rjc.Name, maxJobConfigNameLen, field.NewPath("metadata").Child("name"))...)
+	allErrs = append(allErrs, validation.ValidateMaxLength(rjc.Name, maxJobConfigNameLen, field.NewPath("metadata").Child("name"))...)
 	allErrs = append(allErrs, v.ValidateJobConfigSpec(&rjc.Spec, field.NewPath("spec"))...)
 	return allErrs
 }
@@ -94,7 +95,7 @@ func (v *Validator) ValidateJob(rj *v1alpha1.Job) field.ErrorList {
 // ValidateJobMetadata validates the metadata of a *v1alpha1.Job.
 func (v *Validator) ValidateJobMetadata(metadata *metav1.ObjectMeta, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, ValidateMaxLength(metadata.Name, maxJobNameLen, fldPath.Child("name"))...)
+	allErrs = append(allErrs, validation.ValidateMaxLength(metadata.Name, maxJobNameLen, fldPath.Child("name"))...)
 	return allErrs
 }
 
@@ -160,7 +161,7 @@ func (v *Validator) ValidateJobUpdate(oldRj, rj *v1alpha1.Job) field.ErrorList {
 
 	// Once Job is started, not allowed to update startPolicy.
 	if !rj.Status.StartTime.IsZero() {
-		allErrs = append(allErrs, ValidateImmutableField(rj.Spec.StartPolicy, oldRj.Spec.StartPolicy,
+		allErrs = append(allErrs, validation.ValidateImmutableField(rj.Spec.StartPolicy, oldRj.Spec.StartPolicy,
 			field.NewPath("spec.startPolicy"), "cannot update startPolicy once Job is started")...)
 	}
 
@@ -332,7 +333,7 @@ func (v *Validator) ValidateJobSpecUpdate(oldSpec, spec *v1alpha1.JobSpec, fldPa
 func (v *Validator) ValidateJobTemplateSpecImmutable(oldTemplate, template *v1alpha1.JobTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.Task, oldTemplate.Task, fldPath.Child("task"))...)
-	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.MaxRetryAttempts, oldTemplate.MaxRetryAttempts, fldPath.Child("maxRetryAttempts"))...)
+	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.MaxAttempts, oldTemplate.MaxAttempts, fldPath.Child("maxAttempts"))...)
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.RetryDelaySeconds, oldTemplate.RetryDelaySeconds, fldPath.Child("retryDelaySeconds"))...)
 	return allErrs
 }
@@ -381,8 +382,8 @@ func (v *Validator) ValidateStartPolicySpec(spec *v1alpha1.StartPolicySpec, fldP
 func (v *Validator) ValidateJobTemplateSpec(template *v1alpha1.JobTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, v.ValidateJobTaskSpec(&template.Task, fldPath.Child("task"))...)
-	if template.MaxRetryAttempts != nil {
-		allErrs = append(allErrs, v.ValidateMaxRetryAttempts(*template.MaxRetryAttempts, fldPath.Child("maxRetryAttempts"))...)
+	if template.MaxAttempts != nil {
+		allErrs = append(allErrs, v.ValidateMaxRetryAttempts(*template.MaxAttempts, fldPath.Child("maxAttempts"))...)
 	}
 	if template.RetryDelaySeconds != nil {
 		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(*template.RetryDelaySeconds, fldPath.Child("retryDelaySeconds"))...)
@@ -392,12 +393,13 @@ func (v *Validator) ValidateJobTemplateSpec(template *v1alpha1.JobTemplateSpec, 
 
 func (v *Validator) ValidateMaxRetryAttempts(attempts int32, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(attempts), fldPath)...)
 
-	// Set a limit of 49 retries (excluding first attempt) arbitrarily.
-	if attempts > 49 {
-		allErrs = append(allErrs, field.Invalid(fldPath, attempts, "maxRetryAttempts must be at most 49"))
-	}
+	// Must be greater than 0.
+	allErrs = append(allErrs, validation.ValidateGT(int64(attempts), 0, fldPath)...)
+
+	// Set an arbitrary limit of 50 attempts.
+	// TODO(irvinlim): Support configuring this value
+	allErrs = append(allErrs, validation.ValidateLTE(int64(attempts), 50, fldPath)...)
 
 	return allErrs
 }

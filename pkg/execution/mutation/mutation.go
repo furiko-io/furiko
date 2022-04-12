@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/pointer"
 
 	"github.com/furiko-io/furiko/apis/execution"
 	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
@@ -136,6 +137,9 @@ func (m *Mutator) MutateJob(rj *v1alpha1.Job) *webhook.Result {
 	}
 	if rj.Spec.TTLSecondsAfterFinished == nil {
 		rj.Spec.TTLSecondsAfterFinished = cfg.DefaultTTLSecondsAfterFinished
+	}
+	if rj.Spec.Template.MaxAttempts == nil {
+		rj.Spec.Template.MaxAttempts = pointer.Int32(1)
 	}
 
 	return result
