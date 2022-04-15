@@ -81,8 +81,8 @@ func (c *defaultProvider) MakeVariablesFromJob(rj *execution.Job) map[string]str
 		"job.type":      string(rj.Spec.Type),
 	}
 
-	if maxRetries := rj.Spec.Template.MaxRetryAttempts; maxRetries != nil {
-		subs["job.max_retries"] = strconv.Itoa(int(*maxRetries))
+	if maxAttempts := rj.Spec.Template.MaxAttempts; maxAttempts != nil {
+		subs["job.max_attempts"] = strconv.Itoa(int(*maxAttempts))
 	}
 
 	return subs

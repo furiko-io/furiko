@@ -199,15 +199,13 @@ spec:
                     spec:
                       description: Specification of the desired behavior of the job.
                       properties:
-                        maxRetryAttempts:
-                          description: Specifies maximum number of retry attempts for the Job if the job exceeds its pending timeout or active deadline. Each retry attempt will create a single task at a time. The controller will create up to MaxRetryAttempts+1 tasks for the job, before terminating in RetryLimitExceeded or PendingTimeout. Defaults to 0, which means no retry. Value must be a non-negative integer.
+                        maxAttempts:
+                          description: Specifies maximum number of attempts for the Job. Each attempt will create a single task at a time, and if the task fails, the controller will wait retryDelaySeconds before creating the next task attempt. Once maxAttempts is reached, the Job terminates in RetryLimitExceeded.
                           format: int32
-                          minimum: 0
                           type: integer
                         retryDelaySeconds:
                           description: Optional duration in seconds to wait between retries. If left empty or zero, it means no delay (i.e. retry immediately). Value must be a non-negative integer.
                           format: int64
-                          minimum: 0
                           type: integer
                         task:
                           description: Describes the tasks to be created for the Job.

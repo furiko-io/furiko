@@ -48,7 +48,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxRetryAttempts: &one,
+							MaxAttempts: &two,
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -70,7 +70,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxRetryAttempts: &one,
+							MaxAttempts: &two,
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -96,7 +96,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxRetryAttempts: &one,
+							MaxAttempts: &two,
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -124,7 +124,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxRetryAttempts: &one,
+							MaxAttempts: &two,
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -176,7 +176,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 					Spec: execution.JobSpec{
 						KillTimestamp: &killTime,
 						Template: &execution.JobTemplateSpec{
-							MaxRetryAttempts: &one,
+							MaxAttempts: &two,
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -204,7 +204,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxRetryAttempts: &two,
+							MaxAttempts: &three,
 						},
 					},
 					Status: createTaskRefsStatus("task1", "task2"),

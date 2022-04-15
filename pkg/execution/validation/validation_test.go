@@ -95,7 +95,7 @@ var (
 				Template:              podTemplateSpecBasic,
 				PendingTimeoutSeconds: pointer.Int64(1800),
 			},
-			MaxRetryAttempts:  pointer.Int32(5),
+			MaxAttempts:       pointer.Int32(5),
 			RetryDelaySeconds: pointer.Int64(60),
 		},
 	}
@@ -107,7 +107,7 @@ var (
 				Template:              podTemplateSpecBasic,
 				PendingTimeoutSeconds: pointer.Int64(3600),
 			},
-			MaxRetryAttempts:  jobTemplateSpecBasic.Spec.MaxRetryAttempts,
+			MaxAttempts:       jobTemplateSpecBasic.Spec.MaxAttempts,
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
@@ -116,7 +116,7 @@ var (
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
 		Spec: v1alpha1.JobTemplateSpec{
 			Task:              jobTemplateSpecBasic.Spec.Task,
-			MaxRetryAttempts:  pointer.Int32(10),
+			MaxAttempts:       pointer.Int32(10),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
@@ -125,7 +125,7 @@ var (
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
 		Spec: v1alpha1.JobTemplateSpec{
 			Task:              jobTemplateSpecBasic.Spec.Task,
-			MaxRetryAttempts:  pointer.Int32(100),
+			MaxAttempts:       pointer.Int32(100),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
@@ -339,7 +339,7 @@ func TestValidateJobConfig(t *testing.T) {
 			wantErr: "spec.schedule.cron.timezone: Invalid value: \"Invalid/Time/Zone\": cannot parse timezone",
 		},
 		{
-			name: "maxRetryAttempts too large",
+			name: "maxAttempts too large",
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
 					Template:    jobTemplateSpecTooManyRetries,
@@ -347,7 +347,7 @@ func TestValidateJobConfig(t *testing.T) {
 					Schedule:    &scheduleSpecBasic,
 				},
 			},
-			wantErr: "spec.template.spec.maxRetryAttempts: Invalid value: 100: maxRetryAttempts must be at most 49",
+			wantErr: "spec.template.spec.maxAttempts: Invalid value: 100: must be less than or equal to 50",
 		},
 		{
 			name: "invalid options",
@@ -519,7 +519,7 @@ func TestValidateJob(t *testing.T) {
 			wantErr: "spec.ttlSecondsAfterFinished: Invalid value: -300",
 		},
 		{
-			name: "maxRetryAttempts too large",
+			name: "maxAttempts too large",
 			rj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
@@ -527,7 +527,7 @@ func TestValidateJob(t *testing.T) {
 					Template: &jobTemplateSpecTooManyRetries.Spec,
 				},
 			},
-			wantErr: "spec.template.maxRetryAttempts: Invalid value: 100: maxRetryAttempts must be at most 49",
+			wantErr: "spec.template.maxAttempts: Invalid value: 100: must be less than or equal to 50",
 		},
 		{
 			name: "invalid pod template",
@@ -720,7 +720,7 @@ func TestValidateJobUpdate(t *testing.T) {
 			wantErr: "spec.template.task: Invalid value",
 		},
 		{
-			name: "immutable field maxRetryAttempts",
+			name: "immutable field maxAttempts",
 			oldRj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
@@ -735,7 +735,7 @@ func TestValidateJobUpdate(t *testing.T) {
 					Template: &jobTemplateSpecMoreRetries.Spec,
 				},
 			},
-			wantErr: "spec.template.maxRetryAttempts: Invalid value: 10: field is immutable",
+			wantErr: "spec.template.maxAttempts: Invalid value: 10: field is immutable",
 		},
 		{
 			name: "can set KillTimestamp",
