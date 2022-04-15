@@ -77,7 +77,7 @@ func (w *Schedule) GetNextScheduleTime(
 	// Did not previously compute next schedule time (or was cleared). Use the last
 	// schedule time in the JobConfig's status to back-schedule all missed schedules
 	// (up to a threshold).
-	lastScheduleTime := jobConfig.Status.LastScheduleTime
+	lastScheduleTime := jobConfig.Status.LastScheduled
 	if lastScheduleTime != nil && !lastScheduleTime.IsZero() {
 		if Clock.Since(lastScheduleTime.Time) > maxDowntimeThreshold {
 			newLastScheduleTime := metav1.NewTime(Clock.Now().Add(-maxDowntimeThreshold))
@@ -86,30 +86,43 @@ func (w *Schedule) GetNextScheduleTime(
 		fromTime = lastScheduleTime.Time
 	}
 
-	// Cannot schedule before schedule.NotBefore.
+	// Bump to LastUpdated to avoid accidental back-scheduling.
+	if spec := jobConfig.Spec.Schedule; spec != nil {
+		if lastUpdated := spec.LastUpdated; !lastUpdated.IsZero() && lastUpdated.After(fromTime) {
+			fromTime = lastUpdated.Time
+		}
+	}
+
+	// Cannot schedule before NotBefore.
+	// NOTE(irvinlim): Compute next using fromTime, so we sub nanosecond in case time falls exactly on NotBefore
 	if spec := jobConfig.Spec.Schedule; spec != nil && spec.Constraints != nil {
-		if nbf := spec.Constraints.NotBefore; !nbf.IsZero() && nbf.After(fromTime) {
-			fromTime = nbf.Time
+		if nbf := spec.Constraints.NotBefore; !nbf.IsZero() && fromTime.Before(nbf.Time) {
+			fromTime = nbf.Time.Add(-time.Nanosecond)
 		}
 	}
 
 	// Set timezone correctly.
 	fromTime = fromTime.In(timezone)
 
-	// Compute the next scheduled time.
-	next := expr.Next(fromTime)
-
-	// We update our internal map so it will be fetched when the time comes.
-	w.setNextScheduleTime(jobConfig, next)
-	return next
+	// Bump and save the next schedule time.
+	return w.BumpNextScheduleTime(jobConfig, fromTime, expr)
 }
 
 // BumpNextScheduleTime updates the next schedule time of a JobConfig.
 func (w *Schedule) BumpNextScheduleTime(
 	jobConfig *execution.JobConfig, fromTime time.Time, expr *cronexpr.Expression,
-) {
+) time.Time {
 	next := expr.Next(fromTime)
+
+	// Cannot schedule after NotAfter.
+	if spec := jobConfig.Spec.Schedule; spec != nil && spec.Constraints != nil {
+		if naf := spec.Constraints.NotAfter; !naf.IsZero() && next.After(naf.Time) {
+			next = time.Time{}
+		}
+	}
+
 	w.setNextScheduleTime(jobConfig, next)
+	return next
 }
 
 // FlushNextScheduleTime flushes the next schedule time for a JobConfig, causing it to be recomputed on

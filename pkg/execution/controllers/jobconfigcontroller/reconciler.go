@@ -111,7 +111,7 @@ func (w *Reconciler) SyncOne(ctx context.Context, namespace, name string, _ int)
 
 	// Update last schedule time.
 	if lastScheduleTime := jobconfig.GetLastScheduleTime(rjs); !lastScheduleTime.IsZero() {
-		newRjc.Status.LastScheduleTime = ktime.TimeMax(lastScheduleTime, newRjc.Status.LastScheduleTime)
+		newRjc.Status.LastScheduled = ktime.TimeMax(lastScheduleTime, newRjc.Status.LastScheduled)
 	}
 
 	// Compute final state.

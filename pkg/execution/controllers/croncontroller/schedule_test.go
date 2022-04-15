@@ -38,8 +38,11 @@ const (
 )
 
 var (
-	lastScheduleTime     = metav1.NewTime(testutils.Mktime("2021-02-09T04:02:00Z"))
-	longLastScheduleTime = metav1.NewTime(testutils.Mktime("2021-02-09T02:46:00Z"))
+	lastScheduleTime     = testutils.Mkmtime("2021-02-09T04:02:00Z")
+	longLastScheduleTime = testutils.Mkmtime("2021-02-09T02:46:00Z")
+	notBeforeTime        = testutils.Mkmtime("2021-02-09T04:01:00Z")
+	notAfterTime         = testutils.Mkmtime("2021-02-09T04:08:00Z")
+	futureTime           = testutils.Mkmtime("2021-02-10T04:02:00Z")
 
 	jobConfigEveryMinute = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -79,7 +82,7 @@ var (
 			},
 		},
 		Status: execution.JobConfigStatus{
-			LastScheduleTime: testutils.Mkmtimep("2021-10-27T22:15:00Z"),
+			LastScheduled: testutils.Mkmtimep("2021-10-27T22:15:00Z"),
 		},
 	}
 
@@ -95,7 +98,7 @@ var (
 			},
 		},
 		Status: execution.JobConfigStatus{
-			LastScheduleTime: &lastScheduleTime,
+			LastScheduled: &lastScheduleTime,
 		},
 	}
 
@@ -111,7 +114,7 @@ var (
 			},
 		},
 		Status: execution.JobConfigStatus{
-			LastScheduleTime: &longLastScheduleTime,
+			LastScheduled: &longLastScheduleTime,
 		},
 	}
 
@@ -142,13 +145,30 @@ var (
 			},
 		},
 		Status: execution.JobConfigStatus{
-			LastScheduleTime: testutils.Mkmtimep("2021-06-24T09:00:00Z"),
+			LastScheduled: testutils.Mkmtimep("2021-06-24T09:00:00Z"),
 		},
 	}
 
-	jobConfigWithLastScheduleTimeAndNotBefore = &execution.JobConfig{
+	jobConfigWithLastScheduledAndUpdated = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "job-config-with-last-schedule-time-and-not-before",
+			Name: "job-config-with-last-schedule-and-updated",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "* * * * *",
+				},
+				LastUpdated: testutils.Mkmtimep(now),
+			},
+		},
+		Status: execution.JobConfigStatus{
+			LastScheduled: &longLastScheduleTime,
+		},
+	}
+
+	jobConfigWithNotBeforeConstraint = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-with-not-before-constraint",
 		},
 		Spec: execution.JobConfigSpec{
 			Schedule: &execution.ScheduleSpec{
@@ -156,12 +176,123 @@ var (
 					Expression: "* * * * *",
 				},
 				Constraints: &execution.ScheduleContraints{
-					NotBefore: testutils.Mkmtimep(now),
+					NotBefore: &futureTime,
+				},
+			},
+		},
+	}
+
+	jobConfigWithNotBeforeAndLastScheduled = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-with-not-before-and-last-scheduled",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "* * * * *",
+				},
+				Constraints: &execution.ScheduleContraints{
+					NotBefore: &futureTime,
 				},
 			},
 		},
 		Status: execution.JobConfigStatus{
-			LastScheduleTime: &longLastScheduleTime,
+			LastScheduled: &lastScheduleTime,
+		},
+	}
+
+	jobConfigWithNotBeforeAndLastUpdated = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-with-not-before-and-last-updated",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "* * * * *",
+				},
+				Constraints: &execution.ScheduleContraints{
+					NotBefore: &notBeforeTime,
+				},
+				LastUpdated: testutils.Mkmtimep(now),
+			},
+		},
+		Status: execution.JobConfigStatus{
+			LastScheduled: &lastScheduleTime,
+		},
+	}
+
+	jobConfigWithFutureNotBeforeAndLastUpdated = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-with-future-not-before-and-last-updated",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "* * * * *",
+				},
+				Constraints: &execution.ScheduleContraints{
+					NotBefore: &futureTime,
+				},
+				LastUpdated: testutils.Mkmtimep(now),
+			},
+		},
+		Status: execution.JobConfigStatus{
+			LastScheduled: &lastScheduleTime,
+		},
+	}
+
+	jobConfigWithNotAfterConstraint = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-with-not-after-constraint",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "* * * * *",
+				},
+				Constraints: &execution.ScheduleContraints{
+					NotAfter: &notAfterTime,
+				},
+			},
+		},
+	}
+
+	jobConfigWithNotAfterWithLastScheduled = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-with-not-after-and-last-scheduled",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "* * * * *",
+				},
+				Constraints: &execution.ScheduleContraints{
+					NotAfter: &notAfterTime,
+				},
+			},
+		},
+		Status: execution.JobConfigStatus{
+			LastScheduled: &lastScheduleTime,
+		},
+	}
+
+	jobConfigWithNotAfterWithLastUpdated = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-with-not-after-and-last-updated",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "* * * * *",
+				},
+				Constraints: &execution.ScheduleContraints{
+					NotAfter: &notAfterTime,
+				},
+				LastUpdated: testutils.Mkmtimep(now),
+			},
+		},
+		Status: execution.JobConfigStatus{
+			LastScheduled: &lastScheduleTime,
 		},
 	}
 )
@@ -191,7 +322,7 @@ func TestSchedule(t *testing.T) {
 			},
 		},
 		{
-			name:      "No future schedules with LastScheduleTime",
+			name:      "No future schedules with LastScheduled",
 			jobConfig: jobConfigPointInTimeWithAlreadySetLastScheduleTime,
 			fromTime:  testutils.Mktime("2021-10-28T06:00:00+08:00"),
 			cases: []time.Time{
@@ -199,7 +330,7 @@ func TestSchedule(t *testing.T) {
 			},
 		},
 		{
-			name:      "Start from LastScheduleTime",
+			name:      "Start from LastScheduled",
 			jobConfig: jobConfigWithLastScheduleTime,
 			cases: []time.Time{
 				testutils.Mktime("2021-02-09T04:03:00Z"),
@@ -209,7 +340,7 @@ func TestSchedule(t *testing.T) {
 			},
 		},
 		{
-			name:      "Enforce maximum LastScheduleTime ago",
+			name:      "Enforce maximum LastScheduled ago",
 			jobConfig: jobConfigWithLastScheduleTimeLongAgo,
 			cases: []time.Time{
 				testutils.Mktime("2021-02-09T04:02:00Z"),
@@ -238,12 +369,79 @@ func TestSchedule(t *testing.T) {
 			},
 		},
 		{
-			name:      "Respect ScheduleNotBeforeTimestamp",
-			jobConfig: jobConfigWithLastScheduleTimeAndNotBefore,
+			name:      "Do not back-schedule with LastUpdated",
+			jobConfig: jobConfigWithLastScheduledAndUpdated,
 			cases: []time.Time{
 				testutils.Mktime("2021-02-09T04:07:00Z"),
 				testutils.Mktime("2021-02-09T04:08:00Z"),
 				testutils.Mktime("2021-02-09T04:09:00Z"),
+			},
+		},
+		{
+			name:      "Respect NotBefore constraint",
+			jobConfig: jobConfigWithNotBeforeConstraint,
+			cases: []time.Time{
+				testutils.Mktime("2021-02-10T04:02:00Z"),
+				testutils.Mktime("2021-02-10T04:03:00Z"),
+				testutils.Mktime("2021-02-10T04:04:00Z"),
+			},
+		},
+		{
+			name:      "Respect NotBefore constraint with LastScheduled",
+			jobConfig: jobConfigWithNotBeforeAndLastScheduled,
+			cases: []time.Time{
+				testutils.Mktime("2021-02-10T04:02:00Z"),
+				testutils.Mktime("2021-02-10T04:03:00Z"),
+				testutils.Mktime("2021-02-10T04:04:00Z"),
+			},
+		},
+		{
+			name:      "Respect NotBefore constraint with LastUpdated",
+			jobConfig: jobConfigWithNotBeforeAndLastUpdated,
+			cases: []time.Time{
+				testutils.Mktime("2021-02-09T04:07:00Z"),
+				testutils.Mktime("2021-02-09T04:08:00Z"),
+				testutils.Mktime("2021-02-09T04:09:00Z"),
+			},
+		},
+		{
+			name:      "Respect future NotBefore constraint with LastUpdated",
+			jobConfig: jobConfigWithFutureNotBeforeAndLastUpdated,
+			cases: []time.Time{
+				testutils.Mktime("2021-02-10T04:02:00Z"),
+				testutils.Mktime("2021-02-10T04:03:00Z"),
+				testutils.Mktime("2021-02-10T04:04:00Z"),
+			},
+		},
+		{
+			name:      "Respect NotAfter constraint",
+			jobConfig: jobConfigWithNotAfterConstraint,
+			cases: []time.Time{
+				testutils.Mktime("2021-02-09T04:07:00Z"),
+				testutils.Mktime("2021-02-09T04:08:00Z"),
+				{}, // no more
+			},
+		},
+		{
+			name:      "Respect NotAfter constraint with LastScheduled",
+			jobConfig: jobConfigWithNotAfterWithLastScheduled,
+			cases: []time.Time{
+				testutils.Mktime("2021-02-09T04:03:00Z"),
+				testutils.Mktime("2021-02-09T04:04:00Z"),
+				testutils.Mktime("2021-02-09T04:05:00Z"),
+				testutils.Mktime("2021-02-09T04:06:00Z"),
+				testutils.Mktime("2021-02-09T04:07:00Z"),
+				testutils.Mktime("2021-02-09T04:08:00Z"),
+				{}, // no more
+			},
+		},
+		{
+			name:      "Respect NotAfter constraint with LastUpdated",
+			jobConfig: jobConfigWithNotAfterWithLastUpdated,
+			cases: []time.Time{
+				testutils.Mktime("2021-02-09T04:07:00Z"),
+				testutils.Mktime("2021-02-09T04:08:00Z"),
+				{}, // no more
 			},
 		},
 	}
