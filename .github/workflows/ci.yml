@@ -46,7 +46,7 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       - name: Generate code
-        run: make generate
+        run: make generate && make manifests
         env:
           GOPATH: /home/runner/work/furiko/go
         working-directory: "go/src/github.com/${{ github.repository }}"
