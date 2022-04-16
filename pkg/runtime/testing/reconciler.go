@@ -43,11 +43,20 @@ const (
 	defaultReconcilerTestTimeout = time.Second
 )
 
+// ControllerContext is implemented by controller contexts used in reconciler tests.
+type ControllerContext interface {
+	controllercontext.Context
+	GetHasSynced() []cache.InformerSynced
+}
+
 // ReconcilerTest encapsulates multiple test cases, providing a standard
 // framework for testing standard Reconcilers.
 type ReconcilerTest struct {
+	// Returns a new controller context.
+	ContextFunc func(c controllercontext.Context) ControllerContext
+
 	// Returns the reconciler to test and informer synced methods to wait for.
-	ReconcilerFunc func(c controllercontext.Context) (reconciler.Reconciler, []cache.InformerSynced)
+	ReconcilerFunc func(c ControllerContext) reconciler.Reconciler
 
 	// Sets the current time.
 	Now time.Time
@@ -92,7 +101,7 @@ type ReconcilerTestCase struct {
 	Reactors CombinedReactors
 
 	// Defines additional assertion functions.
-	Assert func(t assert.TestingT, tt ReconcilerTestCase)
+	Assert func(t assert.TestingT, tt ReconcilerTestCase, ctrlContext ControllerContext)
 
 	// List of actions that we expect to see.
 	WantActions CombinedActions
@@ -143,17 +152,17 @@ func (r *ReconcilerTest) RunTestCase(t testinginterface.T, tt ReconcilerTestCase
 
 	// Initialize context.
 	c := mock.NewContext()
-	r.setupContext(c, tt)
+	ctrlContext := r.setupContext(c, tt)
 
 	// Initialize reconciler.
-	recon, hasSynced := r.ReconcilerFunc(c)
+	recon := r.ReconcilerFunc(ctrlContext)
 
 	// Start the context.
 	err := c.Start(ctx)
 	assert.NoError(t, err)
 
 	// Initialize fixtures.
-	target, err := r.initClientset(ctx, c.MockClientsets(), tt, hasSynced)
+	target, err := r.initClientset(ctx, c.MockClientsets(), tt, ctrlContext.GetHasSynced())
 	if err != nil {
 		t.Fatalf("cannot initialize fixtures: %v", err)
 	}
@@ -164,10 +173,10 @@ func (r *ReconcilerTest) RunTestCase(t testinginterface.T, tt ReconcilerTestCase
 	}
 
 	// Compare actions.
-	r.assertResult(t, tt, c.MockClientsets())
+	r.assertResult(t, tt, c.MockClientsets(), ctrlContext)
 }
 
-func (r *ReconcilerTest) setupContext(c *mock.Context, tt ReconcilerTestCase) {
+func (r *ReconcilerTest) setupContext(c *mock.Context, tt ReconcilerTestCase) ControllerContext {
 	// Set up configs.
 	c.MockConfigs().SetConfigs(tt.Configs)
 
@@ -181,6 +190,9 @@ func (r *ReconcilerTest) setupContext(c *mock.Context, tt ReconcilerTestCase) {
 	}
 	fakeClock := clock.NewFakeClock(now)
 	ktime.Clock = fakeClock
+
+	// Initialize context.
+	return r.ContextFunc(c)
 }
 
 // initClientset performs initialization of all fixtures and reactors with the given clientsets.
@@ -281,13 +293,18 @@ func (r *ReconcilerTest) initializeFixture(
 	return err
 }
 
-func (r *ReconcilerTest) assertResult(t testinginterface.T, tt ReconcilerTestCase, client *mock.Clientsets) {
+func (r *ReconcilerTest) assertResult(
+	t testinginterface.T,
+	tt ReconcilerTestCase,
+	client *mock.Clientsets,
+	ctrlContext ControllerContext,
+) {
 	// Compare actions.
 	CompareActions(t, tt.WantActions.Kubernetes, client.KubernetesMock().Actions())
 	CompareActions(t, tt.WantActions.Furiko, client.FurikoMock().Actions())
 
 	// Run custom assertions.
 	if tt.Assert != nil {
-		tt.Assert(t, tt)
+		tt.Assert(t, tt, ctrlContext)
 	}
 }

@@ -56,7 +56,7 @@ type Context struct {
 	controllercontext.Context
 	podInformer coreinformers.PodInformer
 	jobInformer executioninformers.JobInformer
-	HasSynced   []cache.InformerSynced
+	hasSynced   []cache.InformerSynced
 	queue       workqueue.RateLimitingInterface
 	recorder    record.EventRecorder
 	tasks       tasks.ExecutorFactory
@@ -88,7 +88,7 @@ func NewContextWithRecorder(context controllercontext.Context, recorder record.E
 	// Bind informers.
 	c.podInformer = c.Informers().Kubernetes().Core().V1().Pods()
 	c.jobInformer = c.Informers().Furiko().Execution().V1alpha1().Jobs()
-	c.HasSynced = []cache.InformerSynced{
+	c.hasSynced = []cache.InformerSynced{
 		c.podInformer.Informer().HasSynced,
 		c.jobInformer.Informer().HasSynced,
 	}
@@ -97,6 +97,10 @@ func NewContextWithRecorder(context controllercontext.Context, recorder record.E
 	c.tasks = taskexecutor.NewManager(context.Clientsets(), context.Informers())
 
 	return c
+}
+
+func (c *Context) GetHasSynced() []cache.InformerSynced {
+	return c.hasSynced
 }
 
 func NewController(
@@ -121,7 +125,7 @@ func (c *Controller) Run(ctx context.Context) error {
 	klog.InfoS("jobcontroller: starting controller")
 
 	// Wait for cache sync up to a timeout.
-	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.HasSynced...); !ok {
+	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.hasSynced...); !ok {
 		klog.Error("jobcontroller: cache sync timeout")
 		return controllerutil.ErrWaitForCacheSyncTimeout
 	}

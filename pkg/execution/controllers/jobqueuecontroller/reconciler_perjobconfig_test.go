@@ -20,10 +20,8 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 
-	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobqueuecontroller"
 	"github.com/furiko-io/furiko/pkg/execution/stores/activejobstore"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -35,12 +33,14 @@ import (
 
 func TestPerJobConfigReconciler(t *testing.T) {
 	test := runtimetesting.ReconcilerTest{
-		ReconcilerFunc: func(c controllercontext.Context) (reconciler.Reconciler, []cache.InformerSynced) {
-			ctrlCtx := jobqueuecontroller.NewContextWithRecorder(c, &record.FakeRecorder{})
-			recon := jobqueuecontroller.NewPerConfigReconciler(ctrlCtx, &configv1alpha1.Concurrency{
-				Workers: 1,
-			})
-			return recon, ctrlCtx.HasSynced
+		ContextFunc: func(c controllercontext.Context) runtimetesting.ControllerContext {
+			return jobqueuecontroller.NewContextWithRecorder(c, &record.FakeRecorder{})
+		},
+		ReconcilerFunc: func(c runtimetesting.ControllerContext) reconciler.Reconciler {
+			return jobqueuecontroller.NewPerConfigReconciler(
+				c.(*jobqueuecontroller.Context),
+				runtimetesting.ReconcilerDefaultConcurrency,
+			)
 		},
 		Now: testutils.Mktime(now),
 		Stores: []mock.StoreFactory{

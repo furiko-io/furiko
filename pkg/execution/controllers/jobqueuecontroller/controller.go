@@ -55,7 +55,7 @@ type Context struct {
 	controllercontext.Context
 	jobInformer       executioninformers.JobInformer
 	jobconfigInformer executioninformers.JobConfigInformer
-	HasSynced         []cache.InformerSynced
+	hasSynced         []cache.InformerSynced
 	jobConfigQueue    workqueue.RateLimitingInterface
 	independentQueue  workqueue.RateLimitingInterface
 	recorder          record.EventRecorder
@@ -82,7 +82,7 @@ func NewContextWithRecorder(context controllercontext.Context, recorder record.E
 	// Bind informers.
 	c.jobInformer = c.Informers().Furiko().Execution().V1alpha1().Jobs()
 	c.jobconfigInformer = c.Informers().Furiko().Execution().V1alpha1().JobConfigs()
-	c.HasSynced = []cache.InformerSynced{
+	c.hasSynced = []cache.InformerSynced{
 		c.jobInformer.Informer().HasSynced,
 		c.jobconfigInformer.Informer().HasSynced,
 	}
@@ -94,6 +94,10 @@ func NewContextWithRecorder(context controllercontext.Context, recorder record.E
 		(&IndependentReconciler{}).Name())
 
 	return c
+}
+
+func (c *Context) GetHasSynced() []cache.InformerSynced {
+	return c.hasSynced
 }
 
 func NewController(
@@ -125,7 +129,7 @@ func (c *Controller) Run(ctx context.Context) error {
 	defer utilruntime.HandleCrash()
 	klog.InfoS("jobqueuecontroller: starting controller")
 
-	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.HasSynced...); !ok {
+	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.hasSynced...); !ok {
 		klog.Error("jobqueuecontroller: cache sync timeout")
 		return controllerutil.ErrWaitForCacheSyncTimeout
 	}

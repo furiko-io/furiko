@@ -22,7 +22,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ktesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 
@@ -39,12 +38,11 @@ import (
 
 func TestReconciler(t *testing.T) {
 	test := runtimetesting.ReconcilerTest{
-		ReconcilerFunc: func(c controllercontext.Context) (reconciler.Reconciler, []cache.InformerSynced) {
-			ctrlCtx := jobcontroller.NewContextWithRecorder(c, &record.FakeRecorder{})
-			recon := jobcontroller.NewReconciler(ctrlCtx, &configv1alpha1.Concurrency{
-				Workers: 1,
-			})
-			return recon, ctrlCtx.HasSynced
+		ContextFunc: func(c controllercontext.Context) runtimetesting.ControllerContext {
+			return jobcontroller.NewContextWithRecorder(c, &record.FakeRecorder{})
+		},
+		ReconcilerFunc: func(c runtimetesting.ControllerContext) reconciler.Reconciler {
+			return jobcontroller.NewReconciler(c.(*jobcontroller.Context), runtimetesting.ReconcilerDefaultConcurrency)
 		},
 		Now: testutils.Mktime(now),
 	}
