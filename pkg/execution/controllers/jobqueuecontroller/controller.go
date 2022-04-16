@@ -55,29 +55,43 @@ type Context struct {
 	controllercontext.Context
 	jobInformer       executioninformers.JobInformer
 	jobconfigInformer executioninformers.JobConfigInformer
-	hasSynced         []cache.InformerSynced
+	HasSynced         []cache.InformerSynced
 	jobConfigQueue    workqueue.RateLimitingInterface
 	independentQueue  workqueue.RateLimitingInterface
 	recorder          record.EventRecorder
 }
 
+// NewContext returns a new Context.
 func NewContext(context controllercontext.Context) *Context {
-	c := &Context{Context: context}
-
-	// Create recorder.
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
-		Interface: c.Clientsets().Kubernetes().CoreV1().Events(""),
+		Interface: context.Clientsets().Kubernetes().CoreV1().Events(""),
 	})
-	c.recorder = eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
+
+	return NewContextWithRecorder(context, recorder)
+}
+
+// NewContextWithRecorder returns a new Context with a custom EventRecorder.
+func NewContextWithRecorder(context controllercontext.Context, recorder record.EventRecorder) *Context {
+	c := &Context{Context: context}
+
+	// Set recorder
+	c.recorder = recorder
 
 	// Bind informers.
 	c.jobInformer = c.Informers().Furiko().Execution().V1alpha1().Jobs()
 	c.jobconfigInformer = c.Informers().Furiko().Execution().V1alpha1().JobConfigs()
-	c.hasSynced = []cache.InformerSynced{
+	c.HasSynced = []cache.InformerSynced{
 		c.jobInformer.Informer().HasSynced,
 		c.jobconfigInformer.Informer().HasSynced,
 	}
+
+	// Create workqueues.
+	c.jobConfigQueue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
+		(&PerConfigReconciler{}).Name())
+	c.independentQueue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
+		(&IndependentReconciler{}).Name())
 
 	return c
 }
@@ -97,11 +111,8 @@ func NewController(
 	// will simply start them as soon as they are created. Otherwise, we will
 	// sequentially process Jobs on a per-JobConfig basis in each Reconciler
 	// goroutine.
-	ratelimiter := workqueue.DefaultControllerRateLimiter()
 	perConfigReconciler := NewPerConfigReconciler(ctrl.Context, concurrency)
-	ctrl.Context.jobConfigQueue = workqueue.NewNamedRateLimitingQueue(ratelimiter, perConfigReconciler.Name())
 	independentReconciler := NewIndependentReconciler(ctrl.Context, concurrency)
-	ctrl.Context.independentQueue = workqueue.NewNamedRateLimitingQueue(ratelimiter, independentReconciler.Name())
 
 	ctrl.informerWorker = NewInformerWorker(ctrl.Context)
 	ctrl.perConfigReconciler = reconciler.NewController(perConfigReconciler, ctrl.jobConfigQueue)
@@ -114,7 +125,7 @@ func (c *Controller) Run(ctx context.Context) error {
 	defer utilruntime.HandleCrash()
 	klog.InfoS("jobqueuecontroller: starting controller")
 
-	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.hasSynced...); !ok {
+	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.HasSynced...); !ok {
 		klog.Error("jobqueuecontroller: cache sync timeout")
 		return controllerutil.ErrWaitForCacheSyncTimeout
 	}
