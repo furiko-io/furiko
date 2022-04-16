@@ -28,6 +28,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	executionv1alpha1 "github.com/furiko-io/furiko/pkg/generated/clientset/versioned/typed/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/utils/execution/job"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/logvalues"
 )
 
@@ -61,8 +62,7 @@ func NewJobControl(
 // StartJob sets the startTime of the Job to the current time.
 func (c *JobControl) StartJob(ctx context.Context, rj *execution.Job) error {
 	newRj := rj.DeepCopy()
-	now := metav1.Now()
-	newRj.Status.StartTime = &now
+	newRj.Status.StartTime = ktime.Now()
 	updatedRj, err := c.client.Jobs(rj.GetNamespace()).UpdateStatus(ctx, newRj, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "cannot update job status")

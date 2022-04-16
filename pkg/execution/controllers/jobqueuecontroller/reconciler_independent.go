@@ -23,11 +23,16 @@ import (
 
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
+	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
+	"github.com/furiko-io/furiko/pkg/utils/execution/job"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
+	timeutil "github.com/furiko-io/furiko/pkg/utils/time"
 )
 
 // IndependentReconciler reconciles independent Jobs that do not have any JobConfig.
@@ -87,10 +92,38 @@ func (r *IndependentReconciler) SyncOne(ctx context.Context, namespace, name str
 	}
 	trace.Step("Lookup job from cache done")
 
+	if !job.IsQueued(rj) {
+		return nil
+	}
+
+	if spec := rj.Spec.StartPolicy; spec != nil {
+		if ktime.IsTimeSetAndLater(spec.StartAfter) {
+			r.enqueueAfter(rj, "job_start_after", time.Until(spec.StartAfter.Time))
+			return nil
+		}
+	}
+
 	if err := r.client.StartJob(ctx, rj); err != nil {
 		return errors.Wrapf(err, "cannot start job")
 	}
 	trace.Step("Start job done")
 
 	return nil
+}
+
+// enqueueAfter will defer a sync after the specified duration, and logs the purpose of deferring
+// the sync for debugging purposes.
+// We enforce a lower bound of 1 second to the next sync, to slow down unwanted bursts of syncs.
+func (r *IndependentReconciler) enqueueAfter(rj *execution.Job, purpose string, duration time.Duration) {
+	duration = timeutil.DurationMax(time.Second, duration)
+	if key, err := cache.MetaNamespaceKeyFunc(rj); err == nil {
+		r.independentQueue.AddAfter(key, duration)
+		klog.V(2).InfoS("jobqueuecontroller: worker enqueue sync",
+			"worker", r.Name(),
+			"namespace", rj.GetNamespace(),
+			"name", rj.GetName(),
+			"purpose", purpose,
+			"after", duration.String(),
+		)
+	}
 }

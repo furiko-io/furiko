@@ -30,19 +30,20 @@ type Context struct {
 	clientsets *Clientsets
 	configs    *Configs
 	informers  controllercontext.Informers
-	stores     controllercontext.Stores
+	stores     *Stores
 }
 
 var _ controllercontext.Context = &Context{}
 
 func NewContext() *Context {
 	clientsets := NewClientsets()
-	return &Context{
+	c := &Context{
 		clientsets: clientsets,
 		configs:    NewConfigs(),
 		informers:  NewInformers(clientsets),
-		stores:     controllercontext.NewContextStores(), // not mocked
 	}
+	c.stores = NewStores(c)
+	return c
 }
 
 func (c *Context) Clientsets() controllercontext.Clientsets {
@@ -67,6 +68,10 @@ func (c *Context) Informers() controllercontext.Informers {
 }
 
 func (c *Context) Stores() controllercontext.Stores {
+	return c.stores
+}
+
+func (c *Context) MockStores() *Stores {
 	return c.stores
 }
 
