@@ -21,7 +21,6 @@ import (
 
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
@@ -36,8 +35,7 @@ const (
 )
 
 var (
-	resourceJob = runtimetesting.NewGroupVersionResource(executiongroup.GroupName, execution.Version, "jobs")
-	timeNow     = testutils.Mkmtimep(now)
+	timeNow = testutils.Mkmtimep(now)
 
 	startPolicy = &execution.StartPolicySpec{
 		StartAfter: testutils.Mkmtimep(startAfter),
