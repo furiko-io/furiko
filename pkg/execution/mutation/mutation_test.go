@@ -328,7 +328,7 @@ func TestMutator_MutateCreateJobConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "bump NotBefore",
+			name: "bump LastUpdatedTime with updated cron schedule",
 			setup: func() {
 				mutation.Clock = clock.NewFakeClock(mockNow.Time)
 			},
@@ -348,7 +348,7 @@ func TestMutator_MutateCreateJobConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "don't reset future NotBefore",
+			name: "don't reset future LastUpdated",
 			setup: func() {
 				mutation.Clock = clock.NewFakeClock(mockNow.Time)
 			},
@@ -402,7 +402,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 		setup        func()
 	}{
 		{
-			name: "don't add NotBefore without schedule",
+			name: "don't add LastUpdated without schedule",
 			oldRjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
 				Spec: v1alpha1.JobConfigSpec{
@@ -417,7 +417,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "don't add NotBefore when removing schedule",
+			name: "don't add LastUpdated when removing schedule",
 			oldRjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
 				Spec: v1alpha1.JobConfigSpec{
@@ -471,7 +471,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "bump NotBefore",
+			name: "bump LastUpdated",
 			setup: func() {
 				mutation.Clock = clock.NewFakeClock(mockNow.Time)
 			},
@@ -498,7 +498,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "bump NotBefore add schedule",
+			name: "bump LastUpdated add schedule",
 			setup: func() {
 				mutation.Clock = clock.NewFakeClock(mockNow.Time)
 			},
@@ -524,7 +524,45 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "don't reset future NotBefore",
+			name: "bump LastUpdated update disabled",
+			setup: func() {
+				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+			},
+			oldRjc: &v1alpha1.JobConfig{
+				ObjectMeta: objectMetaJobConfig,
+				Spec: v1alpha1.JobConfigSpec{
+					Template: jobTemplateSpecBasic,
+					Schedule: &v1alpha1.ScheduleSpec{
+						Cron: &v1alpha1.CronSchedule{
+							Expression: cronSchedule1,
+							Timezone:   "Asia/Singapore",
+						},
+						Disabled: true,
+					},
+				},
+			},
+			rjc: &v1alpha1.JobConfig{
+				ObjectMeta: objectMetaJobConfig,
+				Spec: v1alpha1.JobConfigSpec{
+					Template: jobTemplateSpecBasic,
+					Schedule: &v1alpha1.ScheduleSpec{
+						Cron: &v1alpha1.CronSchedule{
+							Expression: cronSchedule1,
+							Timezone:   "Asia/Singapore",
+						},
+					},
+				},
+			},
+			want: &v1alpha1.JobConfig{
+				ObjectMeta: objectMetaJobConfig,
+				Spec: v1alpha1.JobConfigSpec{
+					Template: jobTemplateSpecBasic,
+					Schedule: mkScheduleSpec(cronSchedule1, &mockNow),
+				},
+			},
+		},
+		{
+			name: "don't reset future LastUpdated",
 			setup: func() {
 				mutation.Clock = clock.NewFakeClock(mockNow.Time)
 			},
@@ -1281,15 +1319,13 @@ func optionValues(values map[string]interface{}) string {
 	return string(bytes)
 }
 
-func mkScheduleSpec(expr string, nbf *metav1.Time) *v1alpha1.ScheduleSpec {
+func mkScheduleSpec(expr string, lastUpdated *metav1.Time) *v1alpha1.ScheduleSpec {
 	scheduleSpec := &v1alpha1.ScheduleSpec{
 		Cron: &v1alpha1.CronSchedule{
 			Expression: expr,
 			Timezone:   "Asia/Singapore",
 		},
-		Constraints: &v1alpha1.ScheduleContraints{
-			NotBefore: nbf,
-		},
+		LastUpdated: lastUpdated,
 	}
 	return scheduleSpec
 }

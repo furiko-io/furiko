@@ -170,8 +170,12 @@ spec:
                     constraints:
                       description: Specifies any constraints that should apply to this Schedule.
                       properties:
+                        notAfter:
+                          description: Specifies the latest possible time that is allowed to be scheduled. If set, the scheduler should not create schedules after this time.
+                          format: date-time
+                          type: string
                         notBefore:
-                          description: "If set, the scheduler should not perform any scheduling for timestamps before this. \n For example, if a JobConfig that was previously disabled from automatic scheduling is now enabled, then NotBefore will be automatically updated to the current time. This prevents accidental back-scheduling so that we may not use LastScheduleTime to compute back-schedules that are before it was re-enabled."
+                          description: Specifies the earliest possible time that is allowed to be scheduled. If set, the scheduler should not create schedules before this time.
                           format: date-time
                           type: string
                       type: object
@@ -190,6 +194,10 @@ spec:
                     disabled:
                       description: If true, then automatic scheduling will be disabled for the JobConfig.
                       type: boolean
+                    lastUpdated:
+                      description: "Specifies the time that the schedule was last upated. This prevents accidental back-scheduling. \n For example, if a JobConfig that was previously disabled from automatic scheduling is now enabled, we do not want to perform back-scheduling for schedules after LastScheduled prior to updating of the JobConfig."
+                      format: date-time
+                      type: string
                   type: object
                 template:
                   description: Template for creating the Job.
@@ -4304,8 +4312,8 @@ spec:
                       - namespace
                     type: object
                   type: array
-                lastScheduleTime:
-                  description: "The last known schedule time for this job config, used to persist state during controller downtime. If the controller was down for a short period of time, any schedules that were missed during the downtime will be back-scheduled, subject to the number of schedules missed since LastScheduleTime. \n To prevent thundering herd effects, there are two controller configuration values that will restrict the number of back-scheduled jobs created after the controller comes back up: \n 1. MaxMissedSchedules: Defines a maximum number of jobs that the controller should attempt after coming back up. Having a sane value here would prevent a thundering herd of jobs being scheduled that would exhaust resources in the cluster. Defaults to 5 if not defined. 2. MaxDowntimeThresholdSeconds: Defines the maximum downtime threshold that the controller can tolerate. If the controller was intentionally shut down for an extended period of time, we should not attempt to back-schedule jobs once it was started. Defaults to 5 minutes if not defined."
+                lastScheduled:
+                  description: The last known schedule time for this job config, used to persist state during controller downtime. If the controller was down for a short period of time, any schedules that were missed during the downtime will be back-scheduled, subject to the number of schedules missed since LastScheduled.
                   format: date-time
                   type: string
                 queued:

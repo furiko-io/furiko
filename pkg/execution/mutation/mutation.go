@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -37,7 +38,6 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	executionlister "github.com/furiko-io/furiko/pkg/generated/listers/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
-	"github.com/furiko-io/furiko/pkg/utils/cmp"
 	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/jsonyaml"
 	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
@@ -78,15 +78,12 @@ func (m *Mutator) MutateJobConfig(rjc *v1alpha1.JobConfig) *webhook.Result {
 func (m *Mutator) MutateCreateJobConfig(rjc *v1alpha1.JobConfig) *webhook.Result {
 	result := webhook.NewResult()
 
-	// Bump NotBefore when JobConfig is first created.
+	// Bump LastUpdated when JobConfig is first created.
 	// NOTE(irvinlim): Do not create scheduleSpec if nil.
 	now := metav1.NewTime(Clock.Now())
 	if rjc.Spec.Schedule != nil {
-		if rjc.Spec.Schedule.Constraints == nil {
-			rjc.Spec.Schedule.Constraints = &v1alpha1.ScheduleContraints{}
-		}
-		if !ktime.IsTimeSetAndLaterThan(rjc.Spec.Schedule.Constraints.NotBefore, now.Time) {
-			rjc.Spec.Schedule.Constraints.NotBefore = &now
+		if !ktime.IsTimeSetAndLaterThan(rjc.Spec.Schedule.LastUpdated, now.Time) {
+			rjc.Spec.Schedule.LastUpdated = &now
 		}
 	}
 
@@ -98,22 +95,15 @@ func (m *Mutator) MutateUpdateJobConfig(oldRjc, rjc *v1alpha1.JobConfig) *webhoo
 	result := webhook.NewResult()
 	now := metav1.NewTime(Clock.Now())
 
-	// Bump NotBefore if the cron schedules were updated.
+	// Bump LastUpdated if the schedule was updated.
 	if rjc.Spec.Schedule != nil {
-		var oldCron *v1alpha1.CronSchedule
-		if spec := oldRjc.Spec.Schedule; spec != nil {
-			oldCron = spec.Cron
+		newSchedule := rjc.Spec.Schedule.DeepCopy()
+		if oldRjc.Spec.Schedule != nil {
+			newSchedule.LastUpdated = oldRjc.Spec.Schedule.LastUpdated
 		}
-		isEqual, err := cmp.IsJSONEqual(oldCron, rjc.Spec.Schedule.Cron)
-		if err != nil {
-			fldPath := field.NewPath("spec").Child("schedule").Child("cron")
-			result.Errors = append(result.Errors, field.InternalError(fldPath, err))
-		} else if !isEqual {
-			if rjc.Spec.Schedule.Constraints == nil {
-				rjc.Spec.Schedule.Constraints = &v1alpha1.ScheduleContraints{}
-			}
-			if !ktime.IsTimeSetAndLaterThan(rjc.Spec.Schedule.Constraints.NotBefore, now.Time) {
-				rjc.Spec.Schedule.Constraints.NotBefore = &now
+		if !apiequality.Semantic.DeepEqual(oldRjc.Spec.Schedule, newSchedule) {
+			if !ktime.IsTimeSetAndLaterThan(rjc.Spec.Schedule.LastUpdated, now.Time) {
+				rjc.Spec.Schedule.LastUpdated = &now
 			}
 		}
 	}

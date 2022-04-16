@@ -65,6 +65,16 @@ type ScheduleSpec struct {
 	//
 	// +optional
 	Constraints *ScheduleContraints `json:"constraints,omitempty"`
+
+	// Specifies the time that the schedule was last upated. This prevents
+	// accidental back-scheduling.
+	//
+	// For example, if a JobConfig that was previously disabled from automatic
+	// scheduling is now enabled, we do not want to perform back-scheduling for
+	// schedules after LastScheduled prior to updating of the JobConfig.
+	//
+	// +optional
+	LastUpdated *metav1.Time `json:"lastUpdated,omitempty"`
 }
 
 // CronSchedule defines a Schedule based on cron format.
@@ -101,17 +111,17 @@ type CronSchedule struct {
 
 // ScheduleContraints defines constraints for automatic scheduling.
 type ScheduleContraints struct {
-	// If set, the scheduler should not perform any scheduling for timestamps before
-	// this.
-	//
-	// For example, if a JobConfig that was previously disabled from automatic
-	// scheduling is now enabled, then NotBefore will be automatically updated to
-	// the current time. This prevents accidental back-scheduling so that we may not
-	// use LastScheduleTime to compute back-schedules that are before it was
-	// re-enabled.
+	// Specifies the earliest possible time that is allowed to be scheduled. If set,
+	// the scheduler should not create schedules before this time.
 	//
 	// +optional
 	NotBefore *metav1.Time `json:"notBefore,omitempty"`
+
+	// Specifies the latest possible time that is allowed to be scheduled. If set,
+	// the scheduler should not create schedules after this time.
+	//
+	// +optional
+	NotAfter *metav1.Time `json:"notAfter,omitempty"`
 }
 
 type ConcurrencyPolicy string
@@ -405,23 +415,10 @@ type JobConfigStatus struct {
 	// during controller downtime. If the controller was down for a short period of
 	// time, any schedules that were missed during the downtime will be
 	// back-scheduled, subject to the number of schedules missed since
-	// LastScheduleTime.
-	//
-	// To prevent thundering herd effects, there are two controller configuration
-	// values that will restrict the number of back-scheduled jobs created after the
-	// controller comes back up:
-	//
-	//  1. MaxMissedSchedules: Defines a maximum number of jobs that the controller
-	//     should attempt after coming back up. Having a sane value here would prevent a
-	//     thundering herd of jobs being scheduled that would exhaust resources in the
-	//     cluster. Defaults to 5 if not defined.
-	//  2. MaxDowntimeThresholdSeconds: Defines the maximum downtime threshold that
-	//     the controller can tolerate. If the controller was intentionally shut down
-	//     for an extended period of time, we should not attempt to back-schedule jobs
-	//     once it was started. Defaults to 5 minutes if not defined.
+	// LastScheduled.
 	//
 	// +optional
-	LastScheduleTime *metav1.Time `json:"lastScheduleTime,omitempty"`
+	LastScheduled *metav1.Time `json:"lastScheduled,omitempty"`
 }
 
 type JobConfigState string
