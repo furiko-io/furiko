@@ -60,14 +60,16 @@ type Context struct {
 }
 
 func NewContext(context controllercontext.Context) *Context {
-	c := &Context{Context: context}
-
-	// Create recorder.
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
-		Interface: c.Clientsets().Kubernetes().CoreV1().Events(""),
+		Interface: context.Clientsets().Kubernetes().CoreV1().Events(""),
 	})
-	c.recorder = eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerName})
+	return NewContextWithRecorder(context, recorder)
+}
+
+func NewContextWithRecorder(context controllercontext.Context, recorder record.EventRecorder) *Context {
+	c := &Context{Context: context}
 
 	// Create workqueue.
 	ratelimiter := workqueue.DefaultControllerRateLimiter()
@@ -85,6 +87,10 @@ func NewContext(context controllercontext.Context) *Context {
 	c.tasks = taskexecutor.NewManager(context.Clientsets(), context.Informers())
 
 	return c
+}
+
+func (c *Context) GetHasSynced() []cache.InformerSynced {
+	return c.hasSynced
 }
 
 func NewController(

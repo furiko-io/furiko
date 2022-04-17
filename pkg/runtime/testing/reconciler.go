@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 	ktesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -53,7 +54,7 @@ type ControllerContext interface {
 // framework for testing standard Reconcilers.
 type ReconcilerTest struct {
 	// Returns a new controller context.
-	ContextFunc func(c controllercontext.Context) ControllerContext
+	ContextFunc func(c controllercontext.Context, recorder record.EventRecorder) ControllerContext
 
 	// Returns the reconciler to test and informer synced methods to wait for.
 	ReconcilerFunc func(c ControllerContext) reconciler.Reconciler
@@ -106,6 +107,9 @@ type ReconcilerTestCase struct {
 	// List of actions that we expect to see.
 	WantActions CombinedActions
 
+	// List of events that we expect to see.
+	WantEvents []Event
+
 	// Whether an error is expected, and if so, specifies a function to check if the
 	// error is equal.
 	WantError assert.ErrorAssertionFunc
@@ -152,7 +156,7 @@ func (r *ReconcilerTest) RunTestCase(t testinginterface.T, tt ReconcilerTestCase
 
 	// Initialize context.
 	c := mock.NewContext()
-	ctrlContext := r.setupContext(c, tt)
+	ctrlContext, recorder := r.setupContext(c, tt)
 
 	// Initialize reconciler.
 	recon := r.ReconcilerFunc(ctrlContext)
@@ -173,10 +177,13 @@ func (r *ReconcilerTest) RunTestCase(t testinginterface.T, tt ReconcilerTestCase
 	}
 
 	// Compare actions.
-	r.assertResult(t, tt, c.MockClientsets(), ctrlContext)
+	r.assertResult(t, tt, c.MockClientsets(), ctrlContext, recorder)
 }
 
-func (r *ReconcilerTest) setupContext(c *mock.Context, tt ReconcilerTestCase) ControllerContext {
+func (r *ReconcilerTest) setupContext(
+	c *mock.Context,
+	tt ReconcilerTestCase,
+) (ControllerContext, *FakeRecorder) {
 	// Set up configs.
 	c.MockConfigs().SetConfigs(tt.Configs)
 
@@ -191,8 +198,11 @@ func (r *ReconcilerTest) setupContext(c *mock.Context, tt ReconcilerTestCase) Co
 	fakeClock := clock.NewFakeClock(now)
 	ktime.Clock = fakeClock
 
+	// Set up fake recorder.
+	recorder := NewFakeRecorder()
+
 	// Initialize context.
-	return r.ContextFunc(c)
+	return r.ContextFunc(c, recorder), recorder
 }
 
 // initClientset performs initialization of all fixtures and reactors with the given clientsets.
@@ -298,13 +308,32 @@ func (r *ReconcilerTest) assertResult(
 	tt ReconcilerTestCase,
 	client *mock.Clientsets,
 	ctrlContext ControllerContext,
+	recorder *FakeRecorder,
 ) {
 	// Compare actions.
 	CompareActions(t, tt.WantActions.Kubernetes, client.KubernetesMock().Actions())
 	CompareActions(t, tt.WantActions.Furiko, client.FurikoMock().Actions())
 
+	// Compare recorded events.
+	r.compareEvents(t, recorder.GetEvents(), tt.WantEvents)
+
 	// Run custom assertions.
 	if tt.Assert != nil {
 		tt.Assert(t, tt, ctrlContext)
+	}
+}
+
+func (r *ReconcilerTest) compareEvents(t testinginterface.T, events, wantEvents []Event) {
+	var idx int
+	for _, event := range events {
+		if idx >= len(wantEvents) {
+			t.Errorf("saw extra event: %v", event)
+			continue
+		}
+		assert.Equal(t, event, wantEvents[idx])
+		idx++
+	}
+	for i := idx; i < len(wantEvents); i++ {
+		t.Errorf("did not see event: %v", wantEvents[i])
 	}
 }

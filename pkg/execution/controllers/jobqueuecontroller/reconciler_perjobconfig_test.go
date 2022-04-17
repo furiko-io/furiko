@@ -33,8 +33,8 @@ import (
 
 func TestPerJobConfigReconciler(t *testing.T) {
 	test := runtimetesting.ReconcilerTest{
-		ContextFunc: func(c controllercontext.Context) runtimetesting.ControllerContext {
-			return jobqueuecontroller.NewContextWithRecorder(c, &record.FakeRecorder{})
+		ContextFunc: func(c controllercontext.Context, recorder record.EventRecorder) runtimetesting.ControllerContext {
+			return jobqueuecontroller.NewContextWithRecorder(c, recorder)
 		},
 		ReconcilerFunc: func(c runtimetesting.ControllerContext) reconciler.Reconciler {
 			return jobqueuecontroller.NewPerConfigReconciler(
