@@ -23,7 +23,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/utils/cmp"
 )
 
-type FilterFunc func(execution.Job) bool
+type FilterFunc func(*execution.Job) bool
 
 // IsJobConfigStatusEqual returns true if the JobConfigStatus is not equal for a JobConfig.
 func IsJobConfigStatusEqual(orig, updated *execution.JobConfig) (bool, error) {
@@ -33,8 +33,8 @@ func IsJobConfigStatusEqual(orig, updated *execution.JobConfig) (bool, error) {
 }
 
 // FilterJobs filters a list of Job.
-func FilterJobs(items []execution.Job, filterFunc FilterFunc) []execution.Job {
-	filtered := make([]execution.Job, 0, len(items))
+func FilterJobs(items []*execution.Job, filterFunc FilterFunc) []*execution.Job {
+	filtered := make([]*execution.Job, 0, len(items))
 	for _, item := range items {
 		if filterFunc(item) {
 			filtered = append(filtered, item)
@@ -43,20 +43,25 @@ func FilterJobs(items []execution.Job, filterFunc FilterFunc) []execution.Job {
 	return filtered
 }
 
-// ToJobReferences converts a list of Job to a list of JobReference.
-func ToJobReferences(items []execution.Job) []execution.JobReference {
+// ToJobReferences converts a list of Jobs to a list of JobReferences.
+func ToJobReferences(items []*execution.Job) []execution.JobReference {
 	refs := make([]execution.JobReference, 0, len(items))
 	for _, item := range items {
-		ref := execution.JobReference{Namespace: item.Namespace, Name: item.Name}
+		ref := execution.JobReference{
+			UID:               item.GetUID(),
+			Name:              item.Name,
+			CreationTimestamp: item.CreationTimestamp,
+			Phase:             item.Status.Phase,
+		}
+		if !item.Status.StartTime.IsZero() {
+			ref.StartTime = item.Status.StartTime.DeepCopy()
+		}
 		refs = append(refs, ref)
 	}
 
 	// Sort refs to make return value deterministic.
 	sort.Slice(refs, func(i, j int) bool {
-		if refs[i].Namespace != refs[j].Namespace {
-			return refs[i].Namespace < refs[j].Namespace
-		}
-		return refs[i].Name < refs[j].Name
+		return refs[i].CreationTimestamp.Before(&refs[j].CreationTimestamp)
 	})
 
 	return refs

@@ -100,13 +100,11 @@ func (w *Reconciler) SyncOne(ctx context.Context, namespace, name string, _ int)
 
 	// Update status.
 	newRjc := rjc.DeepCopy()
-	newRjc.Status.ActiveJobs = differ.GetActiveRefs()
+	newRjc.Status.ActiveJobs = ToJobReferences(FilterJobs(rjs, job.IsActive))
 	newRjc.Status.Active = int64(len(newRjc.Status.ActiveJobs))
 
 	// Update list of queued jobs.
-	newRjc.Status.QueuedJobs = ToJobReferences(FilterJobs(rjs, func(item execution.Job) bool {
-		return job.IsQueued(&item)
-	}))
+	newRjc.Status.QueuedJobs = ToJobReferences(FilterJobs(rjs, job.IsQueued))
 	newRjc.Status.Queued = int64(len(newRjc.Status.QueuedJobs))
 
 	// Update last schedule time.
@@ -115,7 +113,7 @@ func (w *Reconciler) SyncOne(ctx context.Context, namespace, name string, _ int)
 	}
 
 	// Compute final state.
-	newRjc.Status.State = jobconfig.GetState(rjc)
+	newRjc.Status.State = jobconfig.GetState(newRjc)
 
 	// Update JobConfig status.
 	if isEqual, err := IsJobConfigStatusEqual(rjc, newRjc); err == nil && !isEqual {
@@ -157,14 +155,14 @@ func (w *Reconciler) SyncOne(ctx context.Context, namespace, name string, _ int)
 	}
 
 	for _, name := range removed {
-		klog.V(5).InfoS("jobconfigcontroller: prune inactive job from status",
+		klog.V(5).InfoS("jobconfigcontroller: prune deleted job from status",
 			"worker", w.Name(),
 			"namespace", rjc.GetNamespace(),
 			"name", rjc.GetName(),
 			"job", name,
 			"reason", "Deleted",
 		)
-		w.recorder.Eventf(rjc, corev1.EventTypeNormal, "Deleted", "Job %v is removed", name)
+		w.recorder.Eventf(rjc, corev1.EventTypeNormal, "Deleted", "Job %v is deleted", name)
 	}
 
 	return nil
@@ -172,17 +170,11 @@ func (w *Reconciler) SyncOne(ctx context.Context, namespace, name string, _ int)
 
 func (w *Reconciler) listJobsForJobConfig(
 	rjc *execution.JobConfig,
-) ([]execution.Job, error) {
+) ([]*execution.Job, error) {
 	labelSet := jobconfig.LabelJobsForJobConfig(rjc)
 	jobs, err := w.jobInformer.Lister().Jobs(rjc.Namespace).List(labels.SelectorFromSet(labelSet))
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not list jobs")
 	}
-
-	rjobs := make([]execution.Job, 0, len(jobs))
-	for _, rj := range jobs {
-		rjobs = append(rjobs, *rj)
-	}
-
-	return rjobs, nil
+	return jobs, nil
 }

@@ -17,27 +17,24 @@
 package jobconfigcontroller
 
 import (
-	"sort"
-
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/utils/execution/job"
+	jobutil "github.com/furiko-io/furiko/pkg/utils/execution/job"
 )
 
 type jobListDiffer struct {
-	items     map[string]execution.Job
+	items     map[string]*execution.Job
 	activeMap map[string]struct{}
 }
 
-func newJobListDiffer(items []execution.Job) *jobListDiffer {
+func newJobListDiffer(items []*execution.Job) *jobListDiffer {
 	list := &jobListDiffer{
-		items:     make(map[string]execution.Job),
+		items:     make(map[string]*execution.Job),
 		activeMap: make(map[string]struct{}),
 	}
 
 	for _, rj := range items {
-		rj := rj
 		list.items[rj.Name] = rj
-		if job.IsActive(&rj) {
+		if jobutil.IsActive(rj) {
 			list.activeMap[rj.Name] = struct{}{}
 		}
 	}
@@ -46,7 +43,7 @@ func newJobListDiffer(items []execution.Job) *jobListDiffer {
 }
 
 func (l *jobListDiffer) GetDiff(prevActive []execution.JobReference) (
-	newJobs []execution.Job, finished []execution.Job, removed []string, isDiff bool) {
+	newJobs []*execution.Job, finished []*execution.Job, removed []string, isDiff bool) {
 	// Keep track of unseen active jobs
 	unseen := make(map[string]struct{})
 	for name := range l.activeMap {
@@ -85,7 +82,7 @@ func (l *jobListDiffer) GetDiff(prevActive []execution.JobReference) (
 	return newJobs, finished, removed, isDiff
 }
 
-func (l *jobListDiffer) getJob(name string) (execution.Job, bool) {
+func (l *jobListDiffer) getJob(name string) (*execution.Job, bool) {
 	j, ok := l.items[name]
 	return j, ok
 }
@@ -95,24 +92,4 @@ func (l *jobListDiffer) isActive(name string) bool {
 		return true
 	}
 	return false
-}
-
-func (l *jobListDiffer) GetActiveRefs() []execution.JobReference {
-	active := make([]execution.JobReference, 0, len(l.activeMap))
-	for name := range l.activeMap {
-		if job, ok := l.getJob(name); ok {
-			ref := execution.JobReference{Namespace: job.Namespace, Name: job.Name}
-			active = append(active, ref)
-		}
-	}
-
-	// Sort refs to make return value deterministic.
-	sort.Slice(active, func(i, j int) bool {
-		if active[i].Namespace != active[j].Namespace {
-			return active[i].Namespace < active[j].Namespace
-		}
-		return active[i].Name < active[j].Name
-	})
-
-	return active
 }

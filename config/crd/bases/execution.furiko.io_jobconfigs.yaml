@@ -4301,15 +4301,28 @@ spec:
                   description: A list of pointers to active Job objects for the JobConfig.
                   items:
                     properties:
+                      creationTimestamp:
+                        description: Timestamp that the Job was created.
+                        format: date-time
+                        type: string
                       name:
                         description: Name of the Job.
                         type: string
-                      namespace:
-                        description: Namespace of the Job.
+                      phase:
+                        description: Phase of the Job.
+                        type: string
+                      startTime:
+                        description: Timestamp that the Job was started.
+                        format: date-time
+                        type: string
+                      uid:
+                        description: UID of the Job.
                         type: string
                     required:
+                      - creationTimestamp
                       - name
-                      - namespace
+                      - phase
+                      - uid
                     type: object
                   type: array
                 lastScheduled:
@@ -4324,15 +4337,28 @@ spec:
                   description: A list of pointers to Job objects queued for the JobConfig.
                   items:
                     properties:
+                      creationTimestamp:
+                        description: Timestamp that the Job was created.
+                        format: date-time
+                        type: string
                       name:
                         description: Name of the Job.
                         type: string
-                      namespace:
-                        description: Namespace of the Job.
+                      phase:
+                        description: Phase of the Job.
+                        type: string
+                      startTime:
+                        description: Timestamp that the Job was started.
+                        format: date-time
+                        type: string
+                      uid:
+                        description: UID of the Job.
                         type: string
                     required:
+                      - creationTimestamp
                       - name
-                      - namespace
+                      - phase
+                      - uid
                     type: object
                   type: array
                 state:

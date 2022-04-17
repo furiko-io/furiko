@@ -31,11 +31,11 @@ import (
 
 // GetLastScheduleTime returns the latest schedule time in a list of all Jobs.
 // If the list is empty, or none of the jobs were scheduled jobs, will return nil.
-func GetLastScheduleTime(jobs []execution.Job) *metav1.Time {
+func GetLastScheduleTime(jobs []*execution.Job) *metav1.Time {
 	var lastScheduleTime metav1.Time
 	for _, rj := range jobs {
 		rj := rj
-		if t := GetLabelScheduleTime(&rj); t != nil && lastScheduleTime.Before(t) {
+		if t := GetLabelScheduleTime(rj); t != nil && lastScheduleTime.Before(t) {
 			lastScheduleTime = *t
 		}
 	}
