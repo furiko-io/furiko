@@ -40,7 +40,9 @@ import (
 )
 
 const (
-	startTime     = "2022-04-01T04:00:00Z"
+	createTime1   = "2022-04-01T04:01:00Z"
+	createTime2   = "2022-04-01T04:00:00Z"
+	startTime     = "2022-04-01T04:01:01Z"
 	testNamespace = "test"
 	jobConfigUID1 = "0ed1bc76-07ca-4cf7-9a47-a0cc4aec48b9"
 	jobConfigUID2 = "6e08ee33-ccbe-4fc5-9c46-e29c19cc2fcb"
@@ -89,8 +91,9 @@ var (
 			Labels: map[string]string{
 				jobconfig.LabelKeyJobConfigUID: jobConfigUID1,
 			},
-			OwnerReferences: ownerReferences,
-			UID:             jobUID1,
+			CreationTimestamp: testutils.Mkmtime(createTime1),
+			OwnerReferences:   ownerReferences,
+			UID:               jobUID1,
 		},
 	}
 	job1Queued   = makeJob(job1, execution.JobQueued)
@@ -104,8 +107,9 @@ var (
 			Labels: map[string]string{
 				jobconfig.LabelKeyJobConfigUID: jobConfigUID1,
 			},
-			OwnerReferences: ownerReferences,
-			UID:             jobUID2,
+			CreationTimestamp: testutils.Mkmtime(createTime2),
+			OwnerReferences:   ownerReferences,
+			UID:               jobUID2,
 		},
 	}
 	job2Running = makeJob(job2, execution.JobRunning)
