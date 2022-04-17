@@ -34,8 +34,9 @@ var (
 		"delete",
 	}
 
-	resourcePod = NewGroupVersionResource("core", "v1", "pods")
-	resourceJob = NewGroupVersionResource(executiongroup.GroupName, execution.Version, "jobs")
+	resourcePod       = NewGroupVersionResource("core", "v1", "pods")
+	resourceJob       = NewGroupVersionResource(executiongroup.GroupName, execution.Version, "jobs")
+	resourceJobConfig = NewGroupVersionResource(executiongroup.GroupName, execution.Version, "jobconfigs")
 )
 
 // Action describes a single expected action to be taken.
@@ -155,4 +156,24 @@ func NewPatchJobAction(namespace, name string, pt types.PatchType, patch []byte)
 
 func NewDeleteJobAction(namespace, name string) Action {
 	return WrapAction(ktesting.NewDeleteAction(resourceJob, namespace, name))
+}
+
+func NewCreateJobConfigAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewCreateAction(resourceJobConfig, namespace, object))
+}
+
+func NewUpdateJobConfigAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewUpdateAction(resourceJobConfig, namespace, object))
+}
+
+func NewUpdateJobConfigStatusAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewUpdateSubresourceAction(resourceJobConfig, "status", namespace, object))
+}
+
+func NewPatchJobConfigAction(namespace, name string, pt types.PatchType, patch []byte) Action {
+	return WrapAction(ktesting.NewPatchAction(resourceJobConfig, namespace, name, pt, patch))
+}
+
+func NewDeleteJobConfigAction(namespace, name string) Action {
+	return WrapAction(ktesting.NewDeleteAction(resourceJobConfig, namespace, name))
 }

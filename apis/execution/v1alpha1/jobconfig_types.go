@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // JobConfigSpec defines the desired state of the JobConfig.
@@ -447,11 +448,18 @@ const (
 )
 
 type JobReference struct {
-	// Namespace of the Job.
-	Namespace string `json:"namespace"`
+	// UID of the Job.
+	UID types.UID `json:"uid"`
 
 	// Name of the Job.
 	Name string `json:"name"`
+
+	// Timestamp that the Job was created.
+	CreationTimestamp metav1.Time `json:"creationTimestamp"`
+
+	// Timestamp that the Job was started.
+	// +optional
+	StartTime *metav1.Time `json:"startTime,omitempty"`
 }
 
 // nolint:lll

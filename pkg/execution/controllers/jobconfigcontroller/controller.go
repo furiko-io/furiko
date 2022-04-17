@@ -71,6 +71,9 @@ func NewContext(context controllercontext.Context) *Context {
 func NewContextWithRecorder(context controllercontext.Context, recorder record.EventRecorder) *Context {
 	c := &Context{Context: context}
 
+	// Set recorder.
+	c.recorder = recorder
+
 	// Create workqueue.
 	ratelimiter := workqueue.DefaultControllerRateLimiter()
 	c.queue = workqueue.NewNamedRateLimitingQueue(ratelimiter, controllerName)

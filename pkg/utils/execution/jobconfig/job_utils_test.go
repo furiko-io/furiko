@@ -36,7 +36,7 @@ var (
 func TestGetLastScheduleTime(t *testing.T) {
 	tests := []struct {
 		name string
-		jobs []execution.Job
+		jobs []*execution.Job
 		want *metav1.Time
 	}{
 		{
@@ -46,7 +46,7 @@ func TestGetLastScheduleTime(t *testing.T) {
 		},
 		{
 			name: "no annotation",
-			jobs: []execution.Job{
+			jobs: []*execution.Job{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "job1",
@@ -57,7 +57,7 @@ func TestGetLastScheduleTime(t *testing.T) {
 		},
 		{
 			name: "single item",
-			jobs: []execution.Job{
+			jobs: []*execution.Job{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "job1",
@@ -71,7 +71,7 @@ func TestGetLastScheduleTime(t *testing.T) {
 		},
 		{
 			name: "multiple items",
-			jobs: []execution.Job{
+			jobs: []*execution.Job{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "job1",

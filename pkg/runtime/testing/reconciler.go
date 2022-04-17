@@ -330,7 +330,7 @@ func (r *ReconcilerTest) compareEvents(t testinginterface.T, events, wantEvents 
 			t.Errorf("saw extra event: %v", event)
 			continue
 		}
-		assert.Equal(t, event, wantEvents[idx])
+		assert.Equal(t, wantEvents[idx], event)
 		idx++
 	}
 	for i := idx; i < len(wantEvents); i++ {
