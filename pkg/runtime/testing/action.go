@@ -21,6 +21,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ktesting "k8s.io/client-go/testing"
+
+	executiongroup "github.com/furiko-io/furiko/apis/execution"
+	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 )
 
 var (
@@ -30,6 +33,9 @@ var (
 		"patch",
 		"delete",
 	}
+
+	resourcePod = NewGroupVersionResource("core", "v1", "pods")
+	resourceJob = NewGroupVersionResource(executiongroup.GroupName, execution.Version, "jobs")
 )
 
 // Action describes a single expected action to be taken.
@@ -109,4 +115,44 @@ func NewPatchAction(
 
 func NewDeleteAction(resource schema.GroupVersionResource, namespace, name string) Action {
 	return WrapAction(ktesting.NewDeleteAction(resource, namespace, name))
+}
+
+func NewCreatePodAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewCreateAction(resourcePod, namespace, object))
+}
+
+func NewUpdatePodAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewUpdateAction(resourcePod, namespace, object))
+}
+
+func NewUpdatePodStatusAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewUpdateSubresourceAction(resourcePod, "status", namespace, object))
+}
+
+func NewPatchPodAction(namespace, name string, pt types.PatchType, patch []byte) Action {
+	return WrapAction(ktesting.NewPatchAction(resourcePod, namespace, name, pt, patch))
+}
+
+func NewDeletePodAction(namespace, name string) Action {
+	return WrapAction(ktesting.NewDeleteAction(resourcePod, namespace, name))
+}
+
+func NewCreateJobAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewCreateAction(resourceJob, namespace, object))
+}
+
+func NewUpdateJobAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewUpdateAction(resourceJob, namespace, object))
+}
+
+func NewUpdateJobStatusAction(namespace string, object runtime.Object) Action {
+	return WrapAction(ktesting.NewUpdateSubresourceAction(resourceJob, "status", namespace, object))
+}
+
+func NewPatchJobAction(namespace, name string, pt types.PatchType, patch []byte) Action {
+	return WrapAction(ktesting.NewPatchAction(resourceJob, namespace, name, pt, patch))
+}
+
+func NewDeleteJobAction(namespace, name string) Action {
+	return WrapAction(ktesting.NewDeleteAction(resourceJob, namespace, name))
 }
