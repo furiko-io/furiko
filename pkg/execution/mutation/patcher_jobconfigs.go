@@ -47,7 +47,7 @@ func (p *JobConfigPatcher) Patch(operation admissionv1.Operation, oldRjc, rjc *e
 	return webhook.NewResult()
 }
 
-func (p *JobConfigPatcher) patchCreate(oldRjc, rjc *execution.JobConfig) *webhook.Result {
+func (p *JobConfigPatcher) patchCreate(_, rjc *execution.JobConfig) *webhook.Result {
 	result := webhook.NewResult()
 	result.Merge(p.mutator.MutateCreateJobConfig(rjc))
 	result.Merge(p.mutator.MutateJobConfig(rjc))

@@ -54,7 +54,7 @@ func (p *JobPatcher) patchCreate(rj *execution.Job) *webhook.Result {
 	return result
 }
 
-func (p *JobPatcher) patchUpdate(oldRj, rj *execution.Job) *webhook.Result {
+func (p *JobPatcher) patchUpdate(_, rj *execution.Job) *webhook.Result {
 	result := webhook.NewResult()
 	result.Merge(p.mutator.MutateJob(rj))
 	return result
