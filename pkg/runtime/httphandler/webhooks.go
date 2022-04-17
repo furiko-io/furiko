@@ -18,6 +18,7 @@ package httphandler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/pkg/errors"
 	admissionv1 "k8s.io/api/admission/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
@@ -45,62 +47,73 @@ func ServeWebhooks(mux *http.ServeMux, webhooks []controllermanager.Webhook) {
 func HandleAdmissionWebhook(webhook controllermanager.Webhook) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
+		statusCode := http.StatusOK
 
-		// Handle incoming request.
-		var req admissionv1.AdmissionReview
-		if !handleWebhookRequest(webhook, w, r, &req) {
-			return
-		}
+		resp, err := handleAdmissionReview(webhook, r)
 
-		// Ensure request body has a Request.
-		if req.Request == nil {
-			err := errors.New("missing request")
-			klog.ErrorS(err, "httphandler: missing request in AdmissionReview",
-				"name", webhook.Name(),
-				"path", webhook.Path(),
-			)
-			http.Error(w, "missing request in AdmissionReview", http.StatusBadRequest)
-			return
-		}
-
-		// Delegate to webhook handlers.
-		webhookResp, err := webhook.Handle(r.Context(), req.Request)
+		// Handle errors as admission failures.
 		if err != nil {
-			klog.ErrorS(err, "httphandler: webhook handler error",
-				"name", webhook.Name(),
-				"path", webhook.Path(),
-			)
-			http.Error(w, fmt.Sprint("webhook handler error:", err), http.StatusBadRequest)
-			return
+			status := kerrors.NewInternalError(err).Status()
+			resp = &admissionv1.AdmissionReview{
+				Response: &admissionv1.AdmissionResponse{
+					Result: &status,
+				},
+			}
+			statusCode = http.StatusInternalServerError
+			if status.Code > 0 {
+				statusCode = int(status.Code)
+			}
 		}
 
-		// Form AdmissionReview response.
-		resp := &admissionv1.AdmissionReview{}
-		resp.SetGroupVersionKind(req.GroupVersionKind())
-		resp.Response = webhookResp
-		resp.Response.UID = req.Request.UID
-
-		// Return response.
-		handleWebhookResponse(webhook, w, resp, startTime)
+		handleWebhookResponse(webhook, w, statusCode, resp, startTime)
 	}
+}
+
+// handleAdmissionReview is the entrypoint to handle an incoming AdmissionReview request.
+func handleAdmissionReview(webhook controllermanager.Webhook, r *http.Request) (*admissionv1.AdmissionReview, error) {
+	// Handle incoming request.
+	var req admissionv1.AdmissionReview
+	if err := handleWebhookRequest(webhook, r, &req); err != nil {
+		return nil, err
+	}
+
+	// Ensure request body has a Request.
+	if req.Request == nil {
+		err := errors.New("missing request")
+		klog.ErrorS(err, "httphandler: missing request in AdmissionReview",
+			"name", webhook.Name(),
+			"path", webhook.Path(),
+		)
+		return nil, err
+	}
+
+	// Delegate to webhook handlers.
+	resp, err := handleWebhookDelegate(r.Context(), webhook, req)
+	if err != nil {
+		klog.ErrorS(err, "httphandler: webhook handler error",
+			"name", webhook.Name(),
+			"path", webhook.Path(),
+		)
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func handleWebhookRequest(
 	webhook controllermanager.Webhook,
-	w http.ResponseWriter,
 	r *http.Request,
 	req interface{},
-) bool {
+) error {
 	// Verify the content type is accurate.
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		err := fmt.Errorf("expected application/json: %v", contentType)
+		err := fmt.Errorf(`expected application/json, got "%v"`, contentType)
 		klog.ErrorS(err, "incorrect content-type",
 			"name", webhook.Name(),
 			"path", webhook.Path(),
 		)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return false
+		return errors.Wrapf(err, "incorrect content-type")
 	}
 
 	// Prepare MultiWriter to capture request body.
@@ -115,8 +128,7 @@ func handleWebhookRequest(
 			"name", webhook.Name(),
 			"path", webhook.Path(),
 		)
-		http.Error(w, fmt.Sprint("cannot decode as AdmissionReview:", err), http.StatusBadRequest)
-		return false
+		return errors.Wrapf(err, "cannot decode as AdmissionReview")
 	}
 
 	// Print debug logs for input request.
@@ -131,15 +143,50 @@ func handleWebhookRequest(
 		)
 	}
 
-	return true
+	return nil
+}
+
+func handleWebhookDelegate(
+	ctx context.Context,
+	webhook controllermanager.Webhook,
+	req admissionv1.AdmissionReview,
+) (resp *admissionv1.AdmissionReview, err error) {
+	// Recover from panic in webhook handler.
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			panicErr := fmt.Errorf("panic in webhook handler: %v", recovered)
+			if e, ok := recovered.(error); ok {
+				panicErr = errors.Wrapf(e, "panic in webhook handler")
+			}
+			err = panicErr
+		}
+	}()
+
+	// Delegate to webhook handlers.
+	webhookResp, err := webhook.Handle(ctx, req.Request)
+	if err != nil {
+		return nil, errors.Wrapf(err, "webhook handler error")
+	}
+
+	// Form AdmissionReview response.
+	resp = &admissionv1.AdmissionReview{}
+	resp.SetGroupVersionKind(req.GroupVersionKind())
+	resp.Response = webhookResp
+	resp.Response.UID = req.Request.UID
+
+	return resp, nil
 }
 
 func handleWebhookResponse(
 	webhook controllermanager.Webhook,
 	w http.ResponseWriter,
+	status int,
 	resp interface{},
 	startTime time.Time,
 ) {
+	// Write status code.
+	w.WriteHeader(status)
+
 	// Prepare MultiWriter to capture response body.
 	buf := new(bytes.Buffer)
 	var out io.Writer = w
