@@ -154,11 +154,7 @@ func handleWebhookDelegate(
 	// Recover from panic in webhook handler.
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			panicErr := fmt.Errorf("panic in webhook handler: %v", recovered)
-			if e, ok := recovered.(error); ok {
-				panicErr = errors.Wrapf(e, "panic in webhook handler")
-			}
-			err = panicErr
+			err = fmt.Errorf("panic in webhook handler: %v", recovered)
 		}
 	}()
 
