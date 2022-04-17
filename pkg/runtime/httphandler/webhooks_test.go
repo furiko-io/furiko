@@ -23,6 +23,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -31,6 +33,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
 	"github.com/furiko-io/furiko/pkg/runtime/httphandler"
@@ -46,6 +49,8 @@ type fakeWebhook struct {
 	shouldPanic bool
 	returnError error
 }
+
+var _ controllermanager.Webhook = (*fakeWebhook)(nil)
 
 func (f *fakeWebhook) Shutdown(ctx context.Context) {}
 
@@ -82,15 +87,14 @@ func (f *fakeWebhook) Handle(
 	return resp, nil
 }
 
-var _ controllermanager.Webhook = (*fakeWebhook)(nil)
-
 func TestHandleAdmissionWebhook(t *testing.T) {
 	tests := []struct {
-		name       string
-		webhook    *fakeWebhook
-		req        *http.Request
-		wantStatus int
-		want       *admissionv1.AdmissionReview
+		name          string
+		webhook       *fakeWebhook
+		req           *http.Request
+		wantStatus    int
+		want          *admissionv1.AdmissionReview
+		wantPanicLogs bool
 	}{
 		{
 			name:    "basic webhook",
@@ -173,6 +177,7 @@ func TestHandleAdmissionWebhook(t *testing.T) {
 					Result: makeInternalError("panic in webhook handler: webhook panic"),
 				},
 			},
+			wantPanicLogs: true,
 		},
 		{
 			name: "webhook error",
@@ -196,6 +201,11 @@ func TestHandleAdmissionWebhook(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Redirect klog output from stderr to in-memory buffer.
+			buf := &bytes.Buffer{}
+			klog.SetOutput(buf)
+			klog.LogToStderr(false)
+
 			handler := httphandler.HandleAdmissionWebhook(tt.webhook)
 			w := httptest.NewRecorder()
 			handler(w, tt.req)
@@ -207,6 +217,27 @@ func TestHandleAdmissionWebhook(t *testing.T) {
 			assert.NoError(t, err)
 			if !cmp.Equal(tt.want, resp) {
 				t.Errorf("returned response not equal:\ndiff = %v", cmp.Diff(tt.want, resp))
+			}
+
+			// Tests for panic assertions are also taken from kubernetes/apimachinery/util/runtime.
+			if tt.wantPanicLogs {
+				lines := strings.Split(buf.String(), "\n")
+				if len(lines) < 4 {
+					t.Fatalf("panic log should have 1 line of message, 1 line per goroutine and 2 lines per function call")
+				}
+				if match, _ := regexp.MatchString("Observed a panic: webhook panic", lines[0]); !match {
+					t.Errorf("mismatch panic message: %s", lines[0])
+				}
+				// The following regexp's verify that Kubernetes panic log matches Golang stdlib
+				// stacktrace pattern. We need to update these regexp's if stdlib changes its pattern.
+				if match, _ := regexp.MatchString(`goroutine [0-9]+ \[.+\]:`, lines[1]); !match {
+					t.Errorf("mismatch goroutine: %s", lines[1])
+				}
+				if match, _ := regexp.MatchString(`logPanic(.*)`, lines[2]); !match {
+					t.Errorf("mismatch symbolized function name: %s", lines[2])
+				}
+			} else {
+				assert.Falsef(t, strings.Contains(buf.String(), "Observed a panic"), "logs contained panic logs")
 			}
 		})
 	}
