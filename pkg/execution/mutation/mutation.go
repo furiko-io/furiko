@@ -62,10 +62,6 @@ func NewMutator(ctrlContext controllercontext.Context) *Mutator {
 func (m *Mutator) MutateJobConfig(rjc *v1alpha1.JobConfig) *webhook.Result {
 	result := webhook.NewResult()
 
-	// Specify default values for JobTemplate.
-	result.Merge(m.MutateJobTemplate(&rjc.Spec.Template,
-		field.NewPath("spec").Child("spec").Child("template")))
-
 	// Specify default values for OptionSpec.
 	if spec := rjc.Spec.Option; spec != nil {
 		rjc.Spec.Option = options.DefaultOptionSpec(spec)
@@ -128,9 +124,12 @@ func (m *Mutator) MutateJob(rj *v1alpha1.Job) *webhook.Result {
 	if rj.Spec.TTLSecondsAfterFinished == nil {
 		rj.Spec.TTLSecondsAfterFinished = cfg.DefaultTTLSecondsAfterFinished
 	}
-	if rj.Spec.Template.MaxAttempts == nil {
-		rj.Spec.Template.MaxAttempts = pointer.Int32(1)
+
+	// Specify default values for JobTemplateSpec.
+	if rj.Spec.Template == nil {
+		rj.Spec.Template = &v1alpha1.JobTemplateSpec{}
 	}
+	result.Merge(m.MutateJobTemplateSpec(rj.Spec.Template, field.NewPath("spec", "template")))
 
 	return result
 }
@@ -292,12 +291,27 @@ func (m *Mutator) evaluateOptionValues(rj *v1alpha1.Job, rjc *v1alpha1.JobConfig
 	return result
 }
 
-func (m *Mutator) MutateJobTemplate(spec *v1alpha1.JobTemplate, fldPath *field.Path) *webhook.Result {
+// MutateJobTemplateSpec mutates a JobTemplateSpec in-place.
+func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplateSpec, fldPath *field.Path) *webhook.Result {
 	result := webhook.NewResult()
 
-	// Specify default RestartPolicy.
-	if spec.Spec.Task.Template.Spec.RestartPolicy == "" {
-		spec.Spec.Task.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
+	// Add MaxAttempts if not specified.
+	if spec.MaxAttempts == nil {
+		spec.MaxAttempts = pointer.Int32(1)
+	}
+
+	// Mutate task's PodTemplateSpec.
+	m.MutatePodTemplateSpec(&spec.Task.Template, fldPath.Child("task", "template"))
+
+	return result
+}
+
+// MutatePodTemplateSpec mutates PodTemplateSpec in-place.
+func (m *Mutator) MutatePodTemplateSpec(spec *corev1.PodTemplateSpec, fldPath *field.Path) *webhook.Result {
+	result := webhook.NewResult()
+
+	if spec.Spec.RestartPolicy == "" {
+		spec.Spec.RestartPolicy = corev1.RestartPolicyNever
 	}
 
 	return result

@@ -43,6 +43,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/mutation"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
+	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/webhook"
@@ -228,7 +229,7 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "default JobTemplate",
+			name: "don't need to default JobTemplate",
 			rjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
 				Spec: v1alpha1.JobConfigSpec{
@@ -239,12 +240,6 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 							},
 						},
 					},
-				},
-			},
-			want: &v1alpha1.JobConfig{
-				ObjectMeta: objectMetaJobConfig,
-				Spec: v1alpha1.JobConfigSpec{
-					Template: jobTemplateSpecBasic,
 				},
 			},
 		},
@@ -1253,10 +1248,8 @@ func (m *mockProvider) MakeVariablesFromTask(rj *v1alpha1.Job, task *tasks.TaskT
 	return nil
 }
 
-func setup(t *testing.T, cfgs map[configv1alpha1.ConfigName]runtime.Object, rjcs []*v1alpha1.JobConfig) *mutation.Mutator {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+func setupContext(t *testing.T, cfgs map[configv1alpha1.ConfigName]runtime.Object, rjcs []*v1alpha1.JobConfig) controllercontext.Context {
+	ctx := context.Background()
 	ctrlContext := mock.NewContext()
 	ctrlContext.MockConfigs().SetConfigs(cfgs)
 	hasSynced := ctrlContext.Informers().Furiko().Execution().V1alpha1().JobConfigs().Informer().HasSynced
@@ -1279,6 +1272,11 @@ func setup(t *testing.T, cfgs map[configv1alpha1.ConfigName]runtime.Object, rjcs
 	// Replace provider
 	variablecontext.ContextProvider = &noopProvider{}
 
+	return ctrlContext
+}
+
+func setup(t *testing.T, cfgs map[configv1alpha1.ConfigName]runtime.Object, rjcs []*v1alpha1.JobConfig) *mutation.Mutator {
+	ctrlContext := setupContext(t, cfgs, rjcs)
 	return mutation.NewMutator(ctrlContext)
 }
 

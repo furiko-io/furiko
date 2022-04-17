@@ -122,9 +122,17 @@ func (w *Webhook) Handle(
 	}
 
 	rj := &executionv1alpha1.Job{}
+	var existing *executionv1alpha1.Job
 
 	switch req.Operation {
-	case admissionv1.Update, admissionv1.Create:
+	case admissionv1.Update:
+		existing = &executionv1alpha1.Job{}
+		if err := json.Unmarshal(req.OldObject.Raw, existing); err != nil {
+			return nil, errors.Wrapf(err, "cannot decode object as executionv1alpha1.Job")
+		}
+		fallthrough
+
+	case admissionv1.Create:
 		if err := json.Unmarshal(req.Object.Raw, rj); err != nil {
 			return nil, errors.Wrapf(err, "cannot decode object as executionv1alpha1.Job")
 		}
@@ -137,7 +145,7 @@ func (w *Webhook) Handle(
 
 	// Patch the Job.
 	newRj := rj.DeepCopy()
-	result := w.Patch(req, newRj)
+	result := w.Patch(req, existing, newRj)
 
 	// Encountered validation error.
 	if len(result.Errors) > 0 {
@@ -171,14 +179,6 @@ func (w *Webhook) Handle(
 }
 
 // Patch returns the result after mutating a Job in-place.
-func (w *Webhook) Patch(req *admissionv1.AdmissionRequest, rj *executionv1alpha1.Job) *webhook.Result {
-	mutator := mutation.NewMutator(w)
-	result := mutator.MutateJob(rj)
-
-	switch req.Operation {
-	case admissionv1.Create:
-		result.Merge(mutator.MutateCreateJob(rj))
-	}
-
-	return result
+func (w *Webhook) Patch(req *admissionv1.AdmissionRequest, oldRj, rj *executionv1alpha1.Job) *webhook.Result {
+	return mutation.NewJobPatcher(w).Patch(req.Operation, oldRj, rj)
 }
