@@ -51,6 +51,7 @@ func ToJobReferences(items []*execution.Job) []execution.JobReference {
 			UID:               item.GetUID(),
 			Name:              item.Name,
 			CreationTimestamp: item.CreationTimestamp,
+			Phase:             item.Status.Phase,
 		}
 		if !item.Status.StartTime.IsZero() {
 			ref.StartTime = item.Status.StartTime.DeepCopy()

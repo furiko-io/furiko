@@ -457,6 +457,9 @@ type JobReference struct {
 	// Timestamp that the Job was created.
 	CreationTimestamp metav1.Time `json:"creationTimestamp"`
 
+	// Phase of the Job.
+	Phase JobPhase `json:"phase"`
+
 	// Timestamp that the Job was started.
 	// +optional
 	StartTime *metav1.Time `json:"startTime,omitempty"`
