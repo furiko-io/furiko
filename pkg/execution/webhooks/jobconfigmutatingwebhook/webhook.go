@@ -154,16 +154,7 @@ func (w *Webhook) Handle(
 	return resp, nil
 }
 
+// Patch returns the result after mutating a JobConfig in-place.
 func (w *Webhook) Patch(req *admissionv1.AdmissionRequest, oldRjc, rjc *executionv1alpha1.JobConfig) *webhook.Result {
-	mutator := mutation.NewMutator(w)
-	result := mutator.MutateJobConfig(rjc)
-
-	switch req.Operation {
-	case admissionv1.Create:
-		result.Merge(mutator.MutateCreateJobConfig(rjc))
-	case admissionv1.Update:
-		result.Merge(mutator.MutateUpdateJobConfig(oldRjc, rjc))
-	}
-
-	return result
+	return mutation.NewJobConfigPatcher(w).Patch(req.Operation, oldRjc, rjc)
 }
