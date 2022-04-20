@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package k8sutils_test
+package meta_test
 
 import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
 type object struct {
@@ -39,7 +39,7 @@ func (o *object) SetAnnotations(annotations map[string]string) {
 func TestSetAnnotation(t *testing.T) {
 	tests := []struct {
 		name   string
-		object k8sutils.ObjectMeta
+		object meta.ObjectMeta
 		key    string
 		value  string
 		want   map[string]string
@@ -87,7 +87,7 @@ func TestSetAnnotation(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			k8sutils.SetAnnotation(tt.object, tt.key, tt.value)
+			meta.SetAnnotation(tt.object, tt.key, tt.value)
 			got := tt.object.GetAnnotations()
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("annotations not equal after SetAnnotation():\ndiff = %v", cmp.Diff(tt.want, got))

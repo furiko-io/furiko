@@ -28,9 +28,9 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/utils/execution/job"
-	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
 const (
@@ -123,7 +123,7 @@ func (p *PodTask) SetKillTimestamp(ctx context.Context, ts time.Time) error {
 
 	// Add annotation for kill timestamp.
 	// This will be the authoritative source of truth for the time we want to kill the pod.
-	k8sutils.SetAnnotation(newPod, LabelKeyTaskKillTimestamp, strconv.Itoa(int(ts.Unix())))
+	meta.SetAnnotation(newPod, LabelKeyTaskKillTimestamp, strconv.Itoa(int(ts.Unix())))
 
 	// Compute active deadline.
 	var ads int64
@@ -169,7 +169,7 @@ func (p *PodTask) GetKilledFromPendingTimeoutMarker() bool {
 
 func (p *PodTask) SetKilledFromPendingTimeoutMarker(ctx context.Context) error {
 	newPod := p.Pod.DeepCopy()
-	k8sutils.SetAnnotation(newPod, LabelKeyKilledFromPendingTimeout, "1")
+	meta.SetAnnotation(newPod, LabelKeyKilledFromPendingTimeout, "1")
 
 	updatedPod, err := p.client.Update(ctx, newPod, metav1.UpdateOptions{})
 	if err != nil {

@@ -30,8 +30,8 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
-	"github.com/furiko-io/furiko/pkg/utils/execution/job"
-	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -130,7 +130,7 @@ var (
 	// Job with deletion timestamp whose pods are killed.
 	fakeJobWithDeletionTimestampAndDeletedPods = func() *execution.Job {
 		newJob := fakeJobWithDeletionTimestamp.DeepCopy()
-		newJob.Finalizers = k8sutils.RemoveFinalizer(newJob.Finalizers, executiongroup.DeleteDependentsFinalizer)
+		newJob.Finalizers = meta.RemoveFinalizer(newJob.Finalizers, executiongroup.DeleteDependentsFinalizer)
 		newJob.Status.Phase = execution.JobKilled
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
@@ -265,7 +265,7 @@ var (
 	// timeout.
 	fakePodPendingTimeoutTerminating = func() *corev1.Pod {
 		newPod := killPod(fakePodPending, testutils.Mktime(later15m))
-		k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
+		meta.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
 		return newPod
 	}()
 
@@ -305,7 +305,7 @@ func generateJobStatusFromPod(rj *execution.Job, pod *corev1.Pod) *execution.Job
 // killPod returns a new Pod after setting the kill timestamp.
 func killPod(pod *corev1.Pod, ts time.Time) *corev1.Pod {
 	newPod := pod.DeepCopy()
-	k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyTaskKillTimestamp, strconv.Itoa(int(ts.Unix())))
+	meta.SetAnnotation(newPod, podtaskexecutor.LabelKeyTaskKillTimestamp, strconv.Itoa(int(ts.Unix())))
 	newPod.Spec.ActiveDeadlineSeconds = pointer.Int64(int64(ts.Sub(newPod.Status.StartTime.Time).Seconds()))
 	return newPod
 }

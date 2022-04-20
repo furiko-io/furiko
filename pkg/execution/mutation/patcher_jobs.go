@@ -21,7 +21,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
-	"github.com/furiko-io/furiko/pkg/utils/webhook"
+	"github.com/furiko-io/furiko/pkg/runtime/webhook"
 )
 
 // JobPatcher encapsulates high-level patch methods for Jobs.

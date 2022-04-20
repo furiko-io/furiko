@@ -26,8 +26,8 @@ import (
 	"k8s.io/klog/v2"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	executionv1alpha1 "github.com/furiko-io/furiko/pkg/generated/clientset/versioned/typed/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/utils/execution/job"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/logvalues"
 )

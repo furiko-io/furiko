@@ -42,11 +42,11 @@ import (
 	"github.com/furiko-io/furiko/pkg/core/options"
 	"github.com/furiko-io/furiko/pkg/execution/mutation"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
-	"github.com/furiko-io/furiko/pkg/utils/webhook"
+	"github.com/furiko-io/furiko/pkg/runtime/webhook"
 )
 
 const (

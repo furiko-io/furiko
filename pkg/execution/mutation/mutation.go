@@ -35,14 +35,14 @@ import (
 	"github.com/furiko-io/furiko/apis/execution"
 	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/core/options"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	executionlister "github.com/furiko-io/furiko/pkg/generated/listers/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
+	"github.com/furiko-io/furiko/pkg/runtime/webhook"
 	"github.com/furiko-io/furiko/pkg/utils/jsonyaml"
-	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
-	"github.com/furiko-io/furiko/pkg/utils/webhook"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
 var (
@@ -140,8 +140,8 @@ func (m *Mutator) MutateCreateJob(rj *v1alpha1.Job) *webhook.Result {
 
 	// Add default finalizers if not set.
 	// NOTE(irvinlim): We should not add on update, because it affects deletion.
-	if !k8sutils.ContainsFinalizer(rj.Finalizers, execution.DeleteDependentsFinalizer) {
-		rj.Finalizers = k8sutils.MergeFinalizers(rj.Finalizers, []string{execution.DeleteDependentsFinalizer})
+	if !meta.ContainsFinalizer(rj.Finalizers, execution.DeleteDependentsFinalizer) {
+		rj.Finalizers = meta.MergeFinalizers(rj.Finalizers, []string{execution.DeleteDependentsFinalizer})
 	}
 
 	// Evaluate configName and populate fields from the JobConfig.
@@ -202,7 +202,7 @@ func (m *Mutator) evaluateConfigName(rj *v1alpha1.Job, rjcName string, fldPath *
 	// Merge metadata fields down, with the incoming Job's metadata taking precedence.
 	rj.Labels = labels.Merge(baseJob.Labels, rj.Labels)
 	rj.Annotations = labels.Merge(baseJob.Annotations, rj.Annotations)
-	rj.Finalizers = k8sutils.MergeFinalizers(baseJob.Finalizers, rj.Finalizers)
+	rj.Finalizers = meta.MergeFinalizers(baseJob.Finalizers, rj.Finalizers)
 
 	// Ensure that JobConfig references are intact.
 	rj.OwnerReferences = baseJob.OwnerReferences
@@ -272,7 +272,7 @@ func (m *Mutator) evaluateOptionValues(rj *v1alpha1.Job, rjc *v1alpha1.JobConfig
 			warning := fmt.Sprintf("failed to store option spec hash in annotations: %v", err)
 			result.Warnings = append(result.Warnings, warning)
 		} else {
-			k8sutils.SetAnnotation(rj, jobconfig.AnnotationKeyOptionSpecHash, hash)
+			meta.SetAnnotation(rj, jobconfig.AnnotationKeyOptionSpecHash, hash)
 		}
 	}
 

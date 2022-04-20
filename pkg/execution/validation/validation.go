@@ -34,9 +34,9 @@ import (
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
 	"github.com/furiko-io/furiko/pkg/core/validation"
 	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	executionlister "github.com/furiko-io/furiko/pkg/generated/listers/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 )
 
 const (

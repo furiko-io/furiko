@@ -21,7 +21,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
-	jobutil "github.com/furiko-io/furiko/pkg/utils/execution/job"
+	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 func TestAllowedToCreateNewTask(t *testing.T) {

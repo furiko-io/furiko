@@ -18,7 +18,7 @@ package jobconfigcontroller
 
 import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	jobutil "github.com/furiko-io/furiko/pkg/utils/execution/job"
+	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 type jobListDiffer struct {

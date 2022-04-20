@@ -18,7 +18,7 @@ package job
 
 import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
 // AllowedToCreateNewTask returns whether a Job is allowed to create more tasks
@@ -75,7 +75,7 @@ func HasSuccessTask(rj *execution.Job) bool {
 
 // MarkAdmissionError updates a Job to add the AdmissionError annotation.
 func MarkAdmissionError(rj *execution.Job, msg string) {
-	k8sutils.SetAnnotation(rj, LabelKeyAdmissionErrorMessage, msg)
+	meta.SetAnnotation(rj, LabelKeyAdmissionErrorMessage, msg)
 }
 
 // GetAdmissionErrorMessage returns the error message if the Job contains the
