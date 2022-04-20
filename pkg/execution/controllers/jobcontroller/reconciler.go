@@ -34,9 +34,9 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	rerrors "github.com/furiko-io/furiko/pkg/errors"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
-	jobutil "github.com/furiko-io/furiko/pkg/utils/execution/job"
 	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	timeutil "github.com/furiko-io/furiko/pkg/utils/time"
@@ -128,7 +128,7 @@ func (w *Reconciler) sync(
 ) (*execution.Job, error) {
 	// Main logic: Perform task creation/adoption and reconciliation. If Job is not
 	// started or is being deleted, this is a no-op.
-	if jobutil.IsStarted(rj) && !isDeleted(rj) {
+	if job.IsStarted(rj) && !isDeleted(rj) {
 		updatedRj, err := w.syncJobTasks(ctx, rj, cfg, trace)
 		if err != nil {
 			return rj, errors.Wrapf(err, "could not sync job tasks")
@@ -168,7 +168,7 @@ func (w *Reconciler) syncJobTasks(
 		return nil, errors.Wrapf(err, "cannot create task manager")
 	}
 
-	maxAllowedTasks := jobutil.GetMaxAllowedTasks(rj)
+	maxAllowedTasks := job.GetMaxAllowedTasks(rj)
 
 	// Get all tasks for job from cache.
 	tasks, err := taskMgr.Lister().List()
@@ -179,10 +179,10 @@ func (w *Reconciler) syncJobTasks(
 
 	// Skip adoption step if there is an active task.
 	// We assume there is only 1 task active at a time.
-	if !jobutil.ContainsActiveTask(tasks) {
+	if !job.ContainsActiveTask(tasks) {
 		// Get the maximum retry index out of all tasks.
 		// This may not contain all tasks created by the controller, only the non-deleted ones in the cache.
-		maxRetryIndex := jobutil.MaxTaskRetryIndex(tasks)
+		maxRetryIndex := job.MaxTaskRetryIndex(tasks)
 
 		// Try to adopt task(s) until exceed retries.
 		// We assume this should not take too long because the cache should be almost up-to-date with apiserver.
@@ -252,7 +252,7 @@ func (w *Reconciler) syncJobTasks(
 // We will always update tasks into Job before computing the rest of the JobStatus.
 func (w *Reconciler) updateTaskRefStatus(rj *execution.Job, tasks []jobtasks.Task) *execution.Job {
 	// Generate new TaskRefs in Job status.
-	updatedRj := jobutil.UpdateJobTaskRefs(rj, tasks)
+	updatedRj := job.UpdateJobTaskRefs(rj, tasks)
 
 	// Update Job status with new TaskRefs.
 	return w.syncJobStatusFromTaskRefs(updatedRj)
@@ -298,7 +298,7 @@ func UpdateJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
 	newRj := rj.DeepCopy()
 
 	// Compute consolidated condition for Job.
-	newRj.Status.Condition = jobutil.GetCondition(rj)
+	newRj.Status.Condition = job.GetCondition(rj)
 
 	// If job is being deleted and is not properly finished (e.g. being deleted midway),
 	// we use Killed as the final result for the job.
@@ -324,7 +324,7 @@ func UpdateJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
 	}
 
 	// Set phase based on computed status so far.
-	newRj.Status.Phase = jobutil.GetPhase(newRj)
+	newRj.Status.Phase = job.GetPhase(newRj)
 
 	return newRj
 }
@@ -341,12 +341,12 @@ func (w *Reconciler) syncCreateNewTask(
 	now := ktime.Now().Time
 
 	// Not allowed to create new task.
-	if !jobutil.AllowedToCreateNewTask(rj) {
+	if !job.AllowedToCreateNewTask(rj) {
 		return rj, tasks, nil
 	}
 
 	// Delay creating new task if RetryDelay is set.
-	earliestCreateTime, err := jobutil.GetNextAllowedRetry(rj)
+	earliestCreateTime, err := job.GetNextAllowedRetry(rj)
 	if err != nil {
 		return rj, tasks, errors.Wrapf(err, "cannot get next allowed retry")
 	} else if earliestCreateTime.After(now) {
@@ -366,7 +366,7 @@ func (w *Reconciler) syncCreateNewTask(
 		// Cannot create task due to unretryable error.
 		// Give up trying to sync the task further, so we conclude it cannot be created.
 		newRj := rj.DeepCopy()
-		jobutil.MarkAdmissionError(newRj, rerr.Error())
+		job.MarkAdmissionError(newRj, rerr.Error())
 		rj = newRj
 
 		// Publish event.
@@ -429,7 +429,7 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 	cfg *configv1alpha1.JobExecutionConfig) error {
 	now := ktime.Now().Time
 
-	pendingTimeout := jobutil.GetPendingTimeout(rj, cfg)
+	pendingTimeout := job.GetPendingTimeout(rj, cfg)
 
 	// Pending timeout is disabled.
 	if pendingTimeout <= 0 {
@@ -473,7 +473,7 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 	}
 
 	// Mark tasks as killed due to pending timeout.
-	if err := jobutil.ConcurrentTasks(needKill, func(task jobtasks.Task) error {
+	if err := job.ConcurrentTasks(needKill, func(task jobtasks.Task) error {
 		if task.GetKilledFromPendingTimeoutMarker() {
 			return nil
 		}
@@ -512,7 +512,7 @@ func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks
 	needUpdate := make([]jobtasks.Task, 0, len(tasks))
 	for _, task := range tasks {
 		// Skip finished tasks
-		if jobutil.IsTaskFinished(task) {
+		if job.IsTaskFinished(task) {
 			continue
 		}
 
@@ -540,13 +540,13 @@ func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks
 func (w *Reconciler) handleDeleteKillingTasks(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1alpha1.JobExecutionConfig,
 ) (*execution.Job, error) {
-	timeout := jobutil.GetDeleteKillingTimeout(cfg)
+	timeout := job.GetDeleteKillingTimeout(cfg)
 	needDelete := make([]jobtasks.Task, 0, len(tasks))
 	needDeleteMap := make(map[string]jobtasks.Task)
 
 	for _, task := range tasks {
 		// Skip finished tasks.
-		if jobutil.IsTaskFinished(task) {
+		if job.IsTaskFinished(task) {
 			continue
 		}
 
@@ -594,14 +594,14 @@ func (w *Reconciler) handleDeleteKillingTasks(
 			// Assume that task is being killed.
 			newRef.DeletedStatus = &execution.TaskStatus{
 				State:   execution.TaskKilled,
-				Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+				Result:  job.GetResultPtr(execution.JobResultKilled),
 				Reason:  "Deleted",
 				Message: "Task was killed via deletion",
 			}
 
 			// Set unschedulable reason if was marked to be killed by pending timeout.
 			if killedFromPending := task.GetKilledFromPendingTimeoutMarker(); killedFromPending {
-				newRef.DeletedStatus.Result = jobutil.GetResultPtr(execution.JobResultPendingTimeout)
+				newRef.DeletedStatus.Result = job.GetResultPtr(execution.JobResultPendingTimeout)
 			}
 		}
 
@@ -610,7 +610,7 @@ func (w *Reconciler) handleDeleteKillingTasks(
 	newRj.Status.Tasks = newRefs
 
 	// Compute new task status.
-	newRj = jobutil.UpdateJobTaskRefs(newRj, tasks)
+	newRj = job.UpdateJobTaskRefs(newRj, tasks)
 
 	// Delete tasks.
 	if err := w.deleteTasks(ctx, newRj, needDelete, false); err != nil {
@@ -625,7 +625,7 @@ func (w *Reconciler) handleDeleteKillingTasks(
 func (w *Reconciler) handleForceDeleteKillingTasks(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1alpha1.JobExecutionConfig,
 ) (*execution.Job, error) {
-	timeout := jobutil.GetForceDeleteKillingTimeout(cfg)
+	timeout := job.GetForceDeleteKillingTimeout(cfg)
 
 	// Force deletion is disabled.
 	if timeout <= 0 {
@@ -682,7 +682,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 				// TaskUnreachable implies that the node was not reachable.
 				State: execution.TaskKilled, // TODO(irvinlim): Consider adding additional state for this
 				// Use Killed state since we are trying to kill it.
-				Result: jobutil.GetResultPtr(execution.JobResultKilled),
+				Result: job.GetResultPtr(execution.JobResultKilled),
 				// Explain that this task was forcefully deleted.
 				Reason:  "ForceDeleted",
 				Message: "Forcefully deleted the task, container may still be running",
@@ -690,7 +690,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 
 			// Set unschedulable reason if was marked to be killed by pending timeout.
 			if killedFromPending := task.GetKilledFromPendingTimeoutMarker(); killedFromPending {
-				newRef.DeletedStatus.Result = jobutil.GetResultPtr(execution.JobResultPendingTimeout)
+				newRef.DeletedStatus.Result = job.GetResultPtr(execution.JobResultPendingTimeout)
 			}
 		}
 
@@ -699,7 +699,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 	newRj.Status.Tasks = newRefs
 
 	// Compute new task status.
-	newRj = jobutil.UpdateJobTaskRefs(newRj, tasks)
+	newRj = job.UpdateJobTaskRefs(newRj, tasks)
 
 	// Force delete the tasks.
 	if err := w.deleteTasks(ctx, newRj, needDelete, true); err != nil {
@@ -715,7 +715,7 @@ func (w *Reconciler) handleTTLAfterFinished(
 	rj *execution.Job,
 	cfg *configv1alpha1.JobExecutionConfig,
 ) error {
-	ttl := jobutil.GetTTLAfterFinished(rj, cfg)
+	ttl := job.GetTTLAfterFinished(rj, cfg)
 
 	// Skip if already being deleted.
 	if isDeleted(rj) {
@@ -793,9 +793,9 @@ func (w *Reconciler) handleFinishFinalizer(
 	if len(tasks) > 0 {
 		// Update DeletedStatus for tasks.
 		for _, task := range tasks {
-			rj = jobutil.UpdateTaskRefDeletedStatusIfNotSet(rj, task.GetName(), execution.TaskStatus{
+			rj = job.UpdateTaskRefDeletedStatusIfNotSet(rj, task.GetName(), execution.TaskStatus{
 				State:   execution.TaskKilled,
-				Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+				Result:  job.GetResultPtr(execution.JobResultKilled),
 				Reason:  "JobDeleted",
 				Message: "Task was killed in response to deletion of Job",
 			})
@@ -835,7 +835,7 @@ func (w *Reconciler) handleFinishFinalizer(
 func (w *Reconciler) setTasksKillTimestamp(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, killTimestamp metav1.Time,
 ) error {
-	if err := jobutil.ConcurrentTasks(tasks, func(task jobtasks.Task) error {
+	if err := job.ConcurrentTasks(tasks, func(task jobtasks.Task) error {
 		if ktime.IsTimeSetAndEarlierThanOrEqualTo(task.GetKillTimestamp(), ktime.Now().Time) {
 			return nil
 		}
@@ -876,7 +876,7 @@ func (w *Reconciler) deleteTasks(
 		eventReason = "ForceDeleted"
 	}
 
-	if err := jobutil.ConcurrentTasks(task, func(task jobtasks.Task) error {
+	if err := job.ConcurrentTasks(task, func(task jobtasks.Task) error {
 		// Don't need to delete if deletionTimestamp already set and earlier, unless we are force deleting.
 		if ts := task.GetDeletionTimestamp(); !force && ktime.IsTimeSetAndEarlier(ts) {
 			return nil

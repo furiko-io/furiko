@@ -26,7 +26,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
-	jobutil "github.com/furiko-io/furiko/pkg/utils/execution/job"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
@@ -156,7 +156,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							jobutil.LabelKeyAdmissionErrorMessage: "admission error message",
+							job.LabelKeyAdmissionErrorMessage: "admission error message",
 						},
 					},
 				},
@@ -288,7 +288,7 @@ func TestGetCondition(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskSuccess,
-								Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+								Result: job.GetResultPtr(execution.JobResultSuccess),
 							},
 						},
 					},
@@ -323,7 +323,7 @@ func TestGetCondition(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskSuccess,
-								Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+								Result: job.GetResultPtr(execution.JobResultSuccess),
 							},
 						},
 					},
@@ -353,7 +353,7 @@ func TestGetCondition(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
+								Result: job.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -387,7 +387,7 @@ func TestGetCondition(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
+								Result: job.GetResultPtr(execution.JobResultTaskFailed),
 								State:  execution.TaskFailed,
 							},
 						},
@@ -417,7 +417,7 @@ func TestGetCondition(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:   execution.TaskPendingTimeout,
-								Result:  jobutil.GetResultPtr(execution.JobResultPendingTimeout),
+								Result:  job.GetResultPtr(execution.JobResultPendingTimeout),
 								Reason:  "ImagePullBackOff",
 								Message: "Back-off pulling image \"hello-world\"",
 							},
@@ -456,7 +456,7 @@ func TestGetCondition(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:   execution.TaskFailed,
-								Result:  jobutil.GetResultPtr(execution.JobResultTaskFailed),
+								Result:  job.GetResultPtr(execution.JobResultTaskFailed),
 								Reason:  "ImagePullBackOff",
 								Message: "Back-off pulling image \"hello-world\"",
 							},
@@ -496,7 +496,7 @@ func TestGetCondition(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:   execution.TaskFailed,
-								Result:  jobutil.GetResultPtr(execution.JobResultTaskFailed),
+								Result:  job.GetResultPtr(execution.JobResultTaskFailed),
 								Reason:  "ImagePullBackOff",
 								Message: "Back-off pulling image \"hello-world\"",
 							},
@@ -558,7 +558,7 @@ func TestGetCondition(t *testing.T) {
 								},
 								DeletedStatus: &execution.TaskStatus{
 									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+									Result:  job.GetResultPtr(execution.JobResultKilled),
 									Reason:  "DeadlineExceeded",
 									Message: "...",
 								},
@@ -597,7 +597,7 @@ func TestGetCondition(t *testing.T) {
 								FinishTimestamp:   &finishTime,
 								Status: execution.TaskStatus{
 									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+									Result:  job.GetResultPtr(execution.JobResultKilled),
 									Reason:  "DeadlineExceeded",
 									Message: "...",
 								},
@@ -630,13 +630,13 @@ func TestGetCondition(t *testing.T) {
 								FinishTimestamp:   &finishTime,
 								Status: execution.TaskStatus{
 									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultPendingTimeout),
+									Result:  job.GetResultPtr(execution.JobResultPendingTimeout),
 									Reason:  "DeadlineExceeded",
 									Message: "...",
 								},
 								DeletedStatus: &execution.TaskStatus{
 									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultPendingTimeout),
+									Result:  job.GetResultPtr(execution.JobResultPendingTimeout),
 									Reason:  "DeadlineExceeded",
 									Message: "...",
 								},
@@ -695,7 +695,7 @@ func TestGetCondition(t *testing.T) {
 								FinishTimestamp:   &finishTime,
 								Status: execution.TaskStatus{
 									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+									Result:  job.GetResultPtr(execution.JobResultKilled),
 									Reason:  "DeadlineExceeded",
 									Message: "...",
 								},
@@ -741,7 +741,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							jobutil.LabelKeyAdmissionErrorMessage: "this is a message",
+							job.LabelKeyAdmissionErrorMessage: "this is a message",
 						},
 					},
 					Spec: execution.JobSpec{},
@@ -763,7 +763,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							jobutil.LabelKeyAdmissionErrorMessage: "this is a message",
+							job.LabelKeyAdmissionErrorMessage: "this is a message",
 						},
 					},
 					Spec: execution.JobSpec{},
@@ -799,7 +799,7 @@ func TestGetCondition(t *testing.T) {
 			// We expect that UpdateJobTaskRefs will recompute the new Tasks given the list of tasks,
 			// regardless of any previous value.
 			// These will test that Tasks can still compute the correct Condition for the Job.
-			newRj := jobutil.UpdateJobTaskRefs(rj, tt.args.tasks)
+			newRj := job.UpdateJobTaskRefs(rj, tt.args.tasks)
 
 			// Set startTime if tasks is not nil.
 			if !tt.args.notStarted {
@@ -807,7 +807,7 @@ func TestGetCondition(t *testing.T) {
 			}
 
 			// Compute condition from TaskRefs.
-			if got := jobutil.GetCondition(newRj); !cmp.Equal(got, tt.want) {
+			if got := job.GetCondition(newRj); !cmp.Equal(got, tt.want) {
 				t.Errorf("GetCondition() not equal:\ndiff: %v", cmp.Diff(tt.want, got))
 			}
 		})

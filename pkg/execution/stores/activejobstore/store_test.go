@@ -28,9 +28,9 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/stores/activejobstore"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	furiko "github.com/furiko-io/furiko/pkg/generated/clientset/versioned"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
 )
 

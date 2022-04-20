@@ -27,9 +27,9 @@ import (
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 )
 
 // Reconciler creates Jobs that are queued to be started from the workqueue,

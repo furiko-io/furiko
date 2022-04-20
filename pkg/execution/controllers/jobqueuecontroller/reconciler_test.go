@@ -21,7 +21,7 @@ import (
 
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 

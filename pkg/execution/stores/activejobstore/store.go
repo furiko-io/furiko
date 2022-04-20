@@ -27,11 +27,11 @@ import (
 	"k8s.io/klog/v2"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
 	utilatomic "github.com/furiko-io/furiko/pkg/utils/atomic"
-	"github.com/furiko-io/furiko/pkg/utils/execution/job"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 )
 
 var (

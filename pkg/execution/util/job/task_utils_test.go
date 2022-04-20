@@ -23,7 +23,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/utils/execution/job"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 func TestGetNextAllowedRetry(t *testing.T) {

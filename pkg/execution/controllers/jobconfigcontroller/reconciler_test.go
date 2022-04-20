@@ -30,11 +30,11 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobconfigcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/stores/activejobstore"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/runtime/reconciler"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )

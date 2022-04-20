@@ -30,7 +30,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
-	"github.com/furiko-io/furiko/pkg/utils/execution/job"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )

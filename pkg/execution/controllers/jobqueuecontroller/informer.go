@@ -23,8 +23,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/eventhandler"
-	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 )
 
 // InformerWorker receives events from the informer and enqueues work to be done

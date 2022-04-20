@@ -29,8 +29,8 @@ import (
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
-	"github.com/furiko-io/furiko/pkg/utils/execution/job"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	timeutil "github.com/furiko-io/furiko/pkg/utils/time"
 )
