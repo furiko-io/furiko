@@ -32,7 +32,7 @@ import (
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	rerrors "github.com/furiko-io/furiko/pkg/errors"
+	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
@@ -358,8 +358,8 @@ func (w *Reconciler) syncCreateNewTask(
 	task, err := w.createTask(ctx, rj)
 	if err != nil {
 		// Handle this as a normal error.
-		rerr := rerrors.Error(nil)
-		if !errors.As(err, &rerr) || !rerrors.IsAdmissionRefused(err) {
+		rerr := coreerrors.Error(nil)
+		if !errors.As(err, &rerr) || !coreerrors.IsAdmissionRefused(err) {
 			return rj, tasks, errors.Wrapf(err, "could not create task")
 		}
 

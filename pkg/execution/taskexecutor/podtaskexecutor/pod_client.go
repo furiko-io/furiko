@@ -26,7 +26,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	rerrors "github.com/furiko-io/furiko/pkg/errors"
+	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 )
 
@@ -68,7 +68,7 @@ func (p *PodTaskClient) CreateIndex(ctx context.Context, index int64) (tasks.Tas
 	// Rejected by apiserver, do not attempt to retry and raise an
 	// AdmissionRefusedError instead.
 	if kerrors.IsInvalid(err) {
-		return nil, rerrors.NewAdmissionRefusedError(err.Error())
+		return nil, coreerrors.NewAdmissionRefusedError(err.Error())
 	}
 
 	if err != nil {

@@ -21,24 +21,24 @@ import (
 
 	"github.com/pkg/errors"
 
-	rerrors "github.com/furiko-io/furiko/pkg/errors"
+	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 )
 
 func TestAdmissionRefused(t *testing.T) {
 	var err error
 
-	err = rerrors.NewAdmissionRefusedError("test message")
-	if !rerrors.IsAdmissionRefused(err) {
+	err = coreerrors.NewAdmissionRefusedError("test message")
+	if !coreerrors.IsAdmissionRefused(err) {
 		t.Errorf("expected IsAdmissionRefused to be true")
 	} else {
-		if rerr := rerrors.Error(nil); !errors.As(err, &rerr) {
+		if rerr := coreerrors.Error(nil); !errors.As(err, &rerr) {
 			t.Errorf("expected err to be Error")
 		}
-		if rerrors.GetReason(err) != rerrors.ReasonAdmissionRefused {
-			t.Errorf(`expected Reason to be "AdmissionRefused", got "%v"`, rerrors.GetReason(err))
+		if coreerrors.GetReason(err) != coreerrors.ReasonAdmissionRefused {
+			t.Errorf(`expected Reason to be "AdmissionRefused", got "%v"`, coreerrors.GetReason(err))
 		}
-		if rerrors.GetMessage(err) != "test message" {
-			t.Errorf(`expected Message to be "test message", got "%v"`, rerrors.GetMessage(err))
+		if coreerrors.GetMessage(err) != "test message" {
+			t.Errorf(`expected Message to be "test message", got "%v"`, coreerrors.GetMessage(err))
 		}
 	}
 	if err.Error() != "AdmissionRefused - test message" {
@@ -46,16 +46,16 @@ func TestAdmissionRefused(t *testing.T) {
 	}
 
 	err = errors.New("some other error")
-	if rerrors.IsAdmissionRefused(err) {
+	if coreerrors.IsAdmissionRefused(err) {
 		t.Errorf("expected IsAdmissionRefused to be false")
 	}
-	if rerr := rerrors.Error(nil); errors.As(err, &rerr) {
+	if rerr := coreerrors.Error(nil); errors.As(err, &rerr) {
 		t.Errorf("expected err to not be Error")
 	}
-	if rerrors.GetReason(err) != rerrors.ReasonUnknown {
-		t.Errorf(`expected Reason to be "ReasonUnknown", got "%v"`, rerrors.GetReason(err))
+	if coreerrors.GetReason(err) != coreerrors.ReasonUnknown {
+		t.Errorf(`expected Reason to be "ReasonUnknown", got "%v"`, coreerrors.GetReason(err))
 	}
-	if rerrors.GetMessage(err) != "" {
-		t.Errorf(`expected Message to be "", got "%v"`, rerrors.GetMessage(err))
+	if coreerrors.GetMessage(err) != "" {
+		t.Errorf(`expected Message to be "", got "%v"`, coreerrors.GetMessage(err))
 	}
 }
