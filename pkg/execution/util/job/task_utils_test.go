@@ -23,7 +23,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/execution/util/job"
+	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 func TestGetNextAllowedRetry(t *testing.T) {
@@ -69,7 +69,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -94,7 +94,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -120,7 +120,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -145,7 +145,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							CreationTimestamp: createTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -172,7 +172,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -198,7 +198,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 						{
@@ -207,7 +207,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							FinishTimestamp:   &finishTime2,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -233,7 +233,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 						{
@@ -242,7 +242,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 							FinishTimestamp:   &finishTime2,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -254,7 +254,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := job.GetNextAllowedRetry(tt.rj)
+			got, err := jobutil.GetNextAllowedRetry(tt.rj)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetNextAllowedRetry() error = %v, wantErr %v", err, tt.wantErr)
 				return

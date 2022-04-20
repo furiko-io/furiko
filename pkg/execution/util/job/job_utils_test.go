@@ -21,7 +21,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
-	"github.com/furiko-io/furiko/pkg/execution/util/job"
+	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 func TestAllowedToCreateNewTask(t *testing.T) {
@@ -110,7 +110,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskSuccess,
-								Result: job.GetResultPtr(execution.JobResultSuccess),
+								Result: jobutil.GetResultPtr(execution.JobResultSuccess),
 							},
 						},
 					},
@@ -138,7 +138,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -161,7 +161,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -190,7 +190,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -218,7 +218,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
 							},
 						},
 					},
@@ -230,7 +230,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:  execution.TaskSuccess,
-								Result: job.GetResultPtr(execution.JobResultSuccess),
+								Result: jobutil.GetResultPtr(execution.JobResultSuccess),
 							},
 						},
 					},
@@ -243,8 +243,8 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			rj := tt.args.rj
-			newRj := job.UpdateJobTaskRefs(rj, tt.args.tasks)
-			if got := job.AllowedToCreateNewTask(newRj); got != tt.want {
+			newRj := jobutil.UpdateJobTaskRefs(rj, tt.args.tasks)
+			if got := jobutil.AllowedToCreateNewTask(newRj); got != tt.want {
 				t.Errorf("AllowedToCreateNewTask() = %v, want %v", got, tt.want)
 			}
 		})
