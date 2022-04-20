@@ -25,7 +25,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/bootstrap"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobconfigcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
@@ -34,6 +33,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
 	"github.com/furiko-io/furiko/pkg/runtime/httphandler"
+	"github.com/furiko-io/furiko/pkg/runtime/util"
 )
 
 // +kubebuilder:rbac:groups="",resources=events;pods,verbs=get;list;watch;create;update;patch;delete
@@ -59,13 +59,13 @@ func main() {
 	var options configv1alpha1.ExecutionControllerConfig
 	if configFile != "" {
 		klog.Infof("loading configuration from %v", configFile)
-		if err := bootstrap.UnmarshalFromFile(configFile, &options); err != nil {
+		if err := util.UnmarshalFromFile(configFile, &options); err != nil {
 			klog.Fatalf(`cannot read config at "%v": %v`, configFile, err)
 		}
 	}
 
 	// Dump loaded configuration.
-	optionsMarshaled, err := bootstrap.Marshal(options)
+	optionsMarshaled, err := util.Marshal(options)
 	if err != nil {
 		klog.Fatalf("cannot marshal configuration: %v", err)
 	}
