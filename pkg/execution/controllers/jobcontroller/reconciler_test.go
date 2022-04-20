@@ -32,7 +32,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/reconciler"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
-	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -115,7 +115,7 @@ func TestReconciler(t *testing.T) {
 					ActionGenerators: []runtimetesting.ActionGenerator{
 						func() (runtimetesting.Action, error) {
 							newPod := fakePodPending.DeepCopy()
-							k8sutils.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
+							meta.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
 							return runtimetesting.NewUpdatePodAction(jobNamespace, newPod), nil
 						},
 						func() (runtimetesting.Action, error) {

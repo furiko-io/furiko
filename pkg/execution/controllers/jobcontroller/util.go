@@ -19,7 +19,7 @@ package jobcontroller
 import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/utils/cmp"
-	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
 // IsJobEqual returns true if the Job is not equal and should be updated.
@@ -44,5 +44,5 @@ func isDeleted(rj *execution.Job) bool {
 }
 
 func isFinalized(rj *execution.Job, finalizer string) bool {
-	return isDeleted(rj) && !k8sutils.ContainsFinalizer(rj.Finalizers, finalizer)
+	return isDeleted(rj) && !meta.ContainsFinalizer(rj.Finalizers, finalizer)
 }

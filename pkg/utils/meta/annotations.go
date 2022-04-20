@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package k8sutils
+package meta
 
 type ObjectMeta interface {
 	GetAnnotations() map[string]string

@@ -37,8 +37,8 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
-	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 	timeutil "github.com/furiko-io/furiko/pkg/utils/time"
 )
 
@@ -820,7 +820,7 @@ func (w *Reconciler) handleFinishFinalizer(
 	newRj := rj.DeepCopy()
 
 	// Remove the finalizer.
-	newRj.Finalizers = k8sutils.RemoveFinalizer(newRj.Finalizers, executiongroup.DeleteDependentsFinalizer)
+	newRj.Finalizers = meta.RemoveFinalizer(newRj.Finalizers, executiongroup.DeleteDependentsFinalizer)
 
 	klog.InfoS("jobcontroller: job finalized",
 		"worker", w.Name(),
