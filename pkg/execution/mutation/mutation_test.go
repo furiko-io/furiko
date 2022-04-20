@@ -45,8 +45,8 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
+	"github.com/furiko-io/furiko/pkg/runtime/webhook"
 	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
-	"github.com/furiko-io/furiko/pkg/utils/webhook"
 )
 
 const (

@@ -38,11 +38,11 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	executionlister "github.com/furiko-io/furiko/pkg/generated/listers/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
+	"github.com/furiko-io/furiko/pkg/runtime/webhook"
 	"github.com/furiko-io/furiko/pkg/utils/execution/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/jsonyaml"
 	"github.com/furiko-io/furiko/pkg/utils/k8sutils"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
-	"github.com/furiko-io/furiko/pkg/utils/webhook"
 )
 
 var (

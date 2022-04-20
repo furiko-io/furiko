@@ -33,8 +33,8 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/mutation"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
+	"github.com/furiko-io/furiko/pkg/runtime/webhook"
 	"github.com/furiko-io/furiko/pkg/utils/cmp"
-	"github.com/furiko-io/furiko/pkg/utils/webhook"
 )
 
 const (
