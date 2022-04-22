@@ -299,3 +299,271 @@ func TestMakeDefaultOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestEvaluateOptionDefault(t *testing.T) {
+	tests := []struct {
+		name    string
+		option  execution.Option
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "bool option, missing config",
+			option: execution.Option{
+				Type: execution.OptionTypeBool,
+				Name: "opt",
+			},
+			wantErr: true,
+		},
+		{
+			name: "bool option, default false",
+			option: execution.Option{
+				Type: execution.OptionTypeBool,
+				Name: "opt",
+				Bool: &execution.BoolOptionConfig{
+					Format: execution.BoolOptionFormatTrueFalse,
+				},
+			},
+			want: "false",
+		},
+		{
+			name: "bool option, default true",
+			option: execution.Option{
+				Type: execution.OptionTypeBool,
+				Name: "opt",
+				Bool: &execution.BoolOptionConfig{
+					Format:  execution.BoolOptionFormatTrueFalse,
+					Default: true,
+				},
+			},
+			want: "true",
+		},
+		{
+			name: "bool option, default false, custom format",
+			option: execution.Option{
+				Type: execution.OptionTypeBool,
+				Name: "opt",
+				Bool: &execution.BoolOptionConfig{
+					Format:   execution.BoolOptionFormatCustom,
+					TrueVal:  "--dry-run ",
+					FalseVal: "",
+				},
+			},
+			want: "",
+		},
+		{
+			name: "bool option, default true, custom format",
+			option: execution.Option{
+				Type: execution.OptionTypeBool,
+				Name: "opt",
+				Bool: &execution.BoolOptionConfig{
+					Default:  true,
+					Format:   execution.BoolOptionFormatCustom,
+					TrueVal:  "--dry-run ",
+					FalseVal: "",
+				},
+			},
+			want: "--dry-run ",
+		},
+		{
+			name: "string option, empty config",
+			option: execution.Option{
+				Type: execution.OptionTypeString,
+				Name: "opt",
+			},
+			want: "",
+		},
+		{
+			name: "string option, no default",
+			option: execution.Option{
+				Type:   execution.OptionTypeString,
+				Name:   "opt",
+				String: &execution.StringOptionConfig{},
+			},
+			want: "",
+		},
+		{
+			name: "string option, with default",
+			option: execution.Option{
+				Type: execution.OptionTypeString,
+				Name: "opt",
+				String: &execution.StringOptionConfig{
+					Default: "hello ",
+				},
+			},
+			want: "hello ",
+		},
+		{
+			name: "string option, with default, trim space",
+			option: execution.Option{
+				Type: execution.OptionTypeString,
+				Name: "opt",
+				String: &execution.StringOptionConfig{
+					Default:    "hello ",
+					TrimSpaces: true,
+				},
+			},
+			want: "hello",
+		},
+		{
+			name: "select option, empty config",
+			option: execution.Option{
+				Type: execution.OptionTypeSelect,
+				Name: "opt",
+			},
+			want: "",
+		},
+		{
+			name: "select option, not required, no default",
+			option: execution.Option{
+				Type: execution.OptionTypeSelect,
+				Name: "opt",
+				Select: &execution.SelectOptionConfig{
+					Values: []string{"a", "b"},
+				},
+			},
+			want: "",
+		},
+		{
+			name: "select option, not required, with default",
+			option: execution.Option{
+				Type:     execution.OptionTypeSelect,
+				Name:     "opt",
+				Required: true,
+				Select: &execution.SelectOptionConfig{
+					Default: "a",
+					Values:  []string{"a", "b"},
+				},
+			},
+			want: "a",
+		},
+		{
+			name: "select option, required, no default",
+			option: execution.Option{
+				Type:     execution.OptionTypeSelect,
+				Name:     "opt",
+				Required: true,
+				Select: &execution.SelectOptionConfig{
+					Values: []string{"a", "b"},
+				},
+			},
+			want: "",
+		},
+		{
+			name: "select option, required, with default",
+			option: execution.Option{
+				Type:     execution.OptionTypeSelect,
+				Name:     "opt",
+				Required: true,
+				Select: &execution.SelectOptionConfig{
+					Default: "a",
+					Values:  []string{"a", "b"},
+				},
+			},
+			want: "a",
+		},
+		{
+			name: "multi option, empty config",
+			option: execution.Option{
+				Type: execution.OptionTypeMulti,
+				Name: "opt",
+			},
+			want: "",
+		},
+		{
+			name: "multi option, not required, no default",
+			option: execution.Option{
+				Type: execution.OptionTypeMulti,
+				Name: "opt",
+				Multi: &execution.MultiOptionConfig{
+					Values:    []string{"a", "b", "c"},
+					Delimiter: ",",
+				},
+			},
+			want: "",
+		},
+		{
+			name: "multi option, not required, with default",
+			option: execution.Option{
+				Type: execution.OptionTypeMulti,
+				Name: "opt",
+				Multi: &execution.MultiOptionConfig{
+					Default:   []string{"c", "b"},
+					Values:    []string{"a", "b", "c"},
+					Delimiter: ",",
+				},
+			},
+			want: "c,b",
+		},
+		{
+			name: "multi option, required, no default",
+			option: execution.Option{
+				Type:     execution.OptionTypeMulti,
+				Name:     "opt",
+				Required: true,
+				Multi: &execution.MultiOptionConfig{
+					Values:    []string{"a", "b", "c"},
+					Delimiter: ",",
+				},
+			},
+			want: "",
+		},
+		{
+			name: "multi option, required, with default",
+			option: execution.Option{
+				Type:     execution.OptionTypeMulti,
+				Name:     "opt",
+				Required: true,
+				Multi: &execution.MultiOptionConfig{
+					Default:   []string{"c", "b"},
+					Values:    []string{"a", "b", "c"},
+					Delimiter: ",",
+				},
+			},
+			want: "c,b",
+		},
+		{
+			name: "date option, empty config",
+			option: execution.Option{
+				Type: execution.OptionTypeDate,
+				Name: "opt",
+			},
+			want: "",
+		},
+		{
+			name: "date option, not required",
+			option: execution.Option{
+				Type: execution.OptionTypeDate,
+				Name: "opt",
+				Date: &execution.DateOptionConfig{
+					Format: "D MMM YYYY",
+				},
+			},
+			want: "",
+		},
+		{
+			name: "date option, required",
+			option: execution.Option{
+				Type: execution.OptionTypeDate,
+				Name: "opt",
+				Date: &execution.DateOptionConfig{
+					Format: "D MMM YYYY",
+				},
+			},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := options.EvaluateOptionDefault(tt.option)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("EvaluateOptionDefault() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("EvaluateOptionDefault() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
