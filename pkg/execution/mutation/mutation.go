@@ -64,7 +64,7 @@ func (m *Mutator) MutateJobConfig(rjc *v1alpha1.JobConfig) *webhook.Result {
 
 	// Specify default values for OptionSpec.
 	if spec := rjc.Spec.Option; spec != nil {
-		rjc.Spec.Option = options.DefaultOptionSpec(spec)
+		rjc.Spec.Option = options.MutateDefaultingOptionSpec(spec)
 	}
 
 	return result

@@ -23,7 +23,7 @@ import (
 )
 
 // SubstituteVariables will perform variable substitution according to a substitution map.
-// Example: SubstituteVariables("echo ${job.id}", map[string]string{"job.id": "smm-api-test.v2.123"})
+// Example: SubstituteVariables("echo ${job.name}", map[string]string{"job.name": "jobconfig-sample.1650645000"})
 func SubstituteVariables(target string, submap map[string]string) string {
 	for name, value := range submap {
 		search := fmt.Sprintf("${%v}", name)
@@ -57,7 +57,7 @@ func SubstituteEmptyStringForPrefixes(target string, prefixes []string) string {
 	return target
 }
 
-// MergeSubstitutions merges the substitution maps, with lowest priority first.
+// MergeSubstitutions merges the substitution maps, with the lowest priority first.
 // Does not modify the maps in-place.
 func MergeSubstitutions(paramMaps ...map[string]string) map[string]string {
 	newParams := make(map[string]string)
