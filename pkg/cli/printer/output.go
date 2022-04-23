@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cmd
+package printer
 
 // OutputFormat specifies a format to print output.
 type OutputFormat string

@@ -17,40 +17,52 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/printer"
 )
 
-type ListJobConfigCommand struct{}
+var (
+	ListJobConfigExample = PrepareExample(`
+# List all JobConfigs in current namespace.
+{{.CommandName}} list jobconfig
 
-func NewListJobConfigCommand(ctx context.Context) *cobra.Command {
-	c := &ListJobConfigCommand{}
+# List all JobConfigs in JSON format.
+{{.CommandName}} list jobconfig -o json`)
+)
+
+type ListJobConfigCommand struct {
+	streams genericclioptions.IOStreams
+}
+
+func NewListJobConfigCommand(streams genericclioptions.IOStreams) *cobra.Command {
+	c := &ListJobConfigCommand{
+		streams: streams,
+	}
+
 	cmd := &cobra.Command{
 		Use:     "jobconfig",
 		Aliases: []string{"jobconfigs"},
 		Short:   "Displays information about multiple JobConfigs.",
-		Example: `  # List all JobConfigs in current namespace.
-  furiko list jobconfig
-
-  # List all JobConfigs in JSON format.
-  furiko list jobconfig -o json`,
+		Example: ListJobConfigExample,
 		PreRunE: PrerunWithKubeconfig,
 		Args:    cobra.ExactArgs(0),
-		RunE:    ToRunE(ctx, c),
+		RunE:    c.Run,
 	}
 
 	return cmd
 }
 
-func (c *ListJobConfigCommand) Run(ctx context.Context, cmd *cobra.Command, args []string) error {
+func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
 	namespace, err := GetNamespace(cmd)
 	if err != nil {
@@ -66,28 +78,37 @@ func (c *ListJobConfigCommand) Run(ctx context.Context, cmd *cobra.Command, args
 	if err != nil {
 		return errors.Wrapf(err, "cannot list job configs")
 	}
-	jobConfigList.SetGroupVersionKind(execution.GVKJobConfigList)
 
 	if len(jobConfigList.Items) == 0 {
-		fmt.Printf("No job configs found in %v namespace.\n", namespace)
+		_, _ = fmt.Fprintf(c.streams.Out, "No job configs found in %v namespace.\n", namespace)
 		return nil
 	}
 
 	return c.PrintJobConfigs(output, jobConfigList)
 }
 
-func (c *ListJobConfigCommand) PrintJobConfigs(output OutputFormat, jobConfigList *execution.JobConfigList) error {
+func (c *ListJobConfigCommand) PrintJobConfigs(
+	output printer.OutputFormat,
+	jobConfigList *execution.JobConfigList,
+) error {
 	// Handle pretty print as a special case.
-	if output == OutputFormatPretty {
+	if output == printer.OutputFormatPretty {
 		c.prettyPrint(jobConfigList.Items)
 		return nil
 	}
 
-	return PrintObject(output, os.Stdout, jobConfigList)
+	// Extract list.
+	items := make([]printer.Object, 0, len(jobConfigList.Items))
+	for _, job := range jobConfigList.Items {
+		job := job
+		items = append(items, &job)
+	}
+
+	return printer.PrintObjects(execution.GVKJobConfig, output, c.streams.Out, items)
 }
 
 func (c *ListJobConfigCommand) prettyPrint(jobConfigs []execution.JobConfig) {
-	p := NewStdoutTablePrinter()
+	p := printer.NewTablePrinter(c.streams.Out)
 	p.Print(c.makeJobHeader(), c.makeJobRows(jobConfigs))
 }
 
@@ -119,7 +140,7 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 		cronSchedule = schedule.Cron.Expression
 	}
 	if !jobConfig.Status.LastScheduled.IsZero() {
-		lastScheduled = FormatTimeAgo(jobConfig.Status.LastScheduled)
+		lastScheduled = formatter.FormatTimeAgo(jobConfig.Status.LastScheduled)
 	}
 
 	return []string{

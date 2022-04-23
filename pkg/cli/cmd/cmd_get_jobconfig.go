@@ -18,46 +18,60 @@ package cmd
 
 import (
 	"context"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/printer"
+	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
 )
 
-type GetJobConfigCommand struct{}
+var (
+	GetJobConfigExample = PrepareExample(`
+# Get a single JobConfig in the current namespace.
+{{.CommandName}} get jobconfig daily-send-email
 
-func NewGetJobConfigCommand(ctx context.Context) *cobra.Command {
-	c := &GetJobConfigCommand{}
+# Get multiple JobConfigs by name in the current namespace.
+{{.CommandName}} get jobconfig daily-send-email weekly-report-email
+
+# Get a single JobConfig in JSON format.
+{{.CommandName}} get jobconfig daily-send-email -o json`)
+)
+
+type GetJobConfigCommand struct {
+	streams genericclioptions.IOStreams
+}
+
+func NewGetJobConfigCommand(streams genericclioptions.IOStreams) *cobra.Command {
+	c := &GetJobConfigCommand{
+		streams: streams,
+	}
+
 	cmd := &cobra.Command{
 		Use:     "jobconfig",
 		Aliases: []string{"jobconfigs"},
 		Short:   "Displays information about one or more JobConfigs.",
-		Example: `  # Get a single JobConfig in the current namespace.
-  furiko get jobconfig daily-send-email
-
-  # Get multiple JobConfigs by name in the current namespace.
-  furiko get jobconfig daily-send-email weekly-report-email
-
-  # Get a single JobConfig in JSON format.
-  furiko get jobconfig daily-send-email -o json`,
+		Example: GetJobConfigExample,
 		PreRunE: PrerunWithKubeconfig,
 		Args:    cobra.MinimumNArgs(1),
-		RunE:    ToRunE(ctx, c),
+		RunE:    c.Run,
 	}
 
 	return cmd
 }
 
-func (c *GetJobConfigCommand) Run(ctx context.Context, cmd *cobra.Command, args []string) error {
+func (c *GetJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
 	namespace, err := GetNamespace(cmd)
 	if err != nil {
@@ -78,7 +92,6 @@ func (c *GetJobConfigCommand) Run(ctx context.Context, cmd *cobra.Command, args 
 		if err != nil {
 			return errors.Wrapf(err, "cannot get job config")
 		}
-		jobConfig.SetGroupVersionKind(execution.GVKJobConfig)
 		jobConfigs = append(jobConfigs, jobConfig)
 	}
 
@@ -88,12 +101,12 @@ func (c *GetJobConfigCommand) Run(ctx context.Context, cmd *cobra.Command, args 
 func (c *GetJobConfigCommand) PrintJobConfigs(
 	ctx context.Context,
 	cmd *cobra.Command,
-	output OutputFormat,
+	output printer.OutputFormat,
 	jobConfigs []*execution.JobConfig,
 ) error {
 	// Handle pretty print as a special case.
-	if output == OutputFormatPretty {
-		p := NewStdoutDescriptionPrinter()
+	if output == printer.OutputFormatPretty {
+		p := printer.NewDescriptionPrinter(c.streams.Out)
 		for i, jobConfig := range jobConfigs {
 			if err := c.prettyPrintJobConfig(ctx, cmd, jobConfig); err != nil {
 				return err
@@ -106,11 +119,12 @@ func (c *GetJobConfigCommand) PrintJobConfigs(
 	}
 
 	// Print items.
-	items := make([]runtime.Object, 0, len(jobConfigs))
+	items := make([]printer.Object, 0, len(jobConfigs))
 	for _, job := range jobConfigs {
 		items = append(items, job)
 	}
-	return PrintItems(output, os.Stdout, items)
+
+	return printer.PrintObjects(execution.GVKJobConfig, output, c.streams.Out, items)
 }
 
 func (c *GetJobConfigCommand) prettyPrintJobConfig(
@@ -118,23 +132,23 @@ func (c *GetJobConfigCommand) prettyPrintJobConfig(
 	cmd *cobra.Command,
 	jobConfig *execution.JobConfig,
 ) error {
-	p := NewStdoutDescriptionPrinter()
+	p := printer.NewDescriptionPrinter(c.streams.Out)
 
 	// Print the metadata.
 	p.Header("Job Config Metadata")
 	p.Descriptions(c.prettyPrintJobConfigMetadata(jobConfig))
 
 	// Print each section with a header if it is non-empty.
-	sections := []SectionGenerator{
-		ToSectionGenerator(Section{Name: "Concurrency", Descs: c.prettyPrintJobConfigConcurrency(jobConfig)}),
-		func() (Section, error) {
+	sections := []printer.SectionGenerator{
+		printer.ToSectionGenerator(printer.Section{Name: "Concurrency", Descs: c.prettyPrintJobConfigConcurrency(jobConfig)}),
+		func() (printer.Section, error) {
 			descs, err := c.prettyPrintJobConfigSchedule(ctx, cmd, jobConfig)
 			if err != nil {
-				return Section{}, err
+				return printer.Section{}, err
 			}
-			return Section{Name: "Schedule", Descs: descs}, nil
+			return printer.Section{Name: "Schedule", Descs: descs}, nil
 		},
-		ToSectionGenerator(Section{Name: "Job Status", Descs: c.prettyPrintJobConfigStatus(jobConfig)}),
+		printer.ToSectionGenerator(printer.Section{Name: "Job Status", Descs: c.prettyPrintJobConfigStatus(jobConfig)}),
 	}
 
 	for _, gen := range sections {
@@ -155,7 +169,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigMetadata(jobConfig *execution.
 	return [][]string{
 		{"Name", jobConfig.Name},
 		{"Namespace", jobConfig.Namespace},
-		{"Created", FormatTimeWithTimeAgo(&jobConfig.CreationTimestamp)},
+		{"Created", formatter.FormatTimeWithTimeAgo(&jobConfig.CreationTimestamp)},
 	}
 }
 
@@ -185,8 +199,8 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(
 	}
 
 	if constraints := schedule.Constraints; constraints != nil {
-		result = MaybeAppendTimeAgo(result, "Not Before", constraints.NotBefore)
-		result = MaybeAppendTimeAgo(result, "Not After", constraints.NotAfter)
+		result = printer.MaybeAppendTimeAgo(result, "Not Before", constraints.NotBefore)
+		result = printer.MaybeAppendTimeAgo(result, "Not After", constraints.NotAfter)
 	}
 
 	// Here we evaluate the next schedule as a convenience to the user. Note that is
@@ -208,16 +222,21 @@ func (c *GetJobConfigCommand) prettyPrintNextSchedule(
 	cmd *cobra.Command,
 	jobConfig *execution.JobConfig,
 ) ([][]string, error) {
+	cfg := config.DefaultCronExecutionConfig.DeepCopy()
+
 	schedule := jobConfig.Spec.Schedule
 	if schedule == nil {
 		return nil, nil
 	}
 
-	// Fetch the cron config in the cluster.
-	cfg := &configv1alpha1.CronExecutionConfig{}
-	cfgName := configv1alpha1.CronExecutionConfigName
-	if err := GetDynamicConfig(ctx, cmd, cfgName, cfg); err != nil {
-		return nil, errors.Wrapf(err, "cannot fetch dynamic config %v", cfgName)
+	// Fetch the cron config in the cluster, otherwise use the default one.
+	{
+		newCfg := &configv1alpha1.CronExecutionConfig{}
+		cfgName := configv1alpha1.CronExecutionConfigName
+		if err := GetDynamicConfig(ctx, cmd, cfgName, cfg); err != nil {
+			klog.ErrorS(err, "cannot fetch dynamic config, falling back to default", "name", cfgName)
+		}
+		cfg = newCfg
 	}
 
 	// Parse the next schedule.
@@ -234,7 +253,7 @@ func (c *GetJobConfigCommand) prettyPrintNextSchedule(
 	next := expr.Next(time.Now())
 	if !next.IsZero() {
 		t := metav1.NewTime(next)
-		nextSchedule = FormatTimeWithTimeAgo(&t)
+		nextSchedule = formatter.FormatTimeWithTimeAgo(&t)
 	}
 
 	return [][]string{{"Next Schedule", nextSchedule}}, nil
@@ -249,7 +268,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigStatus(jobConfig *execution.Jo
 
 	lastScheduled := "Never"
 	if t := jobConfig.Status.LastScheduled; !t.IsZero() {
-		lastScheduled = FormatTimeWithTimeAgo(t)
+		lastScheduled = formatter.FormatTimeWithTimeAgo(t)
 	}
 	result = append(result, []string{"Last Scheduled", lastScheduled})
 

@@ -17,13 +17,17 @@
 package cmd
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 
 	"github.com/furiko-io/furiko/pkg/utils/logging"
+)
+
+const (
+	// CommandName is the expected entrypoint of the root command.
+	CommandName = "furiko"
 )
 
 type RootCommand struct {
@@ -32,19 +36,28 @@ type RootCommand struct {
 	verbosity          int
 	dynConfigName      string
 	dynConfigNamespace string
+
+	streams genericclioptions.IOStreams
 }
 
 // NewRootCommand returns a new root command for the command-line utility.
-func NewRootCommand(ctx context.Context) *cobra.Command {
-	c := &RootCommand{}
+func NewRootCommand(streams genericclioptions.IOStreams) *cobra.Command {
+	c := &RootCommand{
+		streams: streams,
+	}
+
 	cmd := &cobra.Command{
-		Use:               "furiko",
+		Use:               CommandName,
 		Short:             "Command-line utility to manage Furiko.",
-		PersistentPreRunE: ToRunE(ctx, c),
+		PersistentPreRunE: c.PersistentPreRunE,
 
 		// Don't show help on error.
 		SilenceUsage: true,
 	}
+
+	// Set IO streams.
+	cmd.SetOut(streams.Out)
+	cmd.SetErr(streams.ErrOut)
 
 	flags := cmd.PersistentFlags()
 	flags.StringVar(&c.kubeconfig, "kubeconfig", "",
@@ -57,14 +70,14 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 		"Overrides the namespace of the dynamic cluster config.")
 	flags.IntVarP(&c.verbosity, "v", "v", 0, "Sets the log level verbosity.")
 
-	cmd.AddCommand(NewGetCommand(ctx))
-	cmd.AddCommand(NewListCommand(ctx))
-	cmd.AddCommand(NewRunCommand(ctx))
+	cmd.AddCommand(NewGetCommand(streams))
+	cmd.AddCommand(NewListCommand(streams))
+	cmd.AddCommand(NewRunCommand(streams))
 
 	return cmd
 }
 
-func (c *RootCommand) Run(ctx context.Context, cmd *cobra.Command, args []string) error {
+func (c *RootCommand) PersistentPreRunE(cmd *cobra.Command, args []string) error {
 	if err := logging.SetLogLevel(klog.Level(c.verbosity)); err != nil {
 		return errors.Wrap(err, "cannot set log level")
 	}

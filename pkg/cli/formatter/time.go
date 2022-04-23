@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cmd
+package formatter
 
 import (
 	"fmt"
@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	timeFormat = "Mon, 02 Jan 2006 15:04:05 Z07:00"
+	timeFormat = "Mon, 02 Jan 2006 15:04:05 -07:00"
 )
 
 var (

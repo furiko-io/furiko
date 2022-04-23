@@ -14,18 +14,15 @@
  * limitations under the License.
  */
 
-package cmd
+package printer
 
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Section contains a section name and a list of description key-value pairs.
@@ -54,10 +51,6 @@ func NewDescriptionPrinter(out io.Writer) *DescriptionPrinter {
 		out:        out,
 		minSpacing: 2,
 	}
-}
-
-func NewStdoutDescriptionPrinter() *DescriptionPrinter {
-	return NewDescriptionPrinter(os.Stdout)
 }
 
 func (p *DescriptionPrinter) Header(header string) {
@@ -115,59 +108,4 @@ func (p *DescriptionPrinter) Print(kvs [][]string) {
 		value := kv[1]
 		_, _ = fmt.Fprintln(p.out, text.Pad(key+":", maxLen, ' ')+value)
 	}
-}
-
-// TablePrinter prints tables with header and body rows.
-type TablePrinter struct {
-	out io.Writer
-}
-
-func NewTablePrinter(out io.Writer) *TablePrinter {
-	return &TablePrinter{out: out}
-}
-
-func NewStdoutTablePrinter() *TablePrinter {
-	return NewTablePrinter(os.Stdout)
-}
-
-// Print the header and each row to standard output.
-func (p *TablePrinter) Print(header []string, rows [][]string) {
-	t := table.NewWriter()
-	t.SetOutputMirror(p.out)
-	style := table.StyleLight
-	style.Options = table.Options{
-		SeparateColumns: true,
-	}
-	style.Box.PaddingLeft = ""
-	style.Box.PaddingRight = ""
-	style.Box.MiddleVertical = "   "
-	t.SetStyle(style)
-	t.AppendHeader(p.makeTableRow(header))
-	t.AppendRows(p.makeTableRows(rows))
-	t.Render()
-}
-
-func (p *TablePrinter) makeTableRows(rows [][]string) []table.Row {
-	output := make([]table.Row, 0, len(rows))
-	for _, row := range rows {
-		output = append(output, p.makeTableRow(row))
-	}
-	return output
-}
-
-func (p *TablePrinter) makeTableRow(cells []string) table.Row {
-	output := make(table.Row, 0, len(cells))
-	for _, cell := range cells {
-		output = append(output, cell)
-	}
-	return output
-}
-
-// MaybeAppendTimeAgo is a helper that appends a key-value description pair to
-// kvs if t is non-zero, formatted as a time with relative duration from now.
-func MaybeAppendTimeAgo(kvs [][]string, key string, t *metav1.Time) [][]string {
-	if !t.IsZero() {
-		kvs = append(kvs, []string{key, FormatTimeWithTimeAgo(t)})
-	}
-	return kvs
 }

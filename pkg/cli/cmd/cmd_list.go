@@ -17,23 +17,27 @@
 package cmd
 
 import (
-	"context"
+	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/furiko-io/furiko/pkg/cli/printer"
 )
 
-func NewListCommand(ctx context.Context) *cobra.Command {
+func NewListCommand(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List multiple resources.",
+		Short: "List all resources by kind.",
 	}
 
 	// Add common flags
-	cmd.PersistentFlags().StringP("output", "o", "pretty",
-		"Output format. One of: pretty|json|yaml|name")
+	cmd.PersistentFlags().StringP("output", "o", string(printer.OutputFormatPretty),
+		fmt.Sprintf("Output format. One of: %v", strings.Join(printer.GetAllOutputFormatStrings(), "|")))
 
-	cmd.AddCommand(NewListJobCommand(ctx))
-	cmd.AddCommand(NewListJobConfigCommand(ctx))
+	cmd.AddCommand(NewListJobCommand(streams))
+	cmd.AddCommand(NewListJobConfigCommand(streams))
 
 	return cmd
 }

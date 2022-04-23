@@ -18,7 +18,9 @@ package cmd
 
 import (
 	"context"
+	"strings"
 
+	"github.com/kr/text"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/utils/jsonyaml"
 )
@@ -59,12 +62,22 @@ func NewContext(_ *cobra.Command) (controllercontext.Context, error) {
 // TODO(irvinlim): We currently reuse controllercontext, but most of it is unusable for CLI interfaces.
 //  We should create a new common context as needed.
 func PrerunWithKubeconfig(cmd *cobra.Command, _ []string) error {
+	// Already set up previously.
+	if ctrlContext != nil {
+		return nil
+	}
+
 	newContext, err := NewContext(cmd)
 	if err != nil {
 		return err
 	}
 	ctrlContext = newContext
 	return nil
+}
+
+// SetCtrlContext explicitly sets the common context.
+func SetCtrlContext(cc controllercontext.Context) {
+	ctrlContext = cc
 }
 
 // GetNamespace returns the namespace to use depending on what was defined in the flags.
@@ -107,12 +120,19 @@ func GetDynamicConfig(ctx context.Context, cmd *cobra.Command, name configv1alph
 }
 
 // GetOutputFormat returns the output format as parsed by the flag.
-func GetOutputFormat(cmd *cobra.Command) (OutputFormat, error) {
+func GetOutputFormat(cmd *cobra.Command) (printer.OutputFormat, error) {
 	v, err := cmd.Flags().GetString("output")
 	if err != nil {
 		return "", err
 	}
-	output := OutputFormat(v)
+	output := printer.OutputFormat(v)
 	klog.V(4).InfoS("using output format", "format", output)
 	return output, nil
+}
+
+// PrepareExample replaces the root command name and indents all lines.
+func PrepareExample(example string) string {
+	example = strings.TrimPrefix(example, "\n")
+	example = strings.ReplaceAll(example, "{{.CommandName}}", CommandName)
+	return text.Indent(example, "  ")
 }

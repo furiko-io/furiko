@@ -17,7 +17,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -26,19 +25,31 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/cli/util/prompt"
+	"github.com/furiko-io/furiko/pkg/cli/prompt"
 	"github.com/furiko-io/furiko/pkg/core/options"
 )
 
 var (
+	runExample = PrepareExample(`
+# Start a new Job from an existing JobConfig.
+{{.CommandName}} run daily-send-email
+
+# Start a new Job only after the specified time.
+{{.CommandName}} run daily-send-email --at 2021-01-01T00:00:00+08:00
+
+# Start a new Job, and use all default options.
+{{.CommandName}} run daily-send-email --use-default-options`)
+
 	groupResourceJob = execution.Resource("job")
 )
 
 type RunCommand struct {
+	streams           genericclioptions.IOStreams
 	name              string
 	noInteractive     bool
 	useDefaultOptions bool
@@ -46,25 +57,21 @@ type RunCommand struct {
 	concurrencyPolicy string
 }
 
-func NewRunCommand(ctx context.Context) *cobra.Command {
-	c := &RunCommand{}
+func NewRunCommand(streams genericclioptions.IOStreams) *cobra.Command {
+	c := &RunCommand{
+		streams: streams,
+	}
+
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run a new Job.",
 		Long: `Runs a new Job from an existing JobConfig.
 
 If the JobConfig has some options defined, an interactive prompt will be shown.`,
-		Example: `  # Start a new Job from an existing JobConfig.
-  furiko run daily-send-email
-
-  # Start a new Job only after the specified time.
-  furiko run daily-send-email --at 2021-01-01T00:00:00+08:00
-
-  # Start a new Job, and use all default options.
-  furiko run daily-send-email --use-default-options`,
+		Example: runExample,
 		Args:    cobra.ExactArgs(1),
 		PreRunE: PrerunWithKubeconfig,
-		RunE:    ToRunE(ctx, c),
+		RunE:    c.Run,
 	}
 
 	cmd.Flags().StringVar(&c.name, "name", "",
@@ -79,12 +86,14 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 		"RFC3339-formatted datetime to specify the time to run the job at. "+
 			"Implies --concurrency-policy=Enqueue unless explicitly specified.")
 	cmd.Flags().StringVar(&c.concurrencyPolicy, "concurrency-policy", "",
-		"Specify an explicit concurrency policy to use for the job, overriding the JobConfig's concurrency policy.")
+		"Specify an explicit concurrency policy to use for the job, overriding the "+
+			"JobConfig's concurrency policy.")
 
 	return cmd
 }
 
-func (c *RunCommand) Run(ctx context.Context, cmd *cobra.Command, args []string) error {
+func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
 	namespace, err := GetNamespace(cmd)
 	if err != nil {

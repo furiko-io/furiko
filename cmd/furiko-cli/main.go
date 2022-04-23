@@ -20,15 +20,17 @@ import (
 	"fmt"
 	"os"
 
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
-	"github.com/furiko-io/furiko/pkg/cli/util/prompt"
+	"github.com/furiko-io/furiko/pkg/cli/prompt"
 )
 
 func main() {
 	ctx := ctrl.SetupSignalHandler()
-	err := cmd.NewRootCommand(ctx).Execute()
+	ioStreams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	err := cmd.NewRootCommand(ioStreams).ExecuteContext(ctx)
 	if err != nil {
 		// Special handling: Do not raise interrupts as errors, but simply return the
 		// exit code when signaled by SIGINT.
