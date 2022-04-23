@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
@@ -105,7 +104,6 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 		name       string
 		jobConfigs []*execution.JobConfig
 		configs    map[configv1alpha1.ConfigName]runtime.Object
-		log        klog.Level
 		steps      []step
 	}{
 		{
@@ -357,8 +355,6 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutils.SetLogLevel(tt.log)
-
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 

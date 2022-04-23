@@ -3,22 +3,28 @@ module github.com/furiko-io/furiko
 go 1.17
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.3.4
 	github.com/davecgh/go-spew v1.1.1
+	github.com/fatih/color v1.13.0
 	github.com/furiko-io/cronexpr v0.1.1
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.1.2
 	github.com/imdario/mergo v0.3.12
+	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/mitchellh/go-testing-interface v1.0.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/nleeper/goment v1.4.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
+	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
+	github.com/xeonx/timeago v1.0.0-rc4
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gomodules.xyz/jsonpatch/v2 v2.2.0
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
+	k8s.io/cli-runtime v0.23.0
 	k8s.io/client-go v0.23.0
 	k8s.io/klog/v2 v2.30.0
 	k8s.io/kubernetes v1.23.0
@@ -40,8 +46,15 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
+	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
+	github.com/mattn/go-colorable v0.1.9 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
+	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -50,6 +63,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.28.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tkuchiki/go-timezone v0.2.0 // indirect
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a // indirect

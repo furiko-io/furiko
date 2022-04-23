@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-package util
+package cmd
 
 import (
-	"os"
+	"context"
 
-	"github.com/pkg/errors"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"github.com/spf13/cobra"
 )
 
-// UnmarshalFromFile reads and unmarshals a YAML or JSON file into out.
-// If filePath is empty, nothing will be done.
-func UnmarshalFromFile(filePath string, out interface{}) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return errors.Wrapf(err, "cannot open %v", filePath)
+func NewGetCommand(ctx context.Context) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "get",
+		Short: "Get a single resource.",
 	}
-	defer func() { _ = file.Close() }()
-	decoder := utilyaml.NewYAMLOrJSONDecoder(file, 4096)
-	return decoder.Decode(out)
+
+	// Add common flags
+	cmd.PersistentFlags().StringP("output", "o", "pretty",
+		"Output format. One of: pretty|json|yaml|name")
+
+	cmd.AddCommand(NewGetJobCommand(ctx))
+	cmd.AddCommand(NewGetJobConfigCommand(ctx))
+
+	return cmd
 }

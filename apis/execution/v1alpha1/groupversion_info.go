@@ -26,8 +26,10 @@ import (
 const (
 	Version = "v1alpha1"
 
-	KindJob       = "Job"
-	KindJobConfig = "JobConfig"
+	KindJob           = "Job"
+	KindJobConfig     = "JobConfig"
+	KindJobList       = "JobList"
+	KindJobConfigList = "JobConfigList"
 )
 
 var (
@@ -49,8 +51,10 @@ var SchemeGroupVersion = schema.GroupVersion{
 
 // Declare schema.GroupVersionKind for each Kind in this Group.
 var (
-	GVKJob       = SchemeGroupVersion.WithKind(KindJob)
-	GVKJobConfig = SchemeGroupVersion.WithKind(KindJobConfig)
+	GVKJob           = SchemeGroupVersion.WithKind(KindJob)
+	GVKJobConfig     = SchemeGroupVersion.WithKind(KindJobConfig)
+	GVKJobList       = SchemeGroupVersion.WithKind(KindJobList)
+	GVKJobConfigList = SchemeGroupVersion.WithKind(KindJobConfigList)
 )
 
 func Resource(resource string) schema.GroupResource {
