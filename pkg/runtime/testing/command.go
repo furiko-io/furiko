@@ -30,6 +30,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
+	"github.com/furiko-io/furiko/pkg/cli/console"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 )
@@ -74,7 +75,7 @@ type CommandTest struct {
 type Input struct {
 	// If specified, the procedure will be called with a pseudo-TTY. The console
 	// argument can be used to expect and send values to the TTY.
-	Procedure func(console *streams.Console)
+	Procedure func(console *console.Console)
 }
 
 type Output struct {
@@ -123,14 +124,14 @@ func (c *CommandTest) Run(t *testing.T) {
 // Reference:
 // https://github.com/AlecAivazis/survey/blob/93657ef69381dd1ffc7a4a9cfe5a2aefff4ca4ad/survey_posix_test.go#L15
 func (c *CommandTest) runCommand(t *testing.T, iostreams genericclioptions.IOStreams) bool {
-	console, err := streams.NewConsole(iostreams.Out)
+	console, err := console.NewConsole(iostreams.Out)
 	if err != nil {
 		t.Fatalf("failed to create console: %v", err)
 	}
 	defer console.Close()
 
 	// Prepare root command.
-	command := cmd.NewRootCommand(streams.NewConsoleStreams(console))
+	command := cmd.NewRootCommand(streams.NewTTYStreams(console.Tty()))
 	command.SetArgs(c.Args)
 
 	// Pass input to the pty.
