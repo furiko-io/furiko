@@ -85,7 +85,7 @@ func (c *CommandTest) Run(t *testing.T) {
 
 	// Prepare root command.
 	streams, _, stdout, stderr := genericclioptions.NewTestIOStreams()
-	command := cmd.NewRootCommand(streams)
+	command := cmd.NewRootCommand(cmd.NewStreams(streams))
 
 	// Set args and execute.
 	command.SetArgs(c.Args)

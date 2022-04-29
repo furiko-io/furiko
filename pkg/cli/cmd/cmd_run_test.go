@@ -14,29 +14,23 @@
  * limitations under the License.
  */
 
-package cmd
+package cmd_test
 
 import (
-	"fmt"
-	"strings"
+	"testing"
 
-	"github.com/spf13/cobra"
-
-	"github.com/furiko-io/furiko/pkg/cli/printer"
+	"github.com/furiko-io/furiko/pkg/cli/cmd"
+	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 )
 
-func NewGetCommand(streams *Streams) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one or more resources by name.",
-	}
-
-	// Add common flags
-	cmd.PersistentFlags().StringP("output", "o", string(printer.OutputFormatPretty),
-		fmt.Sprintf("Output format. One of: %v", strings.Join(printer.GetAllOutputFormatStrings(), "|")))
-
-	cmd.AddCommand(NewGetJobCommand(streams))
-	cmd.AddCommand(NewGetJobConfigCommand(streams))
-
-	return cmd
+func TestRunCommand(t *testing.T) {
+	runtimetesting.RunCommandTests(t, []runtimetesting.CommandTest{
+		{
+			Name: "display help",
+			Args: []string{"run", "--help"},
+			Stdout: runtimetesting.Output{
+				Contains: cmd.RunExample,
+			},
+		},
+	})
 }

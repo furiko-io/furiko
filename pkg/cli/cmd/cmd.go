@@ -19,7 +19,6 @@ package cmd
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 
 	"github.com/furiko-io/furiko/pkg/utils/logging"
@@ -37,11 +36,11 @@ type RootCommand struct {
 	dynConfigName      string
 	dynConfigNamespace string
 
-	streams genericclioptions.IOStreams
+	streams *Streams
 }
 
 // NewRootCommand returns a new root command for the command-line utility.
-func NewRootCommand(streams genericclioptions.IOStreams) *cobra.Command {
+func NewRootCommand(streams *Streams) *cobra.Command {
 	c := &RootCommand{
 		streams: streams,
 	}
@@ -56,8 +55,7 @@ func NewRootCommand(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	// Set IO streams.
-	cmd.SetOut(streams.Out)
-	cmd.SetErr(streams.ErrOut)
+	streams.SetCmdOutput(cmd)
 
 	flags := cmd.PersistentFlags()
 	flags.StringVar(&c.kubeconfig, "kubeconfig", "",

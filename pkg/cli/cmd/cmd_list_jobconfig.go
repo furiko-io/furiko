@@ -17,13 +17,11 @@
 package cmd
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
@@ -40,10 +38,10 @@ var (
 )
 
 type ListJobConfigCommand struct {
-	streams genericclioptions.IOStreams
+	streams *Streams
 }
 
-func NewListJobConfigCommand(streams genericclioptions.IOStreams) *cobra.Command {
+func NewListJobConfigCommand(streams *Streams) *cobra.Command {
 	c := &ListJobConfigCommand{
 		streams: streams,
 	}
@@ -80,7 +78,7 @@ func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(jobConfigList.Items) == 0 {
-		_, _ = fmt.Fprintf(c.streams.Out, "No job configs found in %v namespace.\n", namespace)
+		c.streams.Printf("No job configs found in %v namespace.\n", namespace)
 		return nil
 	}
 

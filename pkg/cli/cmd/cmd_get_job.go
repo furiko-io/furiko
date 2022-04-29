@@ -22,7 +22,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
@@ -43,10 +42,10 @@ var (
 )
 
 type GetJobCommand struct {
-	streams genericclioptions.IOStreams
+	streams *Streams
 }
 
-func NewGetJobCommand(streams genericclioptions.IOStreams) *cobra.Command {
+func NewGetJobCommand(streams *Streams) *cobra.Command {
 	c := &GetJobCommand{
 		streams: streams,
 	}

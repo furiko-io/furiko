@@ -21,12 +21,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 )
 
-func NewListCommand(streams genericclioptions.IOStreams) *cobra.Command {
+func NewListCommand(streams *Streams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all resources by kind.",

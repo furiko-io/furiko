@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -35,7 +34,7 @@ import (
 )
 
 var (
-	runExample = PrepareExample(`
+	RunExample = PrepareExample(`
 # Start a new Job from an existing JobConfig.
 {{.CommandName}} run daily-send-email
 
@@ -49,7 +48,7 @@ var (
 )
 
 type RunCommand struct {
-	streams           genericclioptions.IOStreams
+	streams           *Streams
 	name              string
 	noInteractive     bool
 	useDefaultOptions bool
@@ -57,7 +56,7 @@ type RunCommand struct {
 	concurrencyPolicy string
 }
 
-func NewRunCommand(streams genericclioptions.IOStreams) *cobra.Command {
+func NewRunCommand(streams *Streams) *cobra.Command {
 	c := &RunCommand{
 		streams: streams,
 	}
@@ -68,7 +67,7 @@ func NewRunCommand(streams genericclioptions.IOStreams) *cobra.Command {
 		Long: `Runs a new Job from an existing JobConfig.
 
 If the JobConfig has some options defined, an interactive prompt will be shown.`,
-		Example: runExample,
+		Example: RunExample,
 		Args:    cobra.ExactArgs(1),
 		PreRunE: PrerunWithKubeconfig,
 		RunE:    c.Run,
@@ -156,7 +155,7 @@ func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "key func error")
 	}
 
-	fmt.Printf("Job %v created\n", key)
+	_, _ = fmt.Fprintf(c.streams.Out, "Job %v created\n", key)
 	return nil
 }
 
