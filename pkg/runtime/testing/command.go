@@ -19,6 +19,7 @@ package testing
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 )
 
@@ -52,6 +54,9 @@ type CommandTest struct {
 	// Fixtures to be created prior to calling the command.
 	Fixtures []runtime.Object
 
+	// Input rules for standard input.
+	Stdin Input
+
 	// Output rules for standard output.
 	Stdout Output
 
@@ -61,6 +66,15 @@ type CommandTest struct {
 	// Whether an error is expected, and if so, specifies a function to check if the
 	// error is equal.
 	WantError assert.ErrorAssertionFunc
+
+	// List of actions that we expect to see.
+	WantActions CombinedActions
+}
+
+type Input struct {
+	// If specified, the procedure will be called with a pseudo-TTY. The console
+	// argument can be used to expect and send values to the TTY.
+	Procedure func(console *streams.Console)
 }
 
 type Output struct {
@@ -72,6 +86,9 @@ type Output struct {
 
 	// If specified, expects the output to contain all the given strings.
 	ContainsAll []string
+
+	// If specified, expects the output to match the specified regexp.
+	Matches *regexp.Regexp
 }
 
 func (c *CommandTest) Run(t *testing.T) {
@@ -81,32 +98,65 @@ func (c *CommandTest) Run(t *testing.T) {
 	// Override the shared context.
 	ctrlContext := mock.NewContext()
 	cmd.SetCtrlContext(ctrlContext)
-	assert.NoError(t, InitFixtures(ctx, ctrlContext.Clientsets(), c.Fixtures))
+	client := ctrlContext.MockClientsets()
+	assert.NoError(t, InitFixtures(ctx, client, c.Fixtures))
+	client.ClearActions()
 
-	// Prepare root command.
-	streams, _, stdout, stderr := genericclioptions.NewTestIOStreams()
-	command := cmd.NewRootCommand(cmd.NewStreams(streams))
-
-	// Set args and execute.
-	command.SetArgs(c.Args)
-	err := command.Execute()
-
-	// Check for error.
-	wantError := c.WantError
-	if wantError == nil {
-		wantError = assert.NoError
-	}
-	wantError(t, err, fmt.Sprintf("Run error with args: %v", c.Args))
-	if err != nil {
+	// Run command with I/O.
+	iostreams, _, stdout, stderr := genericclioptions.NewTestIOStreams()
+	if c.runCommand(t, iostreams) {
 		return
 	}
 
 	// Ensure that output matches.
 	c.checkOutput(t, "stdout", stdout.String(), c.Stdout)
 	c.checkOutput(t, "stderr", stderr.String(), c.Stderr)
+
+	// Compare actions.
+	CompareActions(t, c.WantActions.Kubernetes, client.KubernetesMock().Actions())
+	CompareActions(t, c.WantActions.Furiko, client.FurikoMock().Actions())
+}
+
+// runCommand will execute the command, setting up all I/O streams and blocking
+// until the streams are done.
+//
+// Reference:
+// https://github.com/AlecAivazis/survey/blob/93657ef69381dd1ffc7a4a9cfe5a2aefff4ca4ad/survey_posix_test.go#L15
+func (c *CommandTest) runCommand(t *testing.T, iostreams genericclioptions.IOStreams) bool {
+	console, err := streams.NewConsole(iostreams.Out)
+	if err != nil {
+		t.Fatalf("failed to create console: %v", err)
+	}
+	defer console.Close()
+
+	// Prepare root command.
+	command := cmd.NewRootCommand(streams.NewConsoleStreams(console))
+	command.SetArgs(c.Args)
+
+	// Pass input to the pty.
+	done := console.Run(c.Stdin.Procedure)
+
+	// Execute command.
+	if WantError(t, c.WantError, command.Execute(), fmt.Sprintf("Run error with args: %v", c.Args)) {
+		return true
+	}
+
+	// TODO(irvinlim): We need a sleep here otherwise tests will be flaky
+	time.Sleep(time.Millisecond * 5)
+
+	// Wait for tty to be closed.
+	if err := console.Tty().Close(); err != nil {
+		t.Errorf("error closing Tty: %v", err)
+	}
+	<-done
+
+	return false
 }
 
 func (c *CommandTest) checkOutput(t *testing.T, name, s string, output Output) {
+	// Replace all CRLF from PTY back to normal LF.
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+
 	if output.Exact != "" && s != output.Exact {
 		t.Errorf("Output in %v not equal\ndiff = %v", name, cmp.Diff(output.Exact, s))
 	}
@@ -120,6 +170,12 @@ func (c *CommandTest) checkOutput(t *testing.T, name, s string, output Output) {
 			if !strings.Contains(s, contains) {
 				t.Errorf(`Output in %v did not contain expected string "%v", got: %v`, name, contains, s)
 			}
+		}
+	}
+
+	if output.Matches != nil {
+		if !output.Matches.MatchString(s) {
+			t.Errorf(`Output in %v did not match regex "%v", got: %v`, name, output.Matches, s)
 		}
 	}
 }

@@ -14,30 +14,40 @@
  * limitations under the License.
  */
 
-package main
+package streams
 
 import (
-	"fmt"
-	"os"
+	"io"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/furiko-io/furiko/pkg/cli/cmd"
-	"github.com/furiko-io/furiko/pkg/cli/prompt"
-	"github.com/furiko-io/furiko/pkg/cli/streams"
+	"github.com/AlecAivazis/survey/v2/terminal"
 )
 
-func main() {
-	ctx := ctrl.SetupSignalHandler()
-	err := cmd.NewRootCommand(streams.NewStdStreams()).ExecuteContext(ctx)
-	if err != nil {
-		// Special handling: Do not raise interrupts as errors, but simply return the
-		// exit code when signaled by SIGINT.
-		if prompt.IsInterruptError(err) {
-			os.Exit(130)
-		}
+type FileReader struct {
+	io.Reader
+	fd uintptr
+}
 
-		fmt.Printf("%v\n", err)
-		os.Exit(1)
-	}
+var _ terminal.FileReader = (*FileReader)(nil)
+
+func NewFileReader(reader io.Reader, fd uint) *FileReader {
+	return &FileReader{Reader: reader, fd: uintptr(fd)}
+}
+
+func (f *FileReader) Fd() uintptr {
+	return f.fd
+}
+
+type FileWriter struct {
+	io.Writer
+	fd uintptr
+}
+
+var _ terminal.FileWriter = (*FileWriter)(nil)
+
+func NewFileWriter(reader io.Writer, fd uint) *FileWriter {
+	return &FileWriter{Writer: reader, fd: uintptr(fd)}
+}
+
+func (f *FileWriter) Fd() uintptr {
+	return f.fd
 }

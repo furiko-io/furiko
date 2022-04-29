@@ -23,9 +23,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/furiko-io/furiko/pkg/cli/printer"
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
 
-func NewListCommand(streams *Streams) *cobra.Command {
+func NewListCommand(streams *streams.Streams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all resources by kind.",

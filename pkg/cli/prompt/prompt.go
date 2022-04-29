@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
 
 // Prompt knows how to prompt the user for input, and returns the formatted
@@ -34,23 +35,24 @@ type Prompt interface {
 }
 
 // MakePrompt returns a general Prompt based on the given Option.
-func MakePrompt(option execution.Option) (Prompt, error) {
+func MakePrompt(streams *streams.Streams, option execution.Option) (Prompt, error) {
 	switch option.Type {
 	case execution.OptionTypeBool:
-		return NewBoolPrompt(option), nil
+		return NewBoolPrompt(streams, option), nil
 	case execution.OptionTypeString:
-		return NewStringPrompt(option), nil
+		return NewStringPrompt(streams, option), nil
 	case execution.OptionTypeSelect:
-		return NewSelectPrompt(option), nil
+		return NewSelectPrompt(streams, option), nil
 	case execution.OptionTypeMulti:
-		return NewMultiPrompt(option), nil
+		return NewMultiPrompt(streams, option), nil
 	case execution.OptionTypeDate:
-		return NewDatePrompt(option), nil
+		return NewDatePrompt(streams, option), nil
 	}
 	return nil, fmt.Errorf("unhandled option type: %v", option.Type)
 }
 
 type boolPrompt struct {
+	s      *streams.Streams
 	cfg    *execution.BoolOptionConfig
 	survey *survey.Confirm
 }
@@ -58,13 +60,14 @@ type boolPrompt struct {
 var _ Prompt = (*boolPrompt)(nil)
 
 // NewBoolPrompt returns a new Prompt from a Bool option.
-func NewBoolPrompt(option execution.Option) Prompt {
+func NewBoolPrompt(s *streams.Streams, option execution.Option) Prompt {
 	cfg := option.Bool
 	if cfg == nil {
 		cfg = &execution.BoolOptionConfig{}
 	}
 	return &boolPrompt{
 		cfg: cfg,
+		s:   s,
 		survey: &survey.Confirm{
 			Message: MakeLabel(option),
 			Default: cfg.Default,
@@ -74,13 +77,18 @@ func NewBoolPrompt(option execution.Option) Prompt {
 
 func (p *boolPrompt) Run() (interface{}, error) {
 	var resp bool
-	if err := survey.AskOne(p.survey, &resp); err != nil {
+	if err := survey.AskOne(
+		p.survey,
+		&resp,
+		survey.WithStdio(p.s.In, p.s.Out, p.s.ErrOut),
+	); err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
 type stringPrompt struct {
+	s      *streams.Streams
 	option execution.Option
 	cfg    *execution.StringOptionConfig
 	survey *survey.Input
@@ -89,13 +97,14 @@ type stringPrompt struct {
 var _ Prompt = (*stringPrompt)(nil)
 
 // NewStringPrompt returns a Prompt from a String option.
-func NewStringPrompt(option execution.Option) Prompt {
+func NewStringPrompt(s *streams.Streams, option execution.Option) Prompt {
 	cfg := option.String
 	if cfg == nil {
 		cfg = &execution.StringOptionConfig{}
 	}
 
 	return &stringPrompt{
+		s:      s,
 		option: option,
 		cfg:    cfg,
 		survey: &survey.Input{
@@ -111,6 +120,7 @@ func (p *stringPrompt) Run() (interface{}, error) {
 		p.survey,
 		&resp,
 		survey.WithValidator(ValidateStringRequired(p.option.Required)),
+		survey.WithStdio(p.s.In, p.s.Out, p.s.ErrOut),
 	); err != nil {
 		return nil, err
 	}
@@ -118,6 +128,7 @@ func (p *stringPrompt) Run() (interface{}, error) {
 }
 
 type selectPrompt struct {
+	s      *streams.Streams
 	cfg    *execution.SelectOptionConfig
 	survey *survey.Select
 	option execution.Option
@@ -126,12 +137,13 @@ type selectPrompt struct {
 var _ Prompt = (*selectPrompt)(nil)
 
 // NewSelectPrompt returns a new Prompt from a Select option.
-func NewSelectPrompt(option execution.Option) Prompt {
+func NewSelectPrompt(s *streams.Streams, option execution.Option) Prompt {
 	cfg := option.Select
 	if cfg == nil {
 		cfg = &execution.SelectOptionConfig{}
 	}
 	return &selectPrompt{
+		s:      s,
 		cfg:    cfg,
 		option: option,
 		survey: &survey.Select{
@@ -148,6 +160,7 @@ func (p *selectPrompt) Run() (interface{}, error) {
 		p.survey,
 		&resp,
 		survey.WithValidator(ValidateStringRequired(p.option.Required)),
+		survey.WithStdio(p.s.In, p.s.Out, p.s.ErrOut),
 	); err != nil {
 		return nil, err
 	}
@@ -155,6 +168,7 @@ func (p *selectPrompt) Run() (interface{}, error) {
 }
 
 type multiPrompt struct {
+	s      *streams.Streams
 	cfg    *execution.MultiOptionConfig
 	survey *survey.MultiSelect
 	option execution.Option
@@ -163,13 +177,14 @@ type multiPrompt struct {
 var _ Prompt = (*multiPrompt)(nil)
 
 // NewMultiPrompt returns a new Prompt from a Multi option.
-func NewMultiPrompt(option execution.Option) Prompt {
+func NewMultiPrompt(s *streams.Streams, option execution.Option) Prompt {
 	cfg := option.Multi
 	if cfg == nil {
 		cfg = &execution.MultiOptionConfig{}
 	}
 
 	return &multiPrompt{
+		s:      s,
 		cfg:    cfg,
 		option: option,
 		survey: &survey.MultiSelect{
@@ -186,6 +201,7 @@ func (p *multiPrompt) Run() (interface{}, error) {
 		p.survey,
 		&value,
 		survey.WithValidator(ValidateMultiRequired(p.option.Required)),
+		survey.WithStdio(p.s.In, p.s.Out, p.s.ErrOut),
 	); err != nil {
 		return nil, err
 	}
@@ -193,6 +209,7 @@ func (p *multiPrompt) Run() (interface{}, error) {
 }
 
 type datePrompt struct {
+	s      *streams.Streams
 	option execution.Option
 	cfg    *execution.DateOptionConfig
 	survey *survey.Input
@@ -201,13 +218,14 @@ type datePrompt struct {
 var _ Prompt = (*datePrompt)(nil)
 
 // NewDatePrompt returns a new Prompt from a Date option.
-func NewDatePrompt(option execution.Option) Prompt {
+func NewDatePrompt(s *streams.Streams, option execution.Option) Prompt {
 	cfg := option.Date
 	if cfg == nil {
 		cfg = &execution.DateOptionConfig{}
 	}
 
 	return &datePrompt{
+		s:      s,
 		cfg:    cfg,
 		option: option,
 		survey: &survey.Input{
@@ -229,6 +247,7 @@ func (p *datePrompt) Run() (interface{}, error) {
 		&value,
 		survey.WithValidator(ValidateStringRequired(p.option.Required)),
 		survey.WithValidator(ValidateDate),
+		survey.WithStdio(p.s.In, p.s.Out, p.s.ErrOut),
 	); err != nil {
 		return nil, err
 	}

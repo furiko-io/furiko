@@ -14,30 +14,8 @@
  * limitations under the License.
  */
 
-package main
+package cmd_test
 
-import (
-	"fmt"
-	"os"
-
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/furiko-io/furiko/pkg/cli/cmd"
-	"github.com/furiko-io/furiko/pkg/cli/prompt"
-	"github.com/furiko-io/furiko/pkg/cli/streams"
+const (
+	DefaultNamespace = "default"
 )
-
-func main() {
-	ctx := ctrl.SetupSignalHandler()
-	err := cmd.NewRootCommand(streams.NewStdStreams()).ExecuteContext(ctx)
-	if err != nil {
-		// Special handling: Do not raise interrupts as errors, but simply return the
-		// exit code when signaled by SIGINT.
-		if prompt.IsInterruptError(err) {
-			os.Exit(130)
-		}
-
-		fmt.Printf("%v\n", err)
-		os.Exit(1)
-	}
-}

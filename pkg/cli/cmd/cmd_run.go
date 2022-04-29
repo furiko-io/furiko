@@ -19,17 +19,20 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/prompt"
+	streams2 "github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/core/options"
 )
 
@@ -48,15 +51,16 @@ var (
 )
 
 type RunCommand struct {
-	streams           *Streams
+	streams           *streams2.Streams
 	name              string
 	noInteractive     bool
 	useDefaultOptions bool
 	startAfter        string
 	concurrencyPolicy string
+	displayIntro      sync.Once
 }
 
-func NewRunCommand(streams *Streams) *cobra.Command {
+func NewRunCommand(streams *streams2.Streams) *cobra.Command {
 	c := &RunCommand{
 		streams: streams,
 	}
@@ -155,7 +159,7 @@ func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "key func error")
 	}
 
-	_, _ = fmt.Fprintf(c.streams.Out, "Job %v created\n", key)
+	c.streams.Printf("Job %v created\n", key)
 	return nil
 }
 
@@ -190,53 +194,78 @@ func (c *RunCommand) makeJobOptionValues(jobConfig *execution.JobConfig) (string
 		return "", nil
 	}
 
-	var displayedIntro bool
 	values := make(map[string]interface{}, len(jobConfig.Spec.Option.Options))
 	for _, option := range jobConfig.Spec.Option.Options {
-		var value interface{}
-
-		// Use the default value if defined by flag.
-		if c.useDefaultOptions {
-			defaultValue, err := options.GetOptionDefaultValue(option)
-			if err != nil {
-				return "", errors.Wrapf(err, `cannot get default value for option "%v"`, option.Name)
-			}
-			value = defaultValue
-			klog.V(4).Infof(`using default value for option "%v": %v`, option.Name, value)
+		value, err := c.makeJobOptionValue(option)
+		if err != nil {
+			return "", err
 		}
-
-		// Display interactive prompt unless omitted by user.
-		if value == nil && !c.noInteractive {
-			// Display introductory message once.
-			if !displayedIntro {
-				color.HiBlack("Please input option values.\n")
-				displayedIntro = true
-			}
-
-			prompter, err := prompt.MakePrompt(option)
-			if err != nil {
-				return "", errors.Wrapf(err, "cannot make prompt for option: %v", option.Name)
-			}
-			newValue, err := prompter.Run()
-			if err != nil {
-				return "", errors.Wrapf(err, "prompt error")
-			}
-
-			klog.V(4).Infof(`prompt evaluated option "%v" value: "%v"`, option.Name, value)
-			value = newValue
-		}
-
-		// Finally, add to the map only if non-nil.
 		if value != nil {
 			values[option.Name] = value
 		}
 	}
 
-	marshaled, err := json.Marshal(values)
-	if err != nil {
-		return "", errors.Wrapf(err, "marshal error")
+	// Marshal the result.
+	var result string
+	if len(values) > 0 {
+		marshaled, err := json.Marshal(values)
+		if err != nil {
+			return "", errors.Wrapf(err, "marshal error")
+		}
+		klog.V(2).InfoS("evaluated option values", "optionValues", string(marshaled))
+		result = string(marshaled)
 	}
-	klog.V(2).InfoS("evaluated option values", "optionValues", string(marshaled))
 
-	return string(marshaled), nil
+	return result, nil
+}
+
+func (c *RunCommand) makeJobOptionValue(option execution.Option) (interface{}, error) {
+	var hasDefaultValue bool
+
+	// If flag is defined to use default options, first check if we can use default value.
+	if c.useDefaultOptions {
+		ok, err := c.checkOptionValueHasDefault(option)
+		if err != nil {
+			return nil, err
+		}
+		hasDefaultValue = ok
+	}
+
+	var value interface{}
+
+	// Don't need to display interactive prompt if we got a default value just now.
+	// However, we also don't display the prompt if the user specifies
+	// --no-interactive (e.g. for use in scripts).
+	if !hasDefaultValue && !c.noInteractive {
+		c.displayIntro.Do(func() { color.HiBlack("Please input option values.\n") })
+		prompter, err := prompt.MakePrompt(c.streams, option)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot make prompt for option: %v", option.Name)
+		}
+		newValue, err := prompter.Run()
+		if err != nil {
+			return nil, errors.Wrapf(err, "prompt error")
+		}
+		klog.V(4).Infof(`prompt evaluated option "%v" value: "%v"`, option.Name, value)
+		value = newValue
+	}
+
+	return value, nil
+}
+
+func (c *RunCommand) checkOptionValueHasDefault(option execution.Option) (bool, error) {
+	// Get default value.
+	defaultValue, err := options.GetOptionDefaultValue(option)
+	if err != nil {
+		return false, errors.Wrapf(err, `cannot get default value for option "%v"`, option.Name)
+	}
+
+	// Evaluate the option, and check if a Required error is thrown.
+	// Each option may handle Required checking differently.
+	_, fieldErr := options.EvaluateOption(defaultValue, option, field.NewPath(""))
+	if fieldErr != nil && fieldErr.Type != field.ErrorTypeRequired {
+		return false, errors.Wrapf(err, `cannot evaluate option "%v"`, option.Name)
+	}
+
+	return fieldErr == nil, nil
 }

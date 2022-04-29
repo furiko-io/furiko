@@ -235,7 +235,7 @@ func (r *ReconcilerTest) initClientset(
 
 	// Wait for cache sync
 	// NOTE(irvinlim): Add a short delay otherwise cache may not sync consistently
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 50)
 	if !cache.WaitForCacheSync(ctx.Done(), hasSynced...) {
 		return nil, errors.New("caches not synced")
 	}

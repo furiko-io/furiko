@@ -31,6 +31,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
+	streams2 "github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
 )
@@ -48,10 +49,10 @@ var (
 )
 
 type GetJobConfigCommand struct {
-	streams *Streams
+	streams *streams2.Streams
 }
 
-func NewGetJobConfigCommand(streams *Streams) *cobra.Command {
+func NewGetJobConfigCommand(streams *streams2.Streams) *cobra.Command {
 	c := &GetJobConfigCommand{
 		streams: streams,
 	}

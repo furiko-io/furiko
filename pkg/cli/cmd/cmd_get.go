@@ -23,9 +23,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/furiko-io/furiko/pkg/cli/printer"
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
 
-func NewGetCommand(streams *Streams) *cobra.Command {
+func NewGetCommand(streams *streams.Streams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "Get one or more resources by name.",

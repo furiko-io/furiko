@@ -4,11 +4,14 @@ go 1.17
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.4
+	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
+	github.com/creack/pty v1.1.17
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.13.0
 	github.com/furiko-io/cronexpr v0.1.1
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.1.2
+	github.com/hinshun/vt10x v0.0.0-20220119200601-820417d04eec
 	github.com/imdario/mergo v0.3.12
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/kr/text v0.2.0

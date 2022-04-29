@@ -32,7 +32,7 @@ var (
 	periodicJobConfig = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "periodic-jobconfig",
-			Namespace: "default",
+			Namespace: DefaultNamespace,
 		},
 		Spec: execution.JobConfigSpec{
 			Concurrency: execution.ConcurrencySpec{
@@ -53,7 +53,7 @@ var (
 	adhocJobConfig = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "adhoc-jobconfig",
-			Namespace: "default",
+			Namespace: DefaultNamespace,
 		},
 		Spec: execution.JobConfigSpec{
 			Concurrency: execution.ConcurrencySpec{

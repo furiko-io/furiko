@@ -42,7 +42,7 @@ var (
 	jobRunning = &execution.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "job-running",
-			Namespace: "default",
+			Namespace: DefaultNamespace,
 		},
 		Status: execution.JobStatus{
 			Phase: execution.JobRunning,
@@ -70,7 +70,7 @@ var (
 	jobFinished = &execution.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "job-finished",
-			Namespace: "default",
+			Namespace: DefaultNamespace,
 		},
 		Status: execution.JobStatus{
 			Phase: execution.JobRetryLimitExceeded,
@@ -106,7 +106,7 @@ var (
 	jobQueued = &execution.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "job-queued",
-			Namespace: "default",
+			Namespace: DefaultNamespace,
 		},
 		Status: execution.JobStatus{
 			Phase: execution.JobQueued,

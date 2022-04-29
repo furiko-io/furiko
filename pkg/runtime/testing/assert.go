@@ -36,3 +36,13 @@ func AssertErrorIsNotFound() assert.ErrorAssertionFunc {
 		return assert.True(t, apierrors.IsNotFound(err), i...)
 	}
 }
+
+// WantError checks err against assert.ErrorAssertionFunc, returning true if an
+// error was encountered for short-circuiting.
+func WantError(t assert.TestingT, wantErr assert.ErrorAssertionFunc, err error, i ...interface{}) bool {
+	if wantErr == nil {
+		wantErr = assert.NoError
+	}
+	wantErr(t, err, i...)
+	return err != nil
+}

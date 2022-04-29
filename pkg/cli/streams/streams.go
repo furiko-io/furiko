@@ -14,37 +14,62 @@
  * limitations under the License.
  */
 
-package cmd
+package streams
 
 import (
 	"fmt"
+	"io"
 	"os"
 
+	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // Streams encapsulates I/O streams.
 type Streams struct {
-	genericclioptions.IOStreams
+	In     terminal.FileReader
+	Out    terminal.FileWriter
+	ErrOut io.Writer
 }
 
 // NewStdStreams returns a Streams object bound to stdin, stdout, stderr.
 func NewStdStreams() *Streams {
-	return NewStreams(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
+	return &Streams{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
+	}
 }
 
 // NewStreams returns a Streams object from an underlying genericclioptions.IOStreams.
 func NewStreams(streams genericclioptions.IOStreams) *Streams {
 	return &Streams{
-		IOStreams: streams,
+		In:     NewFileReader(streams.In, 0),
+		Out:    NewFileWriter(streams.Out, 1),
+		ErrOut: streams.ErrOut,
+	}
+}
+
+// NewConsoleStreams returns a Streams object from a Console.
+func NewConsoleStreams(console *Console) *Streams {
+	return &Streams{
+		In:     console.Tty(),
+		Out:    console.Tty(),
+		ErrOut: console.Tty(),
 	}
 }
 
 // SetCmdOutput updates the output streams of the command to itself.
 func (s *Streams) SetCmdOutput(cmd *cobra.Command) {
+	// Set cobra output
 	cmd.SetOut(s.Out)
 	cmd.SetErr(s.ErrOut)
+
+	// Set color output
+	color.Output = s.Out
+	color.Error = s.ErrOut
 }
 
 // Printf writes to the output stream.

@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/utils/logging"
 )
 
@@ -36,11 +37,11 @@ type RootCommand struct {
 	dynConfigName      string
 	dynConfigNamespace string
 
-	streams *Streams
+	streams *streams.Streams
 }
 
 // NewRootCommand returns a new root command for the command-line utility.
-func NewRootCommand(streams *Streams) *cobra.Command {
+func NewRootCommand(streams *streams.Streams) *cobra.Command {
 	c := &RootCommand{
 		streams: streams,
 	}
