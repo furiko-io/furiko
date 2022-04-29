@@ -33,6 +33,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
 	"github.com/furiko-io/furiko/pkg/runtime/httphandler"
 	"github.com/furiko-io/furiko/pkg/runtime/util"
+	"github.com/furiko-io/furiko/pkg/utils/yaml"
 )
 
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs,verbs=get;list;watch
@@ -61,7 +62,7 @@ func main() {
 	}
 
 	// Dump loaded configuration.
-	optionsMarshaled, err := util.Marshal(options)
+	optionsMarshaled, err := yaml.MarshalToString(options)
 	if err != nil {
 		klog.Fatalf("cannot marshal configuration: %v", err)
 	}

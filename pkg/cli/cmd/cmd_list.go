@@ -14,23 +14,30 @@
  * limitations under the License.
  */
 
-package util
+package cmd
 
 import (
-	"os"
+	"fmt"
+	"strings"
 
-	"github.com/pkg/errors"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"github.com/spf13/cobra"
+
+	"github.com/furiko-io/furiko/pkg/cli/printer"
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
 
-// UnmarshalFromFile reads and unmarshals a YAML or JSON file into out.
-// If filePath is empty, nothing will be done.
-func UnmarshalFromFile(filePath string, out interface{}) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return errors.Wrapf(err, "cannot open %v", filePath)
+func NewListCommand(streams *streams.Streams) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List all resources by kind.",
 	}
-	defer func() { _ = file.Close() }()
-	decoder := utilyaml.NewYAMLOrJSONDecoder(file, 4096)
-	return decoder.Decode(out)
+
+	// Add common flags
+	cmd.PersistentFlags().StringP("output", "o", string(printer.OutputFormatPretty),
+		fmt.Sprintf("Output format. One of: %v", strings.Join(printer.GetAllOutputFormatStrings(), "|")))
+
+	cmd.AddCommand(NewListJobCommand(streams))
+	cmd.AddCommand(NewListJobConfigCommand(streams))
+
+	return cmd
 }

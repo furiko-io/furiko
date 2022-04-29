@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 
-package testutils
+package logging
 
 import (
 	"flag"
 	"fmt"
 
+	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
 )
 
-// SetLogLevel updates the default klog log level.
-func SetLogLevel(level klog.Level) {
-	flagSet := flag.NewFlagSet("test", flag.PanicOnError)
+// SetLogLevel updates the klog log level. Any subsequent klog calls will then
+// use the new log level.
+func SetLogLevel(level klog.Level) error {
+	flagSet := flag.NewFlagSet("", flag.ContinueOnError)
 	klog.InitFlags(flagSet)
 	if err := flagSet.Parse([]string{fmt.Sprintf("-v=%v", level)}); err != nil {
-		panic(err)
+		return errors.Wrapf(err, "cannot parse log level")
 	}
+	return nil
 }

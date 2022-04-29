@@ -25,15 +25,12 @@ import (
 	testinginterface "github.com/mitchellh/go-testing-interface"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
 	ktesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 
-	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/runtime/reconciler"
@@ -213,10 +210,8 @@ func (r *ReconcilerTest) initClientset(
 	hasSynced []cache.InformerSynced,
 ) (runtime.Object, error) {
 	// Set up all fixtures.
-	for _, fixture := range tt.Fixtures {
-		if err := r.initializeFixture(ctx, client, fixture); err != nil {
-			return nil, errors.Wrapf(err, "cannot initialize fixture %v", fixture)
-		}
+	if err := InitFixtures(ctx, client, tt.Fixtures); err != nil {
+		return nil, err
 	}
 
 	// Set up target fixture.
@@ -225,7 +220,7 @@ func (r *ReconcilerTest) initClientset(
 		target = tt.TargetGenerator()
 	}
 	if target != nil {
-		if err := r.initializeFixture(ctx, client, target); err != nil {
+		if err := InitFixture(ctx, client, target); err != nil {
 			return nil, errors.Wrapf(err, "cannot initialize target fixture")
 		}
 	}
@@ -240,7 +235,7 @@ func (r *ReconcilerTest) initClientset(
 
 	// Wait for cache sync
 	// NOTE(irvinlim): Add a short delay otherwise cache may not sync consistently
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 50)
 	if !cache.WaitForCacheSync(ctx.Done(), hasSynced...) {
 		return nil, errors.New("caches not synced")
 	}
@@ -284,23 +279,6 @@ func (r *ReconcilerTest) triggerReconcile(
 		fmt.Sprintf("Error in test %v", tt.Name))
 
 	return nil
-}
-
-func (r *ReconcilerTest) initializeFixture(
-	ctx context.Context,
-	client controllercontext.Clientsets,
-	fixture runtime.Object,
-) error {
-	var err error
-	switch f := fixture.(type) {
-	case *corev1.Pod:
-		_, err = client.Kubernetes().CoreV1().Pods(f.Namespace).Create(ctx, f, metav1.CreateOptions{})
-	case *execution.Job:
-		_, err = client.Furiko().ExecutionV1alpha1().Jobs(f.Namespace).Create(ctx, f, metav1.CreateOptions{})
-	case *execution.JobConfig:
-		_, err = client.Furiko().ExecutionV1alpha1().JobConfigs(f.Namespace).Create(ctx, f, metav1.CreateOptions{})
-	}
-	return err
 }
 
 func (r *ReconcilerTest) assertResult(

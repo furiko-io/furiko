@@ -14,23 +14,8 @@
  * limitations under the License.
  */
 
-package util
+package cmd_test
 
-import (
-	"os"
-
-	"github.com/pkg/errors"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+const (
+	DefaultNamespace = "default"
 )
-
-// UnmarshalFromFile reads and unmarshals a YAML or JSON file into out.
-// If filePath is empty, nothing will be done.
-func UnmarshalFromFile(filePath string, out interface{}) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return errors.Wrapf(err, "cannot open %v", filePath)
-	}
-	defer func() { _ = file.Close() }()
-	decoder := utilyaml.NewYAMLOrJSONDecoder(file, 4096)
-	return decoder.Decode(out)
-}

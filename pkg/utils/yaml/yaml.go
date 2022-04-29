@@ -14,23 +14,17 @@
  * limitations under the License.
  */
 
-package util
+package yaml
 
 import (
-	"os"
-
-	"github.com/pkg/errors"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"sigs.k8s.io/yaml"
 )
 
-// UnmarshalFromFile reads and unmarshals a YAML or JSON file into out.
-// If filePath is empty, nothing will be done.
-func UnmarshalFromFile(filePath string, out interface{}) error {
-	file, err := os.Open(filePath)
+// MarshalToString marshals the given input into a pretty-printed YAML string.
+func MarshalToString(input interface{}) (string, error) {
+	data, err := yaml.Marshal(input)
 	if err != nil {
-		return errors.Wrapf(err, "cannot open %v", filePath)
+		return "", err
 	}
-	defer func() { _ = file.Close() }()
-	decoder := utilyaml.NewYAMLOrJSONDecoder(file, 4096)
-	return decoder.Decode(out)
+	return string(data), nil
 }

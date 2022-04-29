@@ -14,39 +14,30 @@
  * limitations under the License.
  */
 
-package strings
+package main
 
 import (
-	"unicode"
+	"fmt"
+	"os"
+
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/furiko-io/furiko/pkg/cli/cmd"
+	"github.com/furiko-io/furiko/pkg/cli/prompt"
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
 
-// ContainsString returns true if the string s is contained in the slice of
-// strings strs.
-func ContainsString(strs []string, s string) bool {
-	for _, str := range strs {
-		if str == s {
-			return true
+func main() {
+	ctx := ctrl.SetupSignalHandler()
+	err := cmd.NewRootCommand(streams.NewStdStreams()).ExecuteContext(ctx)
+	if err != nil {
+		// Special handling: Do not raise interrupts as errors, but simply return the
+		// exit code when signaled by SIGINT.
+		if prompt.IsInterruptError(err) {
+			os.Exit(130)
 		}
-	}
-	return false
-}
 
-// IndexOf returns the index of s in strs.
-func IndexOf(strs []string, s string) (int, bool) {
-	for i, str := range strs {
-		if str == s {
-			return i, true
-		}
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
 	}
-	return -1, false
-}
-
-// Capitalize converts the first letter of s to uppercase.
-func Capitalize(s string) string {
-	if len(s) == 0 {
-		return s
-	}
-	r := []rune(s)
-	r[0] = unicode.ToUpper(r[0])
-	return string(r)
 }

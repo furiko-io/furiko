@@ -96,7 +96,11 @@ test: ## Run tests with coverage. Outputs to combined.cov.
 ##@ Building
 
 .PHONY: build
-build: build-execution-controller build-execution-webhook ## Build all Go binaries.
+build: build-furiko-cli build-execution-controller build-execution-webhook ## Build all Go binaries.
+
+.PHONY: build-furiko-cli
+build-furiko-cli: ## Build furiko-cli.
+	go build -o build/furiko ./cmd/furiko-cli
 
 .PHONY: build-execution-controller
 build-execution-controller: ## Build execution-controller.

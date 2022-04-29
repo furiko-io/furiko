@@ -14,39 +14,40 @@
  * limitations under the License.
  */
 
-package strings
+package streams
 
 import (
-	"unicode"
+	"io"
+
+	"github.com/AlecAivazis/survey/v2/terminal"
 )
 
-// ContainsString returns true if the string s is contained in the slice of
-// strings strs.
-func ContainsString(strs []string, s string) bool {
-	for _, str := range strs {
-		if str == s {
-			return true
-		}
-	}
-	return false
+type FileReader struct {
+	io.Reader
+	fd uintptr
 }
 
-// IndexOf returns the index of s in strs.
-func IndexOf(strs []string, s string) (int, bool) {
-	for i, str := range strs {
-		if str == s {
-			return i, true
-		}
-	}
-	return -1, false
+var _ terminal.FileReader = (*FileReader)(nil)
+
+func NewFileReader(reader io.Reader, fd uint) *FileReader {
+	return &FileReader{Reader: reader, fd: uintptr(fd)}
 }
 
-// Capitalize converts the first letter of s to uppercase.
-func Capitalize(s string) string {
-	if len(s) == 0 {
-		return s
-	}
-	r := []rune(s)
-	r[0] = unicode.ToUpper(r[0])
-	return string(r)
+func (f *FileReader) Fd() uintptr {
+	return f.fd
+}
+
+type FileWriter struct {
+	io.Writer
+	fd uintptr
+}
+
+var _ terminal.FileWriter = (*FileWriter)(nil)
+
+func NewFileWriter(reader io.Writer, fd uint) *FileWriter {
+	return &FileWriter{Writer: reader, fd: uintptr(fd)}
+}
+
+func (f *FileWriter) Fd() uintptr {
+	return f.fd
 }

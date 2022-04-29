@@ -14,23 +14,15 @@
  * limitations under the License.
  */
 
-package util
+package prompt
 
 import (
-	"os"
-
-	"github.com/pkg/errors"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 )
 
-// UnmarshalFromFile reads and unmarshals a YAML or JSON file into out.
-// If filePath is empty, nothing will be done.
-func UnmarshalFromFile(filePath string, out interface{}) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return errors.Wrapf(err, "cannot open %v", filePath)
+func MakeLabel(option execution.Option) string {
+	if option.Label != "" {
+		return option.Label
 	}
-	defer func() { _ = file.Close() }()
-	decoder := utilyaml.NewYAMLOrJSONDecoder(file, 4096)
-	return decoder.Decode(out)
+	return option.Name
 }
