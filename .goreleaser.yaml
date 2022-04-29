@@ -23,6 +23,16 @@ builds:
       - linux
     goarch:
       - amd64
+  - id: furiko-cli
+    main: ./cmd/furiko-cli
+    binary: furiko
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
 
 # Create archive for each entrypoint.
 archives:
