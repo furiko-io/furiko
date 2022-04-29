@@ -26,7 +26,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
-	"github.com/furiko-io/furiko/pkg/cli/streams"
+	"github.com/furiko-io/furiko/pkg/cli/console"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
@@ -276,7 +276,7 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdin: runtimetesting.Input{
-				Procedure: func(c *streams.Console) {
+				Procedure: func(c *console.Console) {
 					c.ExpectString("Full Name")
 					c.SendLine("John Smith")
 				},
@@ -301,7 +301,7 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdin: runtimetesting.Input{
-				Procedure: func(c *streams.Console) {
+				Procedure: func(c *console.Console) {
 					c.ExpectString("Full Name")
 					c.SendLine("John Smith")
 				},

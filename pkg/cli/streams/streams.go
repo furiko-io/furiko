@@ -52,12 +52,12 @@ func NewStreams(streams genericclioptions.IOStreams) *Streams {
 	}
 }
 
-// NewConsoleStreams returns a Streams object from a Console.
-func NewConsoleStreams(console *Console) *Streams {
+// NewTTYStreams returns a Streams object from a TTY file.
+func NewTTYStreams(tty *os.File) *Streams {
 	return &Streams{
-		In:     console.Tty(),
-		Out:    console.Tty(),
-		ErrOut: console.Tty(),
+		In:     tty,
+		Out:    tty,
+		ErrOut: tty,
 	}
 }
 
