@@ -25,12 +25,27 @@ endif
 # Set license header files.
 LICENSE_HEADER_GO ?= hack/boilerplate.go.txt
 
+# Set the registry name.
+IMAGE_REGISTRY ?= "docker.io"
+
 # Set image name prefix. The actual image name and tag will be appended to this.
-IMAGE_NAME_PREFIX ?= "docker.io/furikoio"
+IMAGE_NAME_PREFIX ?= "$(IMAGE_REGISTRY)/furikoio"
 
 # Define the image tag to use, otherwise will default to latest.
 # The latest tag always refers to the latest stable release.
 IMAGE_TAG ?= "latest"
+
+# Set the development registry where images will be pushed to.
+# This will only be used for Makefile targets related to local development.
+DEV_IMAGE_REGISTRY ?= "localhost:5000"
+
+# Set the development image name prefix. The actual image name and tag will be appended to this.
+# This will only be used for Makefile targets related to local development.
+DEV_IMAGE_NAME_PREFIX ?= "$(DEV_IMAGE_REGISTRY)/furikoio"
+
+# Define the image tag to use for development images.
+# This will only be used for Makefile targets related to local development.
+DEV_IMAGE_TAG ?= "dev"
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
@@ -56,7 +71,7 @@ all: manifests generate fmt build yaml ## Generate code, build Go binaries and Y
 
 .PHONY: help
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Development
 
@@ -164,6 +179,24 @@ deploy: manifests kustomize $(KUSTOMIZE_DEST) ## Deploys snapshot version of all
 undeploy: $(KUSTOMIZE_DEST) ## Undeploy controller from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build $(KUSTOMIZE_DEST) | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
+##@ Local Development
+
+.PHONY: dev
+dev: dev-build dev-push dev-deploy ## Builds local Docker images of all components and deploys them to the K8s cluster. Use the DEV_IMAGE_TAG environment variable to override the image tag, and DEV_IMAGE_REGISTRY to control the target registry to push to.
+
+.PHONY: dev-build
+dev-build: goreleaser ## Builds local Docker images of all components. Use the DEV_IMAGE_TAG environment variable to override the image tag that is built.
+	./hack/build-images.sh "$(DEV_IMAGE_TAG)"
+
+.PHONY: dev-push
+dev-push: ## Pushes all Docker images to the specified registry. Use the DEV_IMAGE_TAG environment variable to override the image tag, and DEV_IMAGE_REGISTRY to override the image registry to use (usually a local one).
+	./hack/push-images.sh "$(IMAGE_NAME_PREFIX)" "$(DEV_IMAGE_TAG)" "$(DEV_IMAGE_NAME_PREFIX)" "$(DEV_IMAGE_TAG)"
+
+.PHONY: dev-deploy
+dev-deploy: manifests kustomize $(KUSTOMIZE_DEST) ## Deploys a development version of all components to the K8s cluster. Use the DEV_IMAGE_TAG environment variable to override the image tag that is deployed.
+	DEST_DIR=$(KUSTOMIZE_DEST) ./hack/generate-kustomization.sh "$(DEV_IMAGE_NAME_PREFIX)" "$(DEV_IMAGE_TAG)"
+	$(KUSTOMIZE) build $(KUSTOMIZE_DEST) | kubectl apply -f -
+
 ##@ Release
 
 .PHONY: snapshot
@@ -185,6 +218,7 @@ GOIMPORTS ?= $(LOCALBIN)/goimports
 YQ ?= $(LOCALBIN)/yq
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 LICENSE_HEADER_CHECKER ?= $(LOCALBIN)/license-header-checker
+GORELEASER ?= $(LOCALBIN)/goreleaser
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
@@ -192,6 +226,7 @@ CONTROLLER_TOOLS_VERSION ?= v0.8.0
 YQ_VERSION ?= v4.14.1
 GOLANGCILINT_VERSION ?= v1.45.2
 LICENSEHEADERCHECKER_VERSION ?= v1.3.0
+GORELEASER_VERSION ?= v1.8.2
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -224,6 +259,11 @@ GOLANGCILINT_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/golangci/golan
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT):
 	@[ -f $(GOLANGCI_LINT) ] || curl -sSfL $(GOLANGCILINT_INSTALL_SCRIPT) | sh -s $(GOLANGCILINT_VERSION)
+
+.PHONY: goreleaser
+goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
+$(GORELEASER):
+	GOBIN=$(LOCALBIN) go install github.com/goreleaser/goreleaser@$(GORELEASER_VERSION)
 
 .PHONY: license-header-checker
 license-header-checker: $(LICENSE_HEADER_CHECKER) ## Download license-header-checker locally if necessary.
