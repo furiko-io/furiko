@@ -55,17 +55,15 @@ DEST_DIR="${DEST_DIR:-$(pwd)}"
 KUSTOMIZE="${KUSTOMIZE:-$(pwd)/bin/kustomize}"
 BASE_CONFIG="${BASE_CONFIG:-$(realpath --relative-to="${DEST_DIR}" "$(pwd)/config/default")}" # NOTE: Cannot be absolute, otherwise kustomize will complain
 
+# Get path to image names.
+DOCKER_IMAGES="$(pwd)/hack/docker-images.txt"
+
 # Create new kustomization.yaml to hold our substitution.
 cd "${DEST_DIR}"
 rm -f kustomization.yaml # Remove if exists
 "${KUSTOMIZE}" create --resources "${BASE_CONFIG}"
 
 # Add image fields.
-IMAGES=(
-  'execution-controller'
-  'execution-webhook'
-)
-for IMAGE in "${IMAGES[@]}"
-do
+while IFS= read -r IMAGE; do
   "${KUSTOMIZE}" edit set image "${IMAGE}=${IMAGE_NAME_PREFIX}/${IMAGE}:${IMAGE_TAG}"
-done
+done < "${DOCKER_IMAGES}"

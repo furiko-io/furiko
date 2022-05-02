@@ -18,36 +18,27 @@
 
 set -euo pipefail
 
-## Simple script that builds a snapshot of the current repository and pushes an image to Docker Hub.
-## Uses GoReleaser to build artifacts.
+## Simple script that builds a snapshot of the current repository as Docker images and pushes them to Docker Hub.
 ## Docker images will be pushed to Docker Hub using a snapshot version tag (e.g. `v1.2.3-next`).
+
+# Optional environment variables.
+GORELEASER="${GORELEASER:-$(pwd)/bin/goreleaser}"
+IMAGE_NAME_PREFIX="${IMAGE_NAME_PREFIX:-"docker.io/furikoio"}"
 
 # Optionally specify IMAGE_TAG, otherwise will default to `(current tag with patch version incremented)-next`.
 # Environment variable is expected to be propagated to GoReleaser.
 export IMAGE_TAG
 
-# Build snapshot into dist.
-curl -sL https://git.io/goreleaser | bash -s -- release --snapshot --rm-dist
+# Run GoReleaser to build all images in parallel. Builds all artifacts into dist.
+# TODO(irvinlim): This will also build all other artifacts, which is not needed here.
+"${GORELEASER}" release --snapshot --rm-dist
 
-# Get version number (excludes the v prefix).
+# If IMAGE_TAG is not specified, we need to read the built image tag from the metadata file (excludes the v prefix).
 VERSION=$(jq .version dist/metadata.json --raw-output)
+VERSION_TAG="${IMAGE_TAG:-v${VERSION}}"
 
-# Tag and push all images.
-REPOS=(
-  'furikoio/execution-controller'
-  'furikoio/execution-webhook'
-)
-for REPO in "${REPOS[@]}"
-do
-  VERSION_TAG="${IMAGE_TAG:-v${VERSION}}"
+# Push images with the versioned tag (e.g. v1.2.3-next).
+./hack/push-images.sh "${IMAGE_NAME_PREFIX}" "${VERSION_TAG}"
 
-  # The versioned image tag is like v1.2.3-next, or will default to the IMAGE_TAG environment variable specified.
-  VERSIONED_IMAGE="${REPO}:${VERSION_TAG}"
-
-  # The snapshot image tag always points to the latest snapshot.
-  SNAPSHOT_IMAGE="${REPO}:snapshot"
-
-  docker tag "${VERSIONED_IMAGE}" "${SNAPSHOT_IMAGE}"
-  docker push "${VERSIONED_IMAGE}"
-  docker push "${SNAPSHOT_IMAGE}"
-done
+# Push images with the "snapshot" tag.
+./hack/push-images.sh "${IMAGE_NAME_PREFIX}" "${VERSION_TAG}" "${IMAGE_NAME_PREFIX}" "snapshot"
