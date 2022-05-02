@@ -68,14 +68,16 @@ jobs:
   go-test:
     strategy:
       matrix:
-        go-version: [ 1.17 ]
-        platform: [ ubuntu-latest ]
+        platform:
+          - ubuntu-latest
     runs-on: ${{ matrix.platform }}
+    needs:
+      - get-go-version
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       - name: Run tests
         run: make test
       - name: Push code coverage to Codecov
