@@ -111,6 +111,7 @@ spec:
                                 spec:
                                   description: "Specification of the desired behavior of the pod. API docs: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core \n Supports context variable substitution in the following fields for containers and initContainers: image, command, args, env.value"
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                   x-kubernetes-preserve-unknown-fields: true
                               type: object
                           type: object

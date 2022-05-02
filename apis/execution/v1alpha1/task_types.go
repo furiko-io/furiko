@@ -73,6 +73,7 @@ type PodTemplateSpec struct {
 	// +kubebuilder:validation:Type=object
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:validation:XPreserveUnknownFields
+	// +mapType=atomic
 	// +optional
 	Spec corev1.PodSpec `json:"spec,omitempty"`
 }
