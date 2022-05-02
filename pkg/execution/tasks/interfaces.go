@@ -20,7 +20,6 @@ import (
 	"context"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
@@ -61,13 +60,6 @@ type Task interface {
 
 	// GetDeletionTimestamp returns the timestamp that the task was requested to be deleted.
 	GetDeletionTimestamp() *metav1.Time
-}
-
-// TaskTemplate defines how to create a Task.
-type TaskTemplate struct {
-	Name       string
-	RetryIndex int64
-	PodSpec    corev1.PodSpec
 }
 
 // TaskLister implements methods to list Tasks from informer cache.

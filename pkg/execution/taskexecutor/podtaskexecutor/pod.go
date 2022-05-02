@@ -24,29 +24,20 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 )
 
-// NewPod creates a new Pod object for the given Job and index.
-func NewPod(rj *execution.Job, index int64) (*corev1.Pod, error) {
-	var template corev1.PodTemplateSpec
-	if jobTemplate := rj.Spec.Template; jobTemplate != nil {
-		template = jobTemplate.Task.Template
-	}
-
+// NewPod returns a new Pod object for the given Job.
+func NewPod(rj *execution.Job, template *corev1.PodTemplateSpec, index int64) (*corev1.Pod, error) {
 	// Generate name for pod.
 	podName := GetPodIndexedName(rj.Name, index)
-	taskTemplate := &tasks.TaskTemplate{
-		Name:       podName,
-		RetryIndex: index,
-		PodSpec:    template.Spec,
-	}
 
-	// Generate pod spec.
-	// TODO(irvinlim): This need to be moved out into the controller if we want to
-	//  make the task executor generic.
-	podSpec := variablecontext.SubstitutePodSpecForTask(rj, taskTemplate)
+	// Generate PodSpec after substitutions.
+	podSpec := SubstitutePodSpec(rj, template.Spec, variablecontext.TaskSpec{
+		Name:       podName,
+		Namespace:  rj.GetNamespace(),
+		RetryIndex: index,
+	})
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -66,7 +57,7 @@ func NewPod(rj *execution.Job, index int64) (*corev1.Pod, error) {
 	return pod, nil
 }
 
-func makeLabels(rj *execution.Job, index int64, template corev1.PodTemplateSpec) labels.Set {
+func makeLabels(rj *execution.Job, index int64, template *corev1.PodTemplateSpec) labels.Set {
 	desiredLabels := make(labels.Set, len(template.Labels)+2)
 	for k, v := range template.Labels {
 		desiredLabels[k] = v
@@ -84,7 +75,7 @@ func makeLabels(rj *execution.Job, index int64, template corev1.PodTemplateSpec)
 	return desiredLabels
 }
 
-func makeAnnotations(_ *execution.Job, _ int64, template corev1.PodTemplateSpec) labels.Set {
+func makeAnnotations(_ *execution.Job, _ int64, template *corev1.PodTemplateSpec) labels.Set {
 	desiredAnnotations := make(labels.Set, len(template.Annotations))
 	for k, v := range template.Annotations {
 		desiredAnnotations[k] = v
@@ -92,7 +83,7 @@ func makeAnnotations(_ *execution.Job, _ int64, template corev1.PodTemplateSpec)
 	return desiredAnnotations
 }
 
-func makeFinalizers(_ *execution.Job, _ int64, template corev1.PodTemplateSpec) []string {
+func makeFinalizers(_ *execution.Job, _ int64, template *corev1.PodTemplateSpec) []string {
 	desiredFinalizers := make([]string, 0, len(template.Finalizers))
 	desiredFinalizers = append(desiredFinalizers, template.Finalizers...)
 	return desiredFinalizers

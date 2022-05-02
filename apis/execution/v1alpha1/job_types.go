@@ -17,7 +17,6 @@
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -127,6 +126,7 @@ type StartPolicySpec struct {
 	StartAfter *metav1.Time `json:"startAfter,omitempty"`
 }
 
+// JobTemplate specifies how to create a Job with metadata.
 type JobTemplate struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -134,9 +134,10 @@ type JobTemplate struct {
 	Spec JobTemplateSpec `json:"spec"`
 }
 
+// JobTemplateSpec specifies how to create the Job.
 type JobTemplateSpec struct {
 	// Describes the tasks to be created for the Job.
-	Task JobTaskSpec `json:"task"`
+	Task TaskSpec `json:"task"`
 
 	// Specifies maximum number of attempts for the Job. Each attempt will create a
 	// single task at a time, and if the task fails, the controller will wait
@@ -153,41 +154,6 @@ type JobTemplateSpec struct {
 	//
 	// +optional
 	RetryDelaySeconds *int64 `json:"retryDelaySeconds,omitempty"`
-}
-
-// JobTaskSpec describes a single task in the Job.
-type JobTaskSpec struct {
-	// Describes how to create tasks as Pods.
-	//
-	// The following fields support context variable substitution:
-	//
-	//  - .spec.containers.*.image
-	//  - .spec.containers.*.command.*
-	//  - .spec.containers.*.args.*
-	//  - .spec.containers.*.env.*.value
-	Template corev1.PodTemplateSpec `json:"template"`
-
-	// Optional duration in seconds to wait before terminating the task if it is
-	// still pending. This field is useful to prevent jobs from being stuck forever
-	// if the Job has a deadline to start running by. If not set, it will be set to
-	// the DefaultTaskPendingTimeoutSeconds configuration value in the controller.
-	//
-	// Value must be a positive integer.
-	// +optional
-	PendingTimeoutSeconds *int64 `json:"pendingTimeoutSeconds,omitempty"`
-
-	// ForbidForceDeletion, if true, means that tasks are not allowed to be
-	// force deleted. If the node is unresponsive, it may be possible that the task
-	// cannot be killed by normal graceful deletion. The controller may choose to
-	// force delete the task, which would ignore the final state of the task since
-	// the node is unable to return whether the task is actually still alive.
-	//
-	// As such, if not set to true, the Forbid ConcurrencyPolicy may in some cases
-	// be violated. Setting this to true would prevent this from happening, but the
-	// Job may remain in Killing indefinitely until the node recovers.
-	//
-	// +optional
-	ForbidForceDeletion bool `json:"forbidForceDeletion,omitempty"`
 }
 
 // JobStatus defines the observed state of a Job.

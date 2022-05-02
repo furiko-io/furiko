@@ -49,6 +49,8 @@ const (
 	// The Job creates tasks with a suffix like `.20`, so the name has to be 60
 	// characters.
 	maxJobNameLen = apimachineryvalidation.DNS1035LabelMaxLength - 3
+
+	errMessageTooManyTemplates = "cannot specify more than 1 template type"
 )
 
 var (
@@ -404,8 +406,8 @@ func (v *Validator) ValidateMaxRetryAttempts(attempts int32, fldPath *field.Path
 	return allErrs
 }
 
-// ValidateJobTaskSpec validates a *v1alpha1.JobTaskSpec.
-func (v *Validator) ValidateJobTaskSpec(spec *v1alpha1.JobTaskSpec, fldPath *field.Path) field.ErrorList {
+// ValidateJobTaskSpec validates a *v1alpha1.TaskSpec.
+func (v *Validator) ValidateJobTaskSpec(spec *v1alpha1.TaskSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, v.ValidateTaskTemplate(&spec.Template, fldPath.Child("template"))...)
 	if spec.PendingTimeoutSeconds != nil {
@@ -414,8 +416,30 @@ func (v *Validator) ValidateJobTaskSpec(spec *v1alpha1.JobTaskSpec, fldPath *fie
 	return allErrs
 }
 
-// ValidateTaskTemplate validates a *corev1.PodTemplateSpec.
-func (v *Validator) ValidateTaskTemplate(spec *corev1.PodTemplateSpec, fldPath *field.Path) field.ErrorList {
+// ValidateTaskTemplate validates a *v1alpha1.TaskTemplate.
+func (v *Validator) ValidateTaskTemplate(spec *v1alpha1.TaskTemplate, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	// Exactly one template must be specified.
+	var numSpecified int
+	if spec.Pod != nil {
+		fldPath := fldPath.Child("pod")
+		if numSpecified >= 1 {
+			allErrs = append(allErrs, field.Forbidden(fldPath, errMessageTooManyTemplates))
+		} else {
+			numSpecified++
+			allErrs = append(allErrs, v.ValidatePodTaskTemplateSpec(spec.Pod, fldPath)...)
+		}
+	}
+	if numSpecified == 0 {
+		allErrs = append(allErrs, field.Required(fldPath, "must specify a template type"))
+	}
+
+	return allErrs
+}
+
+// ValidatePodTaskTemplateSpec validates a *corev1.PodTemplateSpec.
+func (v *Validator) ValidatePodTaskTemplateSpec(spec *corev1.PodTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, ValidatePodTemplateSpec(spec, fldPath)...)
 

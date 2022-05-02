@@ -56,8 +56,18 @@ func (p *PodTaskClient) Index(ctx context.Context, index int64) (tasks.Task, err
 }
 
 func (p *PodTaskClient) CreateIndex(ctx context.Context, index int64) (tasks.Task, error) {
+	var template *corev1.PodTemplateSpec
+
+	// Get pod template
+	if jobTemplate := p.rj.Spec.Template; jobTemplate != nil {
+		template = jobTemplate.Task.Template.Pod
+	}
+	if template == nil {
+		return nil, errors.New("pod template cannot be empty")
+	}
+
 	// Create pod object
-	newPod, err := NewPod(p.rj, index)
+	newPod, err := NewPod(p.rj, template, index)
 	if err != nil {
 		return nil, err
 	}

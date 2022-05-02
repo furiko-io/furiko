@@ -54,27 +54,37 @@ spec:
       annotations:
         app.kubernetes.io/name: jobconfig-sample
 
-    # Defines the specification of the Job.
     spec:
-      # Defines how to create the task. See how the Job Options are used below.
-      # See the sample Job YAML for more information.
+      # Defines task options.
       task:
+        # Defines an explicit pending timeout of 10 minutes per task created.
+        pendingTimeoutSeconds: 600
+
+        # Defines a template to create a task as a Pod.
         template:
-          spec:
-            containers:
-              - name: job-container
-                args:
-                  - echo
-                  - "Hello world, ${option.user-name}!"
-                env:
-                  - name: JOBCONFIG_NAME
-                    value: "${jobconfig.name}"
-                  - name: JOB_NAME
-                    value: "${job.name}"
-                  - name: TASK_NAME
-                    value: "${task.name}"
-                image: "alpine:${option.image-tag}"
-                resources:
-                  limits:
-                    cpu: 100m
-                    memory: 64Mi
+          pod:
+            # Metadata that should be added to the Pods.
+            metadata:
+              annotations:
+                app.kubernetes.io/name: jobconfig-sample-pod
+
+            # Specification of the Pod.
+            # Any context variables (including job options) will be substituted when the Pod is created.
+            spec:
+              containers:
+                - name: job-container
+                  args:
+                    - echo
+                    - "Hello world, ${option.user-name}!"
+                  env:
+                    - name: JOBCONFIG_NAME
+                      value: "${jobconfig.name}"
+                    - name: JOB_NAME
+                      value: "${job.name}"
+                    - name: TASK_NAME
+                      value: "${task.name}"
+                  image: "alpine:${option.image-tag}"
+                  resources:
+                    limits:
+                      cpu: 100m
+                      memory: 64Mi

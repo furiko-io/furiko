@@ -41,7 +41,6 @@ import (
 	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/core/options"
 	"github.com/furiko-io/furiko/pkg/execution/mutation"
-	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -158,16 +157,20 @@ var (
 
 	jobTemplateSpecBasic = v1alpha1.JobTemplate{
 		Spec: v1alpha1.JobTemplateSpec{
-			Task: v1alpha1.JobTaskSpec{
-				Template: podTemplateSpecBasic,
+			Task: v1alpha1.TaskSpec{
+				Template: v1alpha1.TaskTemplate{
+					Pod: &podTemplateSpecBasic,
+				},
 			},
 		},
 	}
 
 	jobTemplateSpecBasic2 = v1alpha1.JobTemplate{
 		Spec: v1alpha1.JobTemplateSpec{
-			Task: v1alpha1.JobTaskSpec{
-				Template: podTemplateSpecBasic2,
+			Task: v1alpha1.TaskSpec{
+				Template: v1alpha1.TaskTemplate{
+					Pod: &podTemplateSpecBasic2,
+				},
 			},
 		},
 	}
@@ -235,8 +238,10 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 				Spec: v1alpha1.JobConfigSpec{
 					Template: v1alpha1.JobTemplate{
 						Spec: v1alpha1.JobTemplateSpec{
-							Task: v1alpha1.JobTaskSpec{
-								Template: podTemplateSpecBare,
+							Task: v1alpha1.TaskSpec{
+								Template: v1alpha1.TaskTemplate{
+									Pod: &podTemplateSpecBare,
+								},
 							},
 						},
 					},
@@ -629,8 +634,10 @@ func TestMutator_MutateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.JobTaskSpec{
-							Template: podTemplateSpecBasic,
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecBasic,
+							},
 						},
 					},
 				},
@@ -640,8 +647,10 @@ func TestMutator_MutateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.JobTaskSpec{
-							Template: podTemplateSpecBasic,
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecBasic,
+							},
 						},
 						MaxAttempts: pointer.Int32(1),
 					},
@@ -656,8 +665,10 @@ func TestMutator_MutateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.JobTaskSpec{
-							Template: podTemplateSpecBasic,
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecBasic,
+							},
 						},
 						MaxAttempts: pointer.Int32(1),
 					},
@@ -1109,8 +1120,10 @@ func TestMutator_MutateCreateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					ConfigName: objectMetaJobConfig.Name,
 					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.JobTaskSpec{
-							Template:            podTemplateSpecBasic,
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecBasic,
+							},
 							ForbidForceDeletion: true,
 						},
 					},
@@ -1224,7 +1237,7 @@ func (n *noopProvider) MakeVariablesFromJob(rj *v1alpha1.Job) map[string]string 
 	return nil
 }
 
-func (n *noopProvider) MakeVariablesFromTask(rj *v1alpha1.Job, task *tasks.TaskTemplate) map[string]string {
+func (n *noopProvider) MakeVariablesFromTask(task variablecontext.TaskSpec) map[string]string {
 	return nil
 }
 
@@ -1244,7 +1257,7 @@ func (m *mockProvider) MakeVariablesFromJob(rj *v1alpha1.Job) map[string]string 
 	return nil
 }
 
-func (m *mockProvider) MakeVariablesFromTask(rj *v1alpha1.Job, task *tasks.TaskTemplate) map[string]string {
+func (m *mockProvider) MakeVariablesFromTask(task variablecontext.TaskSpec) map[string]string {
 	return nil
 }
 

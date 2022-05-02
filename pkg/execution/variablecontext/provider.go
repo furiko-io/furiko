@@ -20,7 +20,6 @@ import (
 	"strconv"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/execution/tasks"
 )
 
 var (
@@ -44,7 +43,14 @@ type Provider interface {
 
 	// MakeVariablesFromTask returns context variables for the "task" context, which
 	// contains information about the Task.
-	MakeVariablesFromTask(rj *execution.Job, task *tasks.TaskTemplate) map[string]string
+	MakeVariablesFromTask(task TaskSpec) map[string]string
+}
+
+// TaskSpec contains minimal information about a task.
+type TaskSpec struct {
+	Name       string
+	Namespace  string
+	RetryIndex int64
 }
 
 // defaultProvider provides the default set of context variables for a vanilla
@@ -81,17 +87,19 @@ func (c *defaultProvider) MakeVariablesFromJob(rj *execution.Job) map[string]str
 		"job.type":      string(rj.Spec.Type),
 	}
 
-	if maxAttempts := rj.Spec.Template.MaxAttempts; maxAttempts != nil {
-		subs["job.max_attempts"] = strconv.Itoa(int(*maxAttempts))
+	if template := rj.Spec.Template; template != nil {
+		if maxAttempts := rj.Spec.Template.MaxAttempts; maxAttempts != nil {
+			subs["job.max_attempts"] = strconv.Itoa(int(*maxAttempts))
+		}
 	}
 
 	return subs
 }
 
-func (c *defaultProvider) MakeVariablesFromTask(rj *execution.Job, task *tasks.TaskTemplate) map[string]string {
+func (c *defaultProvider) MakeVariablesFromTask(task TaskSpec) map[string]string {
 	return map[string]string{
 		"task.name":        task.Name,
-		"task.namespace":   rj.GetNamespace(), // assumes Task shares namespace with Job
+		"task.namespace":   task.Namespace,
 		"task.retry_index": strconv.Itoa(int(task.RetryIndex)),
 	}
 }

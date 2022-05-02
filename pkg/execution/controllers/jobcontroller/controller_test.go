@@ -63,26 +63,30 @@ var (
 		Spec: execution.JobSpec{
 			Type: execution.JobTypeAdhoc,
 			Template: &execution.JobTemplateSpec{
-				Task: execution.JobTaskSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:  "container",
-									Image: "hello-world",
-									Args: []string{
-										"echo",
-										"Hello world!",
-									},
-								},
-							},
-						},
+				Task: execution.TaskSpec{
+					Template: execution.TaskTemplate{
+						Pod: podTemplate,
 					},
 				},
 			},
 		},
 		Status: execution.JobStatus{
 			StartTime: testutils.Mkmtimep(startTime),
+		},
+	}
+
+	podTemplate = &corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "container",
+					Image: "hello-world",
+					Args: []string{
+						"echo",
+						"Hello world!",
+					},
+				},
+			},
 		},
 	}
 
@@ -219,7 +223,7 @@ var (
 	}()
 
 	// Pod that is to be created.
-	fakePod, _ = podtaskexecutor.NewPod(fakeJob, 1)
+	fakePod, _ = podtaskexecutor.NewPod(fakeJob, podTemplate, 1)
 
 	// Pod that adds CreationTimestamp to mimic mutation on apiserver.
 	fakePodResult = func() *corev1.Pod {

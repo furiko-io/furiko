@@ -91,8 +91,10 @@ var (
 			},
 		},
 		Spec: v1alpha1.JobTemplateSpec{
-			Task: v1alpha1.JobTaskSpec{
-				Template:              podTemplateSpecBasic,
+			Task: v1alpha1.TaskSpec{
+				Template: v1alpha1.TaskTemplate{
+					Pod: &podTemplateSpecBasic,
+				},
 				PendingTimeoutSeconds: pointer.Int64(1800),
 			},
 			MaxAttempts:       pointer.Int32(5),
@@ -103,8 +105,10 @@ var (
 	jobTemplateSpecLongPendingTimeout = v1alpha1.JobTemplate{
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
 		Spec: v1alpha1.JobTemplateSpec{
-			Task: v1alpha1.JobTaskSpec{
-				Template:              podTemplateSpecBasic,
+			Task: v1alpha1.TaskSpec{
+				Template: v1alpha1.TaskTemplate{
+					Pod: &podTemplateSpecBasic,
+				},
 				PendingTimeoutSeconds: pointer.Int64(3600),
 			},
 			MaxAttempts:       jobTemplateSpecBasic.Spec.MaxAttempts,
@@ -361,20 +365,38 @@ func TestValidateJobConfig(t *testing.T) {
 			wantErr: `spec.option.options[0]: Invalid value: "invalid name here!": must match regex: ^[a-zA-Z_0-9.-]+$`,
 		},
 		{
+			name: "require task template",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Concurrency: concurrencySpecBasic,
+					Template: v1alpha1.JobTemplate{
+						Spec: v1alpha1.JobTemplateSpec{
+							Task: v1alpha1.TaskSpec{
+								Template: v1alpha1.TaskTemplate{},
+							},
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.spec.task.template: Required value",
+		},
+		{
 			name: "invalid pod template",
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
 					Concurrency: concurrencySpecBasic,
 					Template: v1alpha1.JobTemplate{
 						Spec: v1alpha1.JobTemplateSpec{
-							Task: v1alpha1.JobTaskSpec{
-								Template: podTemplateSpecEmpty,
+							Task: v1alpha1.TaskSpec{
+								Template: v1alpha1.TaskTemplate{
+									Pod: &podTemplateSpecEmpty,
+								},
 							},
 						},
 					},
 				},
 			},
-			wantErr: "spec.template.spec.task.template.spec.containers: Required value",
+			wantErr: "spec.template.spec.task.template.pod.spec.containers: Required value",
 		},
 		{
 			name: "cannot use restartPolicy Always",
@@ -383,11 +405,13 @@ func TestValidateJobConfig(t *testing.T) {
 					Concurrency: concurrencySpecBasic,
 					Template: v1alpha1.JobTemplate{
 						Spec: v1alpha1.JobTemplateSpec{
-							Task: v1alpha1.JobTaskSpec{
-								Template: corev1.PodTemplateSpec{
-									Spec: corev1.PodSpec{
-										Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
-										RestartPolicy: corev1.RestartPolicyAlways,
+							Task: v1alpha1.TaskSpec{
+								Template: v1alpha1.TaskTemplate{
+									Pod: &corev1.PodTemplateSpec{
+										Spec: corev1.PodSpec{
+											Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
+											RestartPolicy: corev1.RestartPolicyAlways,
+										},
 									},
 								},
 							},
@@ -395,7 +419,7 @@ func TestValidateJobConfig(t *testing.T) {
 					},
 				},
 			},
-			wantErr: "spec.template.spec.task.template.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
+			wantErr: "spec.template.spec.task.template.pod.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
 		},
 	}
 	for _, tt := range tests {
@@ -530,19 +554,36 @@ func TestValidateJob(t *testing.T) {
 			wantErr: "spec.template.maxAttempts: Invalid value: 100: must be less than or equal to 50",
 		},
 		{
+			name: "require task template",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplateSpec{
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{},
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.task.template: Required value",
+		},
+		{
 			name: "invalid pod template",
 			rj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.JobTaskSpec{
-							Template: podTemplateSpecEmpty,
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecEmpty,
+							},
 						},
 					},
 				},
 			},
-			wantErr: "spec.template.task.template.spec.containers: Required value",
+			wantErr: "spec.template.task.template.pod.spec.containers: Required value",
 		},
 		{
 			name: "cannot use restartPolicy Always",
@@ -551,18 +592,20 @@ func TestValidateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.JobTaskSpec{
-							Template: corev1.PodTemplateSpec{
-								Spec: corev1.PodSpec{
-									Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
-									RestartPolicy: corev1.RestartPolicyAlways,
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{
+								Pod: &corev1.PodTemplateSpec{
+									Spec: corev1.PodSpec{
+										Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
+										RestartPolicy: corev1.RestartPolicyAlways,
+									},
 								},
 							},
 						},
 					},
 				},
 			},
-			wantErr: "spec.template.task.template.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
+			wantErr: "spec.template.task.template.pod.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
 		},
 	}
 	for _, tt := range tests {

@@ -35,7 +35,6 @@ import (
 	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
 	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
-	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/meta"
@@ -401,12 +400,8 @@ func (w *Reconciler) syncCreateNewTask(
 // createTask will create a new task for the Job.
 // May return AdmissionError if it cannot be created due to an unretryable or irrecoverable error.
 func (w *Reconciler) createTask(ctx context.Context, rj *execution.Job) (jobtasks.Task, error) {
-	// Substitute job context variables.
-	newRj := rj.DeepCopy()
-	newRj.Spec.Template.Task.Template = variablecontext.SubstitutePodTemplateSpecForJob(rj)
-
 	// Get task manager after substituting variables in Job.
-	taskMgr, err := w.tasks.ForJob(newRj)
+	taskMgr, err := w.tasks.ForJob(rj)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get task manager")
 	}
