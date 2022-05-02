@@ -62,7 +62,7 @@ func TestNewJobPatcher(t *testing.T) {
 					Template: &v1alpha1.JobTemplateSpec{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
-								Pod: &corev1.PodTemplateSpec{
+								Pod: &v1alpha1.PodTemplateSpec{
 									Spec: corev1.PodSpec{
 										Containers:    podTemplateSpecBare.Spec.Containers,
 										RestartPolicy: corev1.RestartPolicyNever,

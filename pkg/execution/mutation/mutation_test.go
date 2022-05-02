@@ -108,7 +108,7 @@ var (
 		},
 	}
 
-	podTemplateSpecBare = corev1.PodTemplateSpec{
+	podTemplateSpecBare = v1alpha1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
@@ -123,7 +123,7 @@ var (
 		},
 	}
 
-	podTemplateSpecBasic = corev1.PodTemplateSpec{
+	podTemplateSpecBasic = v1alpha1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
@@ -139,7 +139,7 @@ var (
 		},
 	}
 
-	podTemplateSpecBasic2 = corev1.PodTemplateSpec{
+	podTemplateSpecBasic2 = v1alpha1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{

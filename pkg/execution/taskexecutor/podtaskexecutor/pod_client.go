@@ -59,8 +59,8 @@ func (p *PodTaskClient) CreateIndex(ctx context.Context, index int64) (tasks.Tas
 	var template *corev1.PodTemplateSpec
 
 	// Get pod template
-	if jobTemplate := p.rj.Spec.Template; jobTemplate != nil {
-		template = jobTemplate.Task.Template.Pod
+	if jobTemplate := p.rj.Spec.Template; jobTemplate != nil && jobTemplate.Task.Template.Pod != nil {
+		template = jobTemplate.Task.Template.Pod.ConvertToCoreSpec()
 	}
 	if template == nil {
 		return nil, errors.New("pod template cannot be empty")

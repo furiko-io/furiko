@@ -52,7 +52,7 @@ var (
 			Template: &execution.JobTemplateSpec{
 				Task: execution.TaskSpec{
 					Template: execution.TaskTemplate{
-						Pod: &corev1.PodTemplateSpec{
+						Pod: &execution.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
 									{

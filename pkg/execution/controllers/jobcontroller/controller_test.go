@@ -75,7 +75,7 @@ var (
 		},
 	}
 
-	podTemplate = &corev1.PodTemplateSpec{
+	podTemplate = &execution.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
@@ -223,7 +223,7 @@ var (
 	}()
 
 	// Pod that is to be created.
-	fakePod, _ = podtaskexecutor.NewPod(fakeJob, podTemplate, 1)
+	fakePod, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), 1)
 
 	// Pod that adds CreationTimestamp to mimic mutation on apiserver.
 	fakePodResult = func() *corev1.Pod {

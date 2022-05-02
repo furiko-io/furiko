@@ -438,10 +438,28 @@ func (v *Validator) ValidateTaskTemplate(spec *v1alpha1.TaskTemplate, fldPath *f
 	return allErrs
 }
 
-// ValidatePodTaskTemplateSpec validates a *corev1.PodTemplateSpec.
-func (v *Validator) ValidatePodTaskTemplateSpec(spec *corev1.PodTemplateSpec, fldPath *field.Path) field.ErrorList {
+// ValidatePodTaskTemplateSpec validates a *v1alpha1.PodTemplateSpec.
+func (v *Validator) ValidatePodTaskTemplateSpec(spec *v1alpha1.PodTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, ValidatePodTemplateSpec(spec, fldPath)...)
+
+	// Convert to corev1.PodTemplateSpec.
+	podTemplateSpec := &corev1.PodTemplateSpec{
+		ObjectMeta: spec.ObjectMeta,
+		Spec:       spec.Spec,
+	}
+
+	// Invoke the Kubernetes core validator for the PodTemplateSpec here.
+	//
+	// Note that even though we do not embed the schema for PodTemplateSpec into our
+	// CRD, we should still validate here to catch any invalid PodSpec during
+	// creation of the JobConfig/Job, instead of when the Job is about to create the
+	// task. We also assume that the Kubernetes core API will not break backwards
+	// compatibility, and if we happen to invoke an older version of the Kubernetes
+	// core validator against a newer API, it SHOULD NOT break (i.e. cannot save the
+	// JobConfig). If a newer validation rule was added in a newer K8s version, then
+	// unfortunately we cannot catch it in this scenario, and we will fall back to
+	// failing with AdmissionRefusedError only at task creation time.
+	allErrs = append(allErrs, ValidatePodTemplateSpec(podTemplateSpec, fldPath)...)
 
 	// Cannot use Always for restartPolicy.
 	if restartPolicy := spec.Spec.RestartPolicy; restartPolicy == corev1.RestartPolicyAlways {
