@@ -200,7 +200,7 @@ dev-deploy: manifests kustomize $(KUSTOMIZE_DEST) ## Deploys a development versi
 ##@ Release
 
 .PHONY: snapshot
-snapshot: ## Release snapshot of current repository and upload Docker image.
+snapshot: goreleaser ## Release snapshot of current repository and upload Docker image.
 	./hack/release-snapshot.sh
 
 ##@ Build Dependencies
