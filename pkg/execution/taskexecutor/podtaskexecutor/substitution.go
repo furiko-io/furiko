@@ -14,64 +14,40 @@
  * limitations under the License.
  */
 
-package variablecontext
+package podtaskexecutor
 
 import (
 	v1 "k8s.io/api/core/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/core/options"
-	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 )
 
 type subFunc func(s string) string
 
-// SubstitutePodTemplateSpecForJob returns a PodTemplateSpec for a given Job
-// after substituting context variables for the job context. Uses the Job's
-// substitutions field to specify overrides for the job context.
-func SubstitutePodTemplateSpecForJob(rj *execution.Job) v1.PodTemplateSpec {
+// SubstitutePodSpec returns a PodSpec after substituting context variables.
+func SubstitutePodSpec(
+	rj *execution.Job,
+	podSpec v1.PodSpec,
+	taskSpec variablecontext.TaskSpec,
+) v1.PodSpec {
 	var subMaps []map[string]string
-	template := rj.Spec.Template.Task.Template.DeepCopy()
+	spec := podSpec.DeepCopy()
 
-	// Substitutions specified in the JobSpec takes highest priority.
+	// Substitutions specified in the JobSpec takes the highest priority.
 	if len(rj.Spec.Substitutions) > 0 {
 		subMaps = append(subMaps, rj.Spec.Substitutions)
 	}
 
-	// Substitute job context variables.
-	subMaps = append(subMaps, ContextProvider.MakeVariablesFromJob(rj))
-
-	sub := func(s string) string {
-		return options.SubstituteVariableMaps(s, subMaps, []string{"job."})
-	}
-
-	// Substitute PodSpec in PodTemplateSpec.
-	newPodSpec := substitutePodSpec(template.Spec, sub)
-	template.Spec = newPodSpec
-	return *template
-}
-
-// SubstitutePodSpecForTask returns a PodSpec from a TaskTemplate after
-// substituting context variables for the task context.
-func SubstitutePodSpecForTask(rj *execution.Job, template *tasks.TaskTemplate) v1.PodSpec {
-	var subMaps []map[string]string
-	spec := template.PodSpec.DeepCopy()
-
-	// Substitutions specified in the JobSpec takes highest priority.
-	// NOTE(irvinlim): This is duplicated from above, in case we fail to substitute
-	// job context (will never happen?)
-	if len(rj.Spec.Substitutions) > 0 {
-		subMaps = append(subMaps, rj.Spec.Substitutions)
-	}
-
-	// Substitute task context variables.
-	subMaps = append(subMaps, ContextProvider.MakeVariablesFromTask(rj, template))
+	// Substitute job and task context variables.
+	subMaps = append(subMaps, variablecontext.ContextProvider.MakeVariablesFromJob(rj))
+	subMaps = append(subMaps, variablecontext.ContextProvider.MakeVariablesFromTask(taskSpec))
 
 	// Get list of all prefixes that were injected, and drop all leftover not
 	// substituted matches. This is to prevent cases like "Bad substitution" when
-	// trying to interpret in Bash. Note that we should only do this at the very
-	// last substitution step.
-	removePrefixes := ContextProvider.GetAllPrefixes()
+	// trying to interpret in Bash.
+	removePrefixes := variablecontext.ContextProvider.GetAllPrefixes()
 	removePrefixes = append(removePrefixes, "option.")
 
 	sub := func(s string) string {

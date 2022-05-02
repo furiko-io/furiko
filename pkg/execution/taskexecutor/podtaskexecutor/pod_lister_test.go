@@ -45,6 +45,15 @@ var (
 			Namespace: jobNamespace,
 			UID:       jobUID,
 		},
+		Spec: execution.JobSpec{
+			Template: &execution.JobTemplateSpec{
+				Task: execution.TaskSpec{
+					Template: execution.TaskTemplate{
+						Pod: &corev1.PodTemplateSpec{},
+					},
+				},
+			},
+		},
 	}
 
 	fakePods = []*corev1.Pod{

@@ -50,16 +50,18 @@ var (
 		Spec: execution.JobSpec{
 			Type: execution.JobTypeAdhoc,
 			Template: &execution.JobTemplateSpec{
-				Task: execution.JobTaskSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:  "container",
-									Image: "hello-world",
-									Args: []string{
-										"echo",
-										"Hello world!",
+				Task: execution.TaskSpec{
+					Template: execution.TaskTemplate{
+						Pod: &corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name:  "container",
+										Image: "hello-world",
+										Args: []string{
+											"echo",
+											"Hello world!",
+										},
 									},
 								},
 							},

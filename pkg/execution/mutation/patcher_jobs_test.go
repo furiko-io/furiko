@@ -47,9 +47,9 @@ func TestNewJobPatcher(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.JobTaskSpec{
-							Template: corev1.PodTemplateSpec{
-								Spec: podTemplateSpecBare.Spec,
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecBare,
 							},
 						},
 					},
@@ -60,11 +60,13 @@ func TestNewJobPatcher(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.JobTaskSpec{
-							Template: corev1.PodTemplateSpec{
-								Spec: corev1.PodSpec{
-									Containers:    podTemplateSpecBare.Spec.Containers,
-									RestartPolicy: corev1.RestartPolicyNever,
+						Task: v1alpha1.TaskSpec{
+							Template: v1alpha1.TaskTemplate{
+								Pod: &corev1.PodTemplateSpec{
+									Spec: corev1.PodSpec{
+										Containers:    podTemplateSpecBare.Spec.Containers,
+										RestartPolicy: corev1.RestartPolicyNever,
+									},
 								},
 							},
 						},
