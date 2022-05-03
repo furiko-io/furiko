@@ -49,7 +49,7 @@ var (
 			Template: &execution.JobTemplateSpec{
 				Task: execution.TaskSpec{
 					Template: execution.TaskTemplate{
-						Pod: &corev1.PodTemplateSpec{},
+						Pod: &execution.PodTemplateSpec{},
 					},
 				},
 			},

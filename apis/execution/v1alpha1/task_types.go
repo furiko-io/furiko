@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TaskSpec describes a single task in the Job.
@@ -52,14 +53,39 @@ type TaskSpec struct {
 // field must be specified.
 type TaskTemplate struct {
 	// Describes how to create tasks as Pods.
-	//
-	// The following fields support context variable substitution:
-	//
-	//  - .spec.containers.*.image
-	//  - .spec.containers.*.command.*
-	//  - .spec.containers.*.args.*
-	//  - .spec.containers.*.env.*.value
-	//
 	// +optional
-	Pod *corev1.PodTemplateSpec `json:"pod,omitempty"`
+	Pod *PodTemplateSpec `json:"pod,omitempty"`
+}
+
+// PodTemplateSpec describes the data a Pod should have when created from a template.
+type PodTemplateSpec struct {
+	// Standard object's metadata that will be added to Pod. More info:
+	// https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	//
+	// +kubebuilder:validation:XPreserveUnknownFields
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Specification of the desired behavior of the pod. API docs:
+	// https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core
+	//
+	// Supports context variable substitution in the following fields for containers
+	// and initContainers: image, command, args, env.value
+	//
+	// +kubebuilder:validation:Type=object
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:validation:XPreserveUnknownFields
+	// +mapType=atomic
+	// +optional
+	Spec corev1.PodSpec `json:"spec,omitempty"`
+}
+
+// ConvertToCoreSpec converts a PodTemplateSpec into the equivalent
+// v1.PodTemplateSpec. This method is needed because we use a custom
+// PodTemplateSpec type for the purposes of custom CRD documentation generation.
+func (p *PodTemplateSpec) ConvertToCoreSpec() *corev1.PodTemplateSpec {
+	return &corev1.PodTemplateSpec{
+		ObjectMeta: p.ObjectMeta,
+		Spec:       p.Spec,
+	}
 }

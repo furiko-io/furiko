@@ -23,17 +23,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/validation"
 )
 
 var (
-	podTemplateSpecEmpty = corev1.PodTemplateSpec{
+	podTemplateSpecEmpty = v1alpha1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{},
 		},
 	}
 
-	podTemplateSpecBasic = corev1.PodTemplateSpec{
+	podTemplateSpecBasic = v1alpha1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
@@ -57,12 +58,12 @@ func TestValidatePodTemplateSpec(t *testing.T) {
 	}{
 		{
 			name:    "empty spec",
-			spec:    &podTemplateSpecEmpty,
+			spec:    podTemplateSpecEmpty.ConvertToCoreSpec(),
 			wantErr: "[].spec.containers: Required value",
 		},
 		{
 			name: "basic spec",
-			spec: &podTemplateSpecBasic,
+			spec: podTemplateSpecBasic.ConvertToCoreSpec(),
 		},
 	}
 	for _, tt := range tests {

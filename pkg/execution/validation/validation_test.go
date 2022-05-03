@@ -407,7 +407,7 @@ func TestValidateJobConfig(t *testing.T) {
 						Spec: v1alpha1.JobTemplateSpec{
 							Task: v1alpha1.TaskSpec{
 								Template: v1alpha1.TaskTemplate{
-									Pod: &corev1.PodTemplateSpec{
+									Pod: &v1alpha1.PodTemplateSpec{
 										Spec: corev1.PodSpec{
 											Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
 											RestartPolicy: corev1.RestartPolicyAlways,
@@ -594,7 +594,7 @@ func TestValidateJob(t *testing.T) {
 					Template: &v1alpha1.JobTemplateSpec{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
-								Pod: &corev1.PodTemplateSpec{
+								Pod: &v1alpha1.PodTemplateSpec{
 									Spec: corev1.PodSpec{
 										Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
 										RestartPolicy: corev1.RestartPolicyAlways,

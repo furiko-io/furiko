@@ -309,7 +309,7 @@ func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplateSpec, fldPath 
 }
 
 // MutatePodTemplateSpec mutates PodTemplateSpec in-place.
-func (m *Mutator) MutatePodTemplateSpec(spec *corev1.PodTemplateSpec, fldPath *field.Path) *webhook.Result {
+func (m *Mutator) MutatePodTemplateSpec(spec *v1alpha1.PodTemplateSpec, fldPath *field.Path) *webhook.Result {
 	result := webhook.NewResult()
 
 	if spec.Spec.RestartPolicy == "" {
