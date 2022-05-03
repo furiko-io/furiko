@@ -59,8 +59,10 @@ type TaskTemplate struct {
 
 // PodTemplateSpec describes the data a Pod should have when created from a template.
 type PodTemplateSpec struct {
-	// Standard object's metadata, will be added to the Pod when created. More info:
+	// Standard object's metadata that will be added to Pod. More info:
 	// https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	//
+	// +kubebuilder:validation:XPreserveUnknownFields
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 

@@ -106,8 +106,9 @@ spec:
                               description: Describes how to create tasks as Pods.
                               properties:
                                 metadata:
-                                  description: 'Standard object''s metadata, will be added to the Pod when created. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                  description: 'Standard object''s metadata that will be added to Pod. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
                                   type: object
+                                  x-kubernetes-preserve-unknown-fields: true
                                 spec:
                                   description: "Specification of the desired behavior of the pod. API docs: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core \n Supports context variable substitution in the following fields for containers and initContainers: image, command, args, env.value"
                                   type: object

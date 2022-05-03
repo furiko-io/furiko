@@ -128,6 +128,11 @@ type StartPolicySpec struct {
 
 // JobTemplate specifies how to create a Job with metadata.
 type JobTemplate struct {
+	// Standard object's metadata that will be added to Job. More info:
+	// https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	//
+	// +kubebuilder:validation:XPreserveUnknownFields
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Specification of the desired behavior of the job.
