@@ -36,16 +36,31 @@ var (
 
 	podTemplateSpecBasic = v1alpha1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  "container",
-					Image: "alpine",
-					Command: []string{
-						"echo",
-						"Hello World",
-					},
-				},
-			},
+			Containers: []corev1.Container{containerBasic},
+		},
+	}
+
+	podTemplateSpecUpdatedCommand = v1alpha1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{containerUpdatedCommand},
+		},
+	}
+
+	containerBasic = corev1.Container{
+		Name:  "container",
+		Image: "alpine",
+		Command: []string{
+			"echo",
+			"Hello World",
+		},
+	}
+
+	containerUpdatedCommand = corev1.Container{
+		Name:  containerBasic.Name,
+		Image: containerBasic.Image,
+		Command: []string{
+			"echo",
+			"Hello World 2",
 		},
 	}
 )

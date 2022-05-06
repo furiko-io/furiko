@@ -194,8 +194,8 @@ func (v *Validator) ValidateJobConfigSpec(spec *v1alpha1.JobConfigSpec, fldPath 
 	return allErrs
 }
 
-// ValidateJobTemplate validates a *v1alpha1.JobTemplate.
-func (v *Validator) ValidateJobTemplate(spec *v1alpha1.JobTemplate, fldPath *field.Path) field.ErrorList {
+// ValidateJobTemplate validates a *v1alpha1.JobTemplateSpec.
+func (v *Validator) ValidateJobTemplate(spec *v1alpha1.JobTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, v.ValidateJobTemplateSpec(&spec.Spec, fldPath.Child("spec"))...)
 	return allErrs
@@ -331,10 +331,10 @@ func (v *Validator) ValidateJobSpecUpdate(oldSpec, spec *v1alpha1.JobSpec, fldPa
 	return allErrs
 }
 
-// ValidateJobTemplateSpecImmutable validates that fields in a Job's *v1alpha1.JobTemplateSpec are immutable.
-func (v *Validator) ValidateJobTemplateSpecImmutable(oldTemplate, template *v1alpha1.JobTemplateSpec, fldPath *field.Path) field.ErrorList {
+// ValidateJobTemplateSpecImmutable validates that fields in a Job's *v1alpha1.JobTemplate are immutable.
+func (v *Validator) ValidateJobTemplateSpecImmutable(oldTemplate, template *v1alpha1.JobTemplate, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.Task, oldTemplate.Task, fldPath.Child("task"))...)
+	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.TaskTemplate, oldTemplate.TaskTemplate, fldPath.Child("taskTemplate"))...)
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.MaxAttempts, oldTemplate.MaxAttempts, fldPath.Child("maxAttempts"))...)
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.RetryDelaySeconds, oldTemplate.RetryDelaySeconds, fldPath.Child("retryDelaySeconds"))...)
 	return allErrs
@@ -380,10 +380,13 @@ func (v *Validator) ValidateStartPolicySpec(spec *v1alpha1.StartPolicySpec, fldP
 	return allErrs
 }
 
-// ValidateJobTemplateSpec validates a *v1alpha1.JobTemplateSpec.
-func (v *Validator) ValidateJobTemplateSpec(template *v1alpha1.JobTemplateSpec, fldPath *field.Path) field.ErrorList {
+// ValidateJobTemplateSpec validates a *v1alpha1.JobTemplate.
+func (v *Validator) ValidateJobTemplateSpec(template *v1alpha1.JobTemplate, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, v.ValidateJobTaskSpec(&template.Task, fldPath.Child("task"))...)
+	allErrs = append(allErrs, v.ValidateTaskTemplate(&template.TaskTemplate, fldPath.Child("taskTemplate"))...)
+	if template.TaskPendingTimeoutSeconds != nil {
+		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(*template.TaskPendingTimeoutSeconds, fldPath.Child("taskPendingTimeoutSeconds"))...)
+	}
 	if template.MaxAttempts != nil {
 		allErrs = append(allErrs, v.ValidateMaxRetryAttempts(*template.MaxAttempts, fldPath.Child("maxAttempts"))...)
 	}
@@ -403,16 +406,6 @@ func (v *Validator) ValidateMaxRetryAttempts(attempts int64, fldPath *field.Path
 	// TODO(irvinlim): Support configuring this value
 	allErrs = append(allErrs, validation.ValidateLTE(attempts, 50, fldPath)...)
 
-	return allErrs
-}
-
-// ValidateJobTaskSpec validates a *v1alpha1.TaskSpec.
-func (v *Validator) ValidateJobTaskSpec(spec *v1alpha1.TaskSpec, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, v.ValidateTaskTemplate(&spec.Template, fldPath.Child("template"))...)
-	if spec.PendingTimeoutSeconds != nil {
-		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(*spec.PendingTimeoutSeconds, fldPath.Child("pendingTimeoutSeconds"))...)
-	}
 	return allErrs
 }
 

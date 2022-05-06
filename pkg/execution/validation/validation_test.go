@@ -84,51 +84,51 @@ var (
 		OwnerReferences: ownerReferences,
 	}
 
-	jobTemplateSpecBasic = v1alpha1.JobTemplate{
+	jobTemplateSpecBasic = v1alpha1.JobTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				"labels.furiko.io/custom-label": "123",
 			},
 		},
-		Spec: v1alpha1.JobTemplateSpec{
-			Task: v1alpha1.TaskSpec{
-				Template: v1alpha1.TaskTemplate{
-					Pod: &podTemplateSpecBasic,
-				},
-				PendingTimeoutSeconds: pointer.Int64(1800),
+		Spec: v1alpha1.JobTemplate{
+			TaskTemplate: v1alpha1.TaskTemplate{
+				Pod: &podTemplateSpecBasic,
 			},
-			MaxAttempts:       pointer.Int64(5),
-			RetryDelaySeconds: pointer.Int64(60),
+			TaskPendingTimeoutSeconds: pointer.Int64(1800),
+			MaxAttempts:               pointer.Int64(5),
+			RetryDelaySeconds:         pointer.Int64(60),
 		},
 	}
 
-	jobTemplateSpecLongPendingTimeout = v1alpha1.JobTemplate{
-		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
-		Spec: v1alpha1.JobTemplateSpec{
-			Task: v1alpha1.TaskSpec{
-				Template: v1alpha1.TaskTemplate{
-					Pod: &podTemplateSpecBasic,
-				},
-				PendingTimeoutSeconds: pointer.Int64(3600),
+	jobTemplateSpecContainerUpdatedCommand = v1alpha1.JobTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"labels.furiko.io/custom-label": "123",
 			},
-			MaxAttempts:       jobTemplateSpecBasic.Spec.MaxAttempts,
-			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
+		},
+		Spec: v1alpha1.JobTemplate{
+			TaskTemplate: v1alpha1.TaskTemplate{
+				Pod: &podTemplateSpecUpdatedCommand,
+			},
+			TaskPendingTimeoutSeconds: pointer.Int64(1800),
+			MaxAttempts:               pointer.Int64(5),
+			RetryDelaySeconds:         pointer.Int64(60),
 		},
 	}
 
-	jobTemplateSpecMoreRetries = v1alpha1.JobTemplate{
+	jobTemplateSpecMoreRetries = v1alpha1.JobTemplateSpec{
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
-		Spec: v1alpha1.JobTemplateSpec{
-			Task:              jobTemplateSpecBasic.Spec.Task,
+		Spec: v1alpha1.JobTemplate{
+			TaskTemplate:      jobTemplateSpecBasic.Spec.TaskTemplate,
 			MaxAttempts:       pointer.Int64(10),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
 
-	jobTemplateSpecTooManyRetries = v1alpha1.JobTemplate{
+	jobTemplateSpecTooManyRetries = v1alpha1.JobTemplateSpec{
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
-		Spec: v1alpha1.JobTemplateSpec{
-			Task:              jobTemplateSpecBasic.Spec.Task,
+		Spec: v1alpha1.JobTemplate{
+			TaskTemplate:      jobTemplateSpecBasic.Spec.TaskTemplate,
 			MaxAttempts:       pointer.Int64(100),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
@@ -369,49 +369,43 @@ func TestValidateJobConfig(t *testing.T) {
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
 					Concurrency: concurrencySpecBasic,
-					Template: v1alpha1.JobTemplate{
-						Spec: v1alpha1.JobTemplateSpec{
-							Task: v1alpha1.TaskSpec{
-								Template: v1alpha1.TaskTemplate{},
-							},
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
+							TaskTemplate: v1alpha1.TaskTemplate{},
 						},
 					},
 				},
 			},
-			wantErr: "spec.template.spec.task.template: Required value",
+			wantErr: "spec.template.spec.taskTemplate: Required value",
 		},
 		{
 			name: "invalid pod template",
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
 					Concurrency: concurrencySpecBasic,
-					Template: v1alpha1.JobTemplate{
-						Spec: v1alpha1.JobTemplateSpec{
-							Task: v1alpha1.TaskSpec{
-								Template: v1alpha1.TaskTemplate{
-									Pod: &podTemplateSpecEmpty,
-								},
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
+							TaskTemplate: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecEmpty,
 							},
 						},
 					},
 				},
 			},
-			wantErr: "spec.template.spec.task.template.pod.spec.containers: Required value",
+			wantErr: "spec.template.spec.taskTemplate.pod.spec.containers: Required value",
 		},
 		{
 			name: "cannot use restartPolicy Always",
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
 					Concurrency: concurrencySpecBasic,
-					Template: v1alpha1.JobTemplate{
-						Spec: v1alpha1.JobTemplateSpec{
-							Task: v1alpha1.TaskSpec{
-								Template: v1alpha1.TaskTemplate{
-									Pod: &v1alpha1.PodTemplateSpec{
-										Spec: corev1.PodSpec{
-											Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
-											RestartPolicy: corev1.RestartPolicyAlways,
-										},
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
+							TaskTemplate: v1alpha1.TaskTemplate{
+								Pod: &v1alpha1.PodTemplateSpec{
+									Spec: corev1.PodSpec{
+										Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
+										RestartPolicy: corev1.RestartPolicyAlways,
 									},
 								},
 							},
@@ -419,7 +413,7 @@ func TestValidateJobConfig(t *testing.T) {
 					},
 				},
 			},
-			wantErr: "spec.template.spec.task.template.pod.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
+			wantErr: "spec.template.spec.taskTemplate.pod.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
 		},
 	}
 	for _, tt := range tests {
@@ -559,14 +553,12 @@ func TestValidateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{},
-						},
+					Template: &v1alpha1.JobTemplate{
+						TaskTemplate: v1alpha1.TaskTemplate{},
 					},
 				},
 			},
-			wantErr: "spec.template.task.template: Required value",
+			wantErr: "spec.template.taskTemplate: Required value",
 		},
 		{
 			name: "invalid pod template",
@@ -574,16 +566,14 @@ func TestValidateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{
-								Pod: &podTemplateSpecEmpty,
-							},
+					Template: &v1alpha1.JobTemplate{
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecEmpty,
 						},
 					},
 				},
 			},
-			wantErr: "spec.template.task.template.pod.spec.containers: Required value",
+			wantErr: "spec.template.taskTemplate.pod.spec.containers: Required value",
 		},
 		{
 			name: "cannot use restartPolicy Always",
@@ -591,21 +581,19 @@ func TestValidateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{
-								Pod: &v1alpha1.PodTemplateSpec{
-									Spec: corev1.PodSpec{
-										Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
-										RestartPolicy: corev1.RestartPolicyAlways,
-									},
+					Template: &v1alpha1.JobTemplate{
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &v1alpha1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									Containers:    []corev1.Container{{Name: "container", Image: "alpine"}},
+									RestartPolicy: corev1.RestartPolicyAlways,
 								},
 							},
 						},
 					},
 				},
 			},
-			wantErr: "spec.template.task.template.pod.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
+			wantErr: "spec.template.taskTemplate.pod.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
 		},
 	}
 	for _, tt := range tests {
@@ -757,10 +745,10 @@ func TestValidateJobUpdate(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type:     v1alpha1.JobTypeAdhoc,
-					Template: &jobTemplateSpecLongPendingTimeout.Spec,
+					Template: &jobTemplateSpecContainerUpdatedCommand.Spec,
 				},
 			},
-			wantErr: "spec.template.task: Invalid value",
+			wantErr: "spec.template.taskTemplate: Invalid value",
 		},
 		{
 			name: "immutable field maxAttempts",

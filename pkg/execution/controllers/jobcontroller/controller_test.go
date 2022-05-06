@@ -62,11 +62,9 @@ var (
 		},
 		Spec: execution.JobSpec{
 			Type: execution.JobTypeAdhoc,
-			Template: &execution.JobTemplateSpec{
-				Task: execution.TaskSpec{
-					Template: execution.TaskTemplate{
-						Pod: podTemplate,
-					},
+			Template: &execution.JobTemplate{
+				TaskTemplate: execution.TaskTemplate{
+					Pod: podTemplate,
 				},
 			},
 		},
@@ -159,7 +157,7 @@ var (
 	// Job without pending timeout.
 	fakeJobWithoutPendingTimeout = func() *execution.Job {
 		newJob := fakeJobPending.DeepCopy()
-		newJob.Spec.Template.Task.PendingTimeoutSeconds = pointer.Int64(0)
+		newJob.Spec.Template.TaskPendingTimeoutSeconds = pointer.Int64(0)
 		return newJob
 	}()
 
@@ -178,7 +176,7 @@ var (
 	// Job with pod being deleted and force deletion is not allowed.
 	fakeJobPodDeletingForbidForceDeletion = func() *execution.Job {
 		newJob := fakeJobPodDeleting.DeepCopy()
-		newJob.Spec.Template.Task.ForbidForceDeletion = true
+		newJob.Spec.Template.ForbidTaskForceDeletion = true
 		return newJob
 	}()
 

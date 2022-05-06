@@ -209,6 +209,9 @@ spec:
                     spec:
                       description: Specification of the desired behavior of the job.
                       properties:
+                        forbidTaskForceDeletion:
+                          description: "Defines whether tasks are allowed to be force deleted or not. If the node is unresponsive, it may be possible that the task cannot be killed by normal graceful deletion. The controller may choose to force delete the task, which would ignore the final state of the task since the node is unable to return whether the task is actually still alive. \n If not set to true, there may be some cases when there may actually be two concurrently running tasks when even when ConcurrencyPolicyForbid. Setting this to true would prevent this from happening, but the Job may remain stuck indefinitely until the node recovers."
+                          type: boolean
                         maxAttempts:
                           description: Specifies maximum number of attempts for the Job. Each attempt will create a single task at a time, and if the task fails, the controller will wait retryDelaySeconds before creating the next task attempt. Once maxAttempts is reached, the Job terminates in RetryLimitExceeded. Value must be a positive integer. Defaults to 1.
                           format: int64
@@ -217,38 +220,29 @@ spec:
                           description: Optional duration in seconds to wait between retries. If left empty or zero, it means no delay (i.e. retry immediately). Value must be a non-negative integer.
                           format: int64
                           type: integer
-                        task:
-                          description: Describes the tasks to be created for the Job.
+                        taskPendingTimeoutSeconds:
+                          description: Optional duration in seconds to wait before terminating the task if it is still pending. This field is useful to prevent jobs from being stuck forever if the Job has a deadline to start running by. If not set, it will be set to the DefaultPendingTimeoutSeconds configuration value in the controller. To disable pending timeout, set this to 0.
+                          format: int64
+                          type: integer
+                        taskTemplate:
+                          description: Defines the template to create a single task in the Job.
                           properties:
-                            forbidForceDeletion:
-                              description: "ForbidForceDeletion, if true, means that tasks are not allowed to be force deleted. If the node is unresponsive, it may be possible that the task cannot be killed by normal graceful deletion. The controller may choose to force delete the task, which would ignore the final state of the task since the node is unable to return whether the task is actually still alive. \n As such, if not set to true, the Forbid ConcurrencyPolicy may in some cases be violated. Setting this to true would prevent this from happening, but the Job may remain in Killing indefinitely until the node recovers."
-                              type: boolean
-                            pendingTimeoutSeconds:
-                              description: Optional duration in seconds to wait before terminating the task if it is still pending. This field is useful to prevent jobs from being stuck forever if the Job has a deadline to start running by. If not set, it will be set to the DefaultPendingTimeoutSeconds configuration value in the controller. To disable pending timeout, set this to 0.
-                              format: int64
-                              type: integer
-                            template:
-                              description: Defines the template to create the task.
+                            pod:
+                              description: Describes how to create tasks as Pods.
                               properties:
-                                pod:
-                                  description: Describes how to create tasks as Pods.
-                                  properties:
-                                    metadata:
-                                      description: 'Standard object''s metadata that will be added to Pod. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
-                                      type: object
-                                      x-kubernetes-preserve-unknown-fields: true
-                                    spec:
-                                      description: "Specification of the desired behavior of the pod. API docs: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core \n Supports context variable substitution in the following fields for containers and initContainers: image, command, args, env.value"
-                                      type: object
-                                      x-kubernetes-map-type: atomic
-                                      x-kubernetes-preserve-unknown-fields: true
+                                metadata:
+                                  description: 'Standard object''s metadata that will be added to Pod. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
                                   type: object
+                                  x-kubernetes-preserve-unknown-fields: true
+                                spec:
+                                  description: "Specification of the desired behavior of the pod. API docs: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core \n Supports context variable substitution in the following fields for containers and initContainers: image, command, args, env.value"
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                  x-kubernetes-preserve-unknown-fields: true
                               type: object
-                          required:
-                            - template
                           type: object
                       required:
-                        - task
+                        - taskTemplate
                       type: object
                   required:
                     - spec

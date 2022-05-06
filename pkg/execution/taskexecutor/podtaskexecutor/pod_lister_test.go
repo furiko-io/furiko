@@ -46,11 +46,9 @@ var (
 			UID:       jobUID,
 		},
 		Spec: execution.JobSpec{
-			Template: &execution.JobTemplateSpec{
-				Task: execution.TaskSpec{
-					Template: execution.TaskTemplate{
-						Pod: &execution.PodTemplateSpec{},
-					},
+			Template: &execution.JobTemplate{
+				TaskTemplate: execution.TaskTemplate{
+					Pod: &execution.PodTemplateSpec{},
 				},
 			},
 		},

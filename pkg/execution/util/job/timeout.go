@@ -29,7 +29,7 @@ func GetPendingTimeout(rj *execution.Job, cfg *configv1alpha1.JobExecutionConfig
 	if spec := cfg.DefaultPendingTimeoutSeconds; spec != nil {
 		sec = *spec
 	}
-	if taskPt := rj.Spec.Template.Task.PendingTimeoutSeconds; taskPt != nil && *taskPt >= 0 {
+	if taskPt := rj.Spec.Template.TaskPendingTimeoutSeconds; taskPt != nil && *taskPt >= 0 {
 		sec = *taskPt
 	}
 	return time.Duration(sec) * time.Second

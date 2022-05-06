@@ -125,9 +125,9 @@ func (m *Mutator) MutateJob(rj *v1alpha1.Job) *webhook.Result {
 		rj.Spec.TTLSecondsAfterFinished = cfg.DefaultTTLSecondsAfterFinished
 	}
 
-	// Specify default values for JobTemplateSpec.
+	// Specify default values for JobTemplate.
 	if rj.Spec.Template == nil {
-		rj.Spec.Template = &v1alpha1.JobTemplateSpec{}
+		rj.Spec.Template = &v1alpha1.JobTemplate{}
 	}
 	result.Merge(m.MutateJobTemplateSpec(rj.Spec.Template, field.NewPath("spec", "template")))
 
@@ -208,12 +208,12 @@ func (m *Mutator) evaluateConfigName(rj *v1alpha1.Job, rjcName string, fldPath *
 	rj.OwnerReferences = baseJob.OwnerReferences
 	rj.Labels[jobconfig.LabelKeyJobConfigUID] = baseJob.Labels[jobconfig.LabelKeyJobConfigUID]
 
-	// Return Warnings if the JobTemplate was not empty when overriding.
-	if rj.Spec.Template != nil && !reflect.DeepEqual(rj.Spec.Template, v1alpha1.JobTemplateSpec{}) {
-		result.Warnings = append(result.Warnings, "JobTemplate was overwritten with JobConfig's template")
+	// Return Warnings if the JobTemplateSpec was not empty when overriding.
+	if rj.Spec.Template != nil && !reflect.DeepEqual(rj.Spec.Template, v1alpha1.JobTemplate{}) {
+		result.Warnings = append(result.Warnings, "JobTemplateSpec was overwritten with JobConfig's template")
 	}
 
-	// The JobTemplate will be completely overwritten by the base Job.
+	// The JobTemplateSpec will be completely overwritten by the base Job.
 	rj.Spec.Template = baseJob.Spec.Template
 
 	// If StartPolicy is not set, we should default to the JobConfig's ConcurrencyPolicy.
@@ -291,8 +291,8 @@ func (m *Mutator) evaluateOptionValues(rj *v1alpha1.Job, rjc *v1alpha1.JobConfig
 	return result
 }
 
-// MutateJobTemplateSpec mutates a JobTemplateSpec in-place.
-func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplateSpec, fldPath *field.Path) *webhook.Result {
+// MutateJobTemplateSpec mutates a JobTemplate in-place.
+func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplate, fldPath *field.Path) *webhook.Result {
 	result := webhook.NewResult()
 
 	// Add MaxAttempts if not specified.
@@ -301,8 +301,8 @@ func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplateSpec, fldPath 
 	}
 
 	// Mutate task's PodTemplateSpec.
-	if spec.Task.Template.Pod != nil {
-		result.Merge(m.MutatePodTemplateSpec(spec.Task.Template.Pod, fldPath.Child("task", "template")))
+	if spec.TaskTemplate.Pod != nil {
+		result.Merge(m.MutatePodTemplateSpec(spec.TaskTemplate.Pod, fldPath.Child("task", "template")))
 	}
 
 	return result
