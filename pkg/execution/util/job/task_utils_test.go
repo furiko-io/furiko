@@ -38,7 +38,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxAttempts: &three,
+						MaxAttempts: pointer.Int64(3),
 					},
 				},
 			},
@@ -49,7 +49,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxAttempts:       &three,
+						MaxAttempts:       pointer.Int64(3),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
@@ -82,7 +82,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxAttempts: &three,
+						MaxAttempts: pointer.Int64(3),
 					},
 				},
 				Status: execution.JobStatus{
@@ -107,7 +107,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxAttempts:       &three,
+						MaxAttempts:       pointer.Int64(3),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
@@ -133,7 +133,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxAttempts:       &three,
+						MaxAttempts:       pointer.Int64(3),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
@@ -158,7 +158,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxAttempts:       &three,
+						MaxAttempts:       pointer.Int64(3),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 					KillTimestamp: &killTime,
@@ -185,7 +185,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxAttempts:       &two,
+						MaxAttempts:       pointer.Int64(2),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},
@@ -220,7 +220,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
 					Template: &execution.JobTemplateSpec{
-						MaxAttempts:       &two,
+						MaxAttempts:       pointer.Int64(2),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
 				},

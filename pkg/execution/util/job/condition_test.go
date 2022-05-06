@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/utils/pointer"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
@@ -309,7 +310,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -374,7 +375,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -442,7 +443,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1", "task2"),
@@ -482,7 +483,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1", "task2"),
@@ -541,7 +542,7 @@ func TestGetCondition(t *testing.T) {
 					Spec: execution.JobSpec{
 						KillTimestamp: &killTime,
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: execution.JobStatus{
@@ -585,7 +586,7 @@ func TestGetCondition(t *testing.T) {
 					Spec: execution.JobSpec{
 						KillTimestamp: &killTime,
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: execution.JobStatus{
@@ -662,7 +663,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -683,7 +684,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: execution.JobStatus{
@@ -720,7 +721,7 @@ func TestGetCondition(t *testing.T) {
 					Spec: execution.JobSpec{
 						KillTimestamp: &killTime,
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),

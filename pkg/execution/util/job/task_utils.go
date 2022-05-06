@@ -52,7 +52,7 @@ func GetMaxAllowedTasks(rj *execution.Job) int64 {
 	var maxAttempts int64 = 1
 	if template := rj.Spec.Template; template != nil {
 		if rj.Spec.Template.MaxAttempts != nil {
-			maxAttempts = int64(*rj.Spec.Template.MaxAttempts)
+			maxAttempts = *rj.Spec.Template.MaxAttempts
 		}
 	}
 	return maxAttempts

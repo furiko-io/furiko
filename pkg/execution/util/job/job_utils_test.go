@@ -19,6 +19,8 @@ package job_test
 import (
 	"testing"
 
+	"k8s.io/utils/pointer"
+
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
 	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
@@ -48,7 +50,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -70,7 +72,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -96,7 +98,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -124,7 +126,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -176,7 +178,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 					Spec: execution.JobSpec{
 						KillTimestamp: &killTime,
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &two,
+							MaxAttempts: pointer.Int64(2),
 						},
 					},
 					Status: createTaskRefsStatus("task1"),
@@ -204,7 +206,7 @@ func TestAllowedToCreateNewTask(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						Template: &execution.JobTemplateSpec{
-							MaxAttempts: &three,
+							MaxAttempts: pointer.Int64(3),
 						},
 					},
 					Status: createTaskRefsStatus("task1", "task2"),

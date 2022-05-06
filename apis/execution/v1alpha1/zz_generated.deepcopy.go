@@ -484,7 +484,7 @@ func (in *JobTemplateSpec) DeepCopyInto(out *JobTemplateSpec) {
 	in.Task.DeepCopyInto(&out.Task)
 	if in.MaxAttempts != nil {
 		in, out := &in.MaxAttempts, &out.MaxAttempts
-		*out = new(int32)
+		*out = new(int64)
 		**out = **in
 	}
 	if in.RetryDelaySeconds != nil {

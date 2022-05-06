@@ -97,7 +97,7 @@ var (
 				},
 				PendingTimeoutSeconds: pointer.Int64(1800),
 			},
-			MaxAttempts:       pointer.Int32(5),
+			MaxAttempts:       pointer.Int64(5),
 			RetryDelaySeconds: pointer.Int64(60),
 		},
 	}
@@ -120,7 +120,7 @@ var (
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
 		Spec: v1alpha1.JobTemplateSpec{
 			Task:              jobTemplateSpecBasic.Spec.Task,
-			MaxAttempts:       pointer.Int32(10),
+			MaxAttempts:       pointer.Int64(10),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
@@ -129,7 +129,7 @@ var (
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
 		Spec: v1alpha1.JobTemplateSpec{
 			Task:              jobTemplateSpecBasic.Spec.Task,
-			MaxAttempts:       pointer.Int32(100),
+			MaxAttempts:       pointer.Int64(100),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
