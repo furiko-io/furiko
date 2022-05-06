@@ -393,15 +393,15 @@ func (v *Validator) ValidateJobTemplateSpec(template *v1alpha1.JobTemplateSpec, 
 	return allErrs
 }
 
-func (v *Validator) ValidateMaxRetryAttempts(attempts int32, fldPath *field.Path) field.ErrorList {
+func (v *Validator) ValidateMaxRetryAttempts(attempts int64, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	// Must be greater than 0.
-	allErrs = append(allErrs, validation.ValidateGT(int64(attempts), 0, fldPath)...)
+	allErrs = append(allErrs, validation.ValidateGT(attempts, 0, fldPath)...)
 
 	// Set an arbitrary limit of 50 attempts.
 	// TODO(irvinlim): Support configuring this value
-	allErrs = append(allErrs, validation.ValidateLTE(int64(attempts), 50, fldPath)...)
+	allErrs = append(allErrs, validation.ValidateLTE(attempts, 50, fldPath)...)
 
 	return allErrs
 }

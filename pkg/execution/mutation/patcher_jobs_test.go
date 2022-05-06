@@ -70,7 +70,7 @@ func TestNewJobPatcher(t *testing.T) {
 								},
 							},
 						},
-						MaxAttempts: pointer.Int32(1),
+						MaxAttempts: pointer.Int64(1),
 					},
 					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,
 				},
@@ -91,7 +91,7 @@ func TestNewJobPatcher(t *testing.T) {
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplateSpec{
 						Task:        jobTemplateSpecBasic.Spec.Task,
-						MaxAttempts: pointer.Int32(1),
+						MaxAttempts: pointer.Int64(1),
 					},
 					StartPolicy:             &startPolicyBasic,
 					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,

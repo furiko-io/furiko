@@ -297,7 +297,7 @@ func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplateSpec, fldPath 
 
 	// Add MaxAttempts if not specified.
 	if spec.MaxAttempts == nil {
-		spec.MaxAttempts = pointer.Int32(1)
+		spec.MaxAttempts = pointer.Int64(1)
 	}
 
 	// Mutate task's PodTemplateSpec.

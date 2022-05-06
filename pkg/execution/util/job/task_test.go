@@ -43,8 +43,6 @@ var (
 	finishTime       = metav1.NewTime(stdFinishTime)
 	finishTime2      = metav1.NewTime(stdFinishTime.Add(time.Minute))
 	killTime         = metav1.NewTime(stdKillTime)
-	two              = int32(2)
-	three            = int32(3)
 )
 
 type stubTask struct {

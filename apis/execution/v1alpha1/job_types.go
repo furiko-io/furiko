@@ -151,7 +151,7 @@ type JobTemplateSpec struct {
 	// integer. Defaults to 1.
 	//
 	// +optional
-	MaxAttempts *int32 `json:"maxAttempts,omitempty"`
+	MaxAttempts *int64 `json:"maxAttempts,omitempty"`
 
 	// Optional duration in seconds to wait between retries. If left empty or zero,
 	// it means no delay (i.e. retry immediately). Value must be a non-negative
