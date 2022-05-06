@@ -632,7 +632,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 
 	// This Job's tasks cannot be force deleted.
 	// Do not continue with the rest of the routine.
-	if rj.Spec.Template.Task.ForbidForceDeletion {
+	if rj.Spec.Template.ForbidTaskForceDeletion {
 		// TODO(irvinlim): Check if we need special handling here.
 		return rj, nil
 	}

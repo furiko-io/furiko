@@ -47,10 +47,8 @@ var (
 		},
 		Spec: execution.JobSpec{
 			Template: &execution.JobTemplate{
-				Task: execution.TaskSpec{
-					Template: execution.TaskTemplate{
-						Pod: &execution.PodTemplateSpec{},
-					},
+				TaskTemplate: execution.TaskTemplate{
+					Pod: &execution.PodTemplateSpec{},
 				},
 			},
 		},

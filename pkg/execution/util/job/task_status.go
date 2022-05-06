@@ -51,7 +51,7 @@ func GetTaskRef(existing *execution.TaskRef, task tasks.Task) execution.TaskRef 
 	// 	// Overwrite the message if the task is set to forbid force deletion.
 	// 	// This will create a less confusing message than a perpetual killing message without a concrete reason.
 	// 	taskRef.Status.Message =
-	// 		"ForbidForceDeletion - Node is unresponsive, but task forbidden to be force deleted by policy"
+	// 		"ForbidTaskForceDeletion - Node is unresponsive, but task forbidden to be force deleted by policy"
 	// }
 
 	// Copy Status to DeletedStatus if the TaskRef is finished.

@@ -47,10 +47,8 @@ func TestNewJobPatcher(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Template: &v1alpha1.JobTemplate{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{
-								Pod: &podTemplateSpecBare,
-							},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBare,
 						},
 					},
 				},
@@ -60,13 +58,11 @@ func TestNewJobPatcher(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplate{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{
-								Pod: &v1alpha1.PodTemplateSpec{
-									Spec: corev1.PodSpec{
-										Containers:    podTemplateSpecBare.Spec.Containers,
-										RestartPolicy: corev1.RestartPolicyNever,
-									},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &v1alpha1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									Containers:    podTemplateSpecBare.Spec.Containers,
+									RestartPolicy: corev1.RestartPolicyNever,
 								},
 							},
 						},
@@ -90,8 +86,8 @@ func TestNewJobPatcher(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplate{
-						Task:        jobTemplateSpecBasic.Spec.Task,
-						MaxAttempts: pointer.Int64(1),
+						TaskTemplate: jobTemplateSpecBasic.Spec.TaskTemplate,
+						MaxAttempts:  pointer.Int64(1),
 					},
 					StartPolicy:             &startPolicyBasic,
 					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,

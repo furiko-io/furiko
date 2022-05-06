@@ -157,20 +157,16 @@ var (
 
 	jobTemplateSpecBasic = v1alpha1.JobTemplateSpec{
 		Spec: v1alpha1.JobTemplate{
-			Task: v1alpha1.TaskSpec{
-				Template: v1alpha1.TaskTemplate{
-					Pod: &podTemplateSpecBasic,
-				},
+			TaskTemplate: v1alpha1.TaskTemplate{
+				Pod: &podTemplateSpecBasic,
 			},
 		},
 	}
 
 	jobTemplateSpecBasic2 = v1alpha1.JobTemplateSpec{
 		Spec: v1alpha1.JobTemplate{
-			Task: v1alpha1.TaskSpec{
-				Template: v1alpha1.TaskTemplate{
-					Pod: &podTemplateSpecBasic2,
-				},
+			TaskTemplate: v1alpha1.TaskTemplate{
+				Pod: &podTemplateSpecBasic2,
 			},
 		},
 	}
@@ -238,10 +234,8 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 				Spec: v1alpha1.JobConfigSpec{
 					Template: v1alpha1.JobTemplateSpec{
 						Spec: v1alpha1.JobTemplate{
-							Task: v1alpha1.TaskSpec{
-								Template: v1alpha1.TaskTemplate{
-									Pod: &podTemplateSpecBare,
-								},
+							TaskTemplate: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecBare,
 							},
 						},
 					},
@@ -634,10 +628,8 @@ func TestMutator_MutateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Template: &v1alpha1.JobTemplate{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{
-								Pod: &podTemplateSpecBasic,
-							},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
 						},
 					},
 				},
@@ -647,10 +639,8 @@ func TestMutator_MutateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplate{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{
-								Pod: &podTemplateSpecBasic,
-							},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
 						},
 						MaxAttempts: pointer.Int64(1),
 					},
@@ -665,10 +655,8 @@ func TestMutator_MutateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
 					Template: &v1alpha1.JobTemplate{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{
-								Pod: &podTemplateSpecBasic,
-							},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
 						},
 						MaxAttempts: pointer.Int64(1),
 					},
@@ -1120,12 +1108,10 @@ func TestMutator_MutateCreateJob(t *testing.T) {
 				Spec: v1alpha1.JobSpec{
 					ConfigName: objectMetaJobConfig.Name,
 					Template: &v1alpha1.JobTemplate{
-						Task: v1alpha1.TaskSpec{
-							Template: v1alpha1.TaskTemplate{
-								Pod: &podTemplateSpecBasic,
-							},
-							ForbidForceDeletion: true,
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
 						},
+						ForbidTaskForceDeletion: true,
 					},
 				},
 			},

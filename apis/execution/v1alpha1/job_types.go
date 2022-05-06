@@ -141,8 +141,8 @@ type JobTemplateSpec struct {
 
 // JobTemplate specifies how to create the Job.
 type JobTemplate struct {
-	// Describes the tasks to be created for the Job.
-	Task TaskSpec `json:"task"`
+	// Defines the template to create a single task in the Job.
+	TaskTemplate TaskTemplate `json:"taskTemplate"`
 
 	// Specifies maximum number of attempts for the Job. Each attempt will create a
 	// single task at a time, and if the task fails, the controller will wait
@@ -159,6 +159,29 @@ type JobTemplate struct {
 	//
 	// +optional
 	RetryDelaySeconds *int64 `json:"retryDelaySeconds,omitempty"`
+
+	// Optional duration in seconds to wait before terminating the task if it is
+	// still pending. This field is useful to prevent jobs from being stuck forever
+	// if the Job has a deadline to start running by. If not set, it will be set to
+	// the DefaultPendingTimeoutSeconds configuration value in the controller. To
+	// disable pending timeout, set this to 0.
+	//
+	// +optional
+	TaskPendingTimeoutSeconds *int64 `json:"taskPendingTimeoutSeconds,omitempty"`
+
+	// Defines whether tasks are allowed to be force deleted or not. If the node is
+	// unresponsive, it may be possible that the task cannot be killed by normal
+	// graceful deletion. The controller may choose to force delete the task, which
+	// would ignore the final state of the task since the node is unable to return
+	// whether the task is actually still alive.
+	//
+	// If not set to true, there may be some cases when there may actually be two
+	// concurrently running tasks when even when ConcurrencyPolicyForbid. Setting
+	// this to true would prevent this from happening, but the Job may remain stuck
+	// indefinitely until the node recovers.
+	//
+	// +optional
+	ForbidTaskForceDeletion bool `json:"forbidTaskForceDeletion,omitempty"`
 }
 
 // JobStatus defines the observed state of a Job.

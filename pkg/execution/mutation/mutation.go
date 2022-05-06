@@ -301,8 +301,8 @@ func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplate, fldPath *fie
 	}
 
 	// Mutate task's PodTemplateSpec.
-	if spec.Task.Template.Pod != nil {
-		result.Merge(m.MutatePodTemplateSpec(spec.Task.Template.Pod, fldPath.Child("task", "template")))
+	if spec.TaskTemplate.Pod != nil {
+		result.Merge(m.MutatePodTemplateSpec(spec.TaskTemplate.Pod, fldPath.Child("task", "template")))
 	}
 
 	return result
