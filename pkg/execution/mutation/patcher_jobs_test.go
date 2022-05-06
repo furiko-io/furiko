@@ -46,7 +46,7 @@ func TestNewJobPatcher(t *testing.T) {
 			rj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecBare,
@@ -59,7 +59,7 @@ func TestNewJobPatcher(t *testing.T) {
 				ObjectMeta: objectMetaJobWithFinalizer,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
 								Pod: &v1alpha1.PodTemplateSpec{
@@ -89,7 +89,7 @@ func TestNewJobPatcher(t *testing.T) {
 				ObjectMeta: objectMetaJobWithAllReferences,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task:        jobTemplateSpecBasic.Spec.Task,
 						MaxAttempts: pointer.Int64(1),
 					},

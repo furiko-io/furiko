@@ -37,7 +37,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			name: "job has no tasks with no retry delay",
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
-					Template: &execution.JobTemplateSpec{
+					Template: &execution.JobTemplate{
 						MaxAttempts: pointer.Int64(3),
 					},
 				},
@@ -48,7 +48,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			name: "job has no tasks with retry delay",
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
-					Template: &execution.JobTemplateSpec{
+					Template: &execution.JobTemplate{
 						MaxAttempts:       pointer.Int64(3),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
@@ -81,7 +81,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			name: "job has some more retries with no retry delay",
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
-					Template: &execution.JobTemplateSpec{
+					Template: &execution.JobTemplate{
 						MaxAttempts: pointer.Int64(3),
 					},
 				},
@@ -106,7 +106,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			name: "job has some more retries with some delay",
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
-					Template: &execution.JobTemplateSpec{
+					Template: &execution.JobTemplate{
 						MaxAttempts:       pointer.Int64(3),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
@@ -132,7 +132,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			name: "job has some more retries with some delay, without finish timestamp set",
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
-					Template: &execution.JobTemplateSpec{
+					Template: &execution.JobTemplate{
 						MaxAttempts:       pointer.Int64(3),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
@@ -157,7 +157,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			name: "job has some more retries with some delay, with kill timestamp set",
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
-					Template: &execution.JobTemplateSpec{
+					Template: &execution.JobTemplate{
 						MaxAttempts:       pointer.Int64(3),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
@@ -184,7 +184,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			name: "job has no more retries with no delay",
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
-					Template: &execution.JobTemplateSpec{
+					Template: &execution.JobTemplate{
 						MaxAttempts:       pointer.Int64(2),
 						RetryDelaySeconds: pointer.Int64(30),
 					},
@@ -219,7 +219,7 @@ func TestGetNextAllowedRetry(t *testing.T) {
 			name: "job has no more retries with some delay",
 			rj: &execution.Job{
 				Spec: execution.JobSpec{
-					Template: &execution.JobTemplateSpec{
+					Template: &execution.JobTemplate{
 						MaxAttempts:       pointer.Int64(2),
 						RetryDelaySeconds: pointer.Int64(30),
 					},

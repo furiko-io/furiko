@@ -155,8 +155,8 @@ var (
 		},
 	}
 
-	jobTemplateSpecBasic = v1alpha1.JobTemplate{
-		Spec: v1alpha1.JobTemplateSpec{
+	jobTemplateSpecBasic = v1alpha1.JobTemplateSpec{
+		Spec: v1alpha1.JobTemplate{
 			Task: v1alpha1.TaskSpec{
 				Template: v1alpha1.TaskTemplate{
 					Pod: &podTemplateSpecBasic,
@@ -165,8 +165,8 @@ var (
 		},
 	}
 
-	jobTemplateSpecBasic2 = v1alpha1.JobTemplate{
-		Spec: v1alpha1.JobTemplateSpec{
+	jobTemplateSpecBasic2 = v1alpha1.JobTemplateSpec{
+		Spec: v1alpha1.JobTemplate{
 			Task: v1alpha1.TaskSpec{
 				Template: v1alpha1.TaskTemplate{
 					Pod: &podTemplateSpecBasic2,
@@ -232,12 +232,12 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "don't need to default JobTemplate",
+			name: "don't need to default JobTemplateSpec",
 			rjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
 				Spec: v1alpha1.JobConfigSpec{
-					Template: v1alpha1.JobTemplate{
-						Spec: v1alpha1.JobTemplateSpec{
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
 							Task: v1alpha1.TaskSpec{
 								Template: v1alpha1.TaskTemplate{
 									Pod: &podTemplateSpecBare,
@@ -633,7 +633,7 @@ func TestMutator_MutateJob(t *testing.T) {
 			rj: &v1alpha1.Job{
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecBasic,
@@ -646,7 +646,7 @@ func TestMutator_MutateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecBasic,
@@ -664,7 +664,7 @@ func TestMutator_MutateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecBasic,
@@ -1119,7 +1119,7 @@ func TestMutator_MutateCreateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					ConfigName: objectMetaJobConfig.Name,
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecBasic,
@@ -1136,7 +1136,7 @@ func TestMutator_MutateCreateJob(t *testing.T) {
 					StartPolicy: &startPolicyBasic,
 				},
 			},
-			wantWarnings: []string{"JobTemplate was overwritten with JobConfig's template"},
+			wantWarnings: []string{"JobTemplateSpec was overwritten with JobConfig's template"},
 		},
 		{
 			name: "mutate ConfigName cannot get JobConfig",

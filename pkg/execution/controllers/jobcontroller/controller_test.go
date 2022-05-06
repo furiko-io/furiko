@@ -62,7 +62,7 @@ var (
 		},
 		Spec: execution.JobSpec{
 			Type: execution.JobTypeAdhoc,
-			Template: &execution.JobTemplateSpec{
+			Template: &execution.JobTemplate{
 				Task: execution.TaskSpec{
 					Template: execution.TaskTemplate{
 						Pod: podTemplate,

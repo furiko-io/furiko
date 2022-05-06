@@ -49,7 +49,7 @@ type JobSpec struct {
 
 	// Template specifies how to create the Job.
 	// +optional
-	Template *JobTemplateSpec `json:"template,omitempty"`
+	Template *JobTemplate `json:"template,omitempty"`
 
 	// Specifies key-values pairs of values for Options, in JSON or YAML format.
 	//
@@ -126,8 +126,8 @@ type StartPolicySpec struct {
 	StartAfter *metav1.Time `json:"startAfter,omitempty"`
 }
 
-// JobTemplate specifies how to create a Job with metadata.
-type JobTemplate struct {
+// JobTemplateSpec specifies how to create a Job with metadata.
+type JobTemplateSpec struct {
 	// Standard object's metadata that will be added to Job. More info:
 	// https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	//
@@ -136,11 +136,11 @@ type JobTemplate struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Specification of the desired behavior of the job.
-	Spec JobTemplateSpec `json:"spec"`
+	Spec JobTemplate `json:"spec"`
 }
 
-// JobTemplateSpec specifies how to create the Job.
-type JobTemplateSpec struct {
+// JobTemplate specifies how to create the Job.
+type JobTemplate struct {
 	// Describes the tasks to be created for the Job.
 	Task TaskSpec `json:"task"`
 

@@ -26,7 +26,7 @@ import (
 // JobConfigSpec defines the desired state of the JobConfig.
 type JobConfigSpec struct {
 	// Template for creating the Job.
-	Template JobTemplate `json:"template"`
+	Template JobTemplateSpec `json:"template"`
 
 	// Concurrency defines the behaviour of multiple concurrent Jobs.
 	Concurrency ConcurrencySpec `json:"concurrency"`

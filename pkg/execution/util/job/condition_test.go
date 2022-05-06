@@ -309,7 +309,7 @@ func TestGetCondition(t *testing.T) {
 			args: args{
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},
@@ -374,7 +374,7 @@ func TestGetCondition(t *testing.T) {
 			args: args{
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},
@@ -442,7 +442,7 @@ func TestGetCondition(t *testing.T) {
 			args: args{
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},
@@ -482,7 +482,7 @@ func TestGetCondition(t *testing.T) {
 			args: args{
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},
@@ -541,7 +541,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						KillTimestamp: &killTime,
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},
@@ -585,7 +585,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						KillTimestamp: &killTime,
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},
@@ -662,7 +662,7 @@ func TestGetCondition(t *testing.T) {
 			args: args{
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},
@@ -683,7 +683,7 @@ func TestGetCondition(t *testing.T) {
 			args: args{
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},
@@ -720,7 +720,7 @@ func TestGetCondition(t *testing.T) {
 				rj: &execution.Job{
 					Spec: execution.JobSpec{
 						KillTimestamp: &killTime,
-						Template: &execution.JobTemplateSpec{
+						Template: &execution.JobTemplate{
 							MaxAttempts: pointer.Int64(2),
 						},
 					},

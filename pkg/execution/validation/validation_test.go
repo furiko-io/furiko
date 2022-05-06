@@ -84,13 +84,13 @@ var (
 		OwnerReferences: ownerReferences,
 	}
 
-	jobTemplateSpecBasic = v1alpha1.JobTemplate{
+	jobTemplateSpecBasic = v1alpha1.JobTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				"labels.furiko.io/custom-label": "123",
 			},
 		},
-		Spec: v1alpha1.JobTemplateSpec{
+		Spec: v1alpha1.JobTemplate{
 			Task: v1alpha1.TaskSpec{
 				Template: v1alpha1.TaskTemplate{
 					Pod: &podTemplateSpecBasic,
@@ -102,9 +102,9 @@ var (
 		},
 	}
 
-	jobTemplateSpecLongPendingTimeout = v1alpha1.JobTemplate{
+	jobTemplateSpecLongPendingTimeout = v1alpha1.JobTemplateSpec{
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
-		Spec: v1alpha1.JobTemplateSpec{
+		Spec: v1alpha1.JobTemplate{
 			Task: v1alpha1.TaskSpec{
 				Template: v1alpha1.TaskTemplate{
 					Pod: &podTemplateSpecBasic,
@@ -116,18 +116,18 @@ var (
 		},
 	}
 
-	jobTemplateSpecMoreRetries = v1alpha1.JobTemplate{
+	jobTemplateSpecMoreRetries = v1alpha1.JobTemplateSpec{
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
-		Spec: v1alpha1.JobTemplateSpec{
+		Spec: v1alpha1.JobTemplate{
 			Task:              jobTemplateSpecBasic.Spec.Task,
 			MaxAttempts:       pointer.Int64(10),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
 		},
 	}
 
-	jobTemplateSpecTooManyRetries = v1alpha1.JobTemplate{
+	jobTemplateSpecTooManyRetries = v1alpha1.JobTemplateSpec{
 		ObjectMeta: jobTemplateSpecBasic.ObjectMeta,
-		Spec: v1alpha1.JobTemplateSpec{
+		Spec: v1alpha1.JobTemplate{
 			Task:              jobTemplateSpecBasic.Spec.Task,
 			MaxAttempts:       pointer.Int64(100),
 			RetryDelaySeconds: jobTemplateSpecBasic.Spec.RetryDelaySeconds,
@@ -369,8 +369,8 @@ func TestValidateJobConfig(t *testing.T) {
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
 					Concurrency: concurrencySpecBasic,
-					Template: v1alpha1.JobTemplate{
-						Spec: v1alpha1.JobTemplateSpec{
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
 							Task: v1alpha1.TaskSpec{
 								Template: v1alpha1.TaskTemplate{},
 							},
@@ -385,8 +385,8 @@ func TestValidateJobConfig(t *testing.T) {
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
 					Concurrency: concurrencySpecBasic,
-					Template: v1alpha1.JobTemplate{
-						Spec: v1alpha1.JobTemplateSpec{
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
 							Task: v1alpha1.TaskSpec{
 								Template: v1alpha1.TaskTemplate{
 									Pod: &podTemplateSpecEmpty,
@@ -403,8 +403,8 @@ func TestValidateJobConfig(t *testing.T) {
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
 					Concurrency: concurrencySpecBasic,
-					Template: v1alpha1.JobTemplate{
-						Spec: v1alpha1.JobTemplateSpec{
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
 							Task: v1alpha1.TaskSpec{
 								Template: v1alpha1.TaskTemplate{
 									Pod: &v1alpha1.PodTemplateSpec{
@@ -559,7 +559,7 @@ func TestValidateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{},
 						},
@@ -574,7 +574,7 @@ func TestValidateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecEmpty,
@@ -591,7 +591,7 @@ func TestValidateJob(t *testing.T) {
 				ObjectMeta: objectMetaJob,
 				Spec: v1alpha1.JobSpec{
 					Type: v1alpha1.JobTypeAdhoc,
-					Template: &v1alpha1.JobTemplateSpec{
+					Template: &v1alpha1.JobTemplate{
 						Task: v1alpha1.TaskSpec{
 							Template: v1alpha1.TaskTemplate{
 								Pod: &v1alpha1.PodTemplateSpec{
