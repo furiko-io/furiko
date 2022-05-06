@@ -144,18 +144,37 @@ type JobTemplate struct {
 	// Defines the template to create a single task in the Job.
 	TaskTemplate TaskTemplate `json:"taskTemplate"`
 
-	// Specifies maximum number of attempts for the Job. Each attempt will create a
-	// single task at a time, and if the task fails, the controller will wait
-	// retryDelaySeconds before creating the next task attempt. Once maxAttempts is
-	// reached, the Job terminates in RetryLimitExceeded. Value must be a positive
-	// integer. Defaults to 1.
+	// Describes how to run multiple tasks in parallel for the Job. If not set, then
+	// there will be at most a single task running at any time.
+	//
+	// +optional
+	Parallelism *ParallelismSpec `json:"parallelism,omitempty"`
+
+	// Specifies maximum number of attempts before the Job will terminate in
+	// failure. If defined, the controller will wait retryDelaySeconds before
+	// creating the next task. Once maxAttempts is reached, the Job terminates in
+	// RetryLimitExceeded.
+	//
+	// If parallelism is also defined, this corresponds to the maximum attempts for
+	// each parallel task. That is, if there are 5 parallel task to be run at a
+	// time, with maxAttempts of 3, the Job may create up to a maximum of 15 tasks
+	// if each has failed.
+	//
+	// Value must be a positive integer. Defaults to 1.
 	//
 	// +optional
 	MaxAttempts *int64 `json:"maxAttempts,omitempty"`
 
 	// Optional duration in seconds to wait between retries. If left empty or zero,
-	// it means no delay (i.e. retry immediately). Value must be a non-negative
-	// integer.
+	// it means no delay (i.e. retry immediately).
+	//
+	// If parallelism is also defined, the retry delay is from the time of the last
+	// failed task with the same index. That is, if there are two parallel tasks -
+	// index 0 and index 1 - which failed at t=0 and t=15, with retryDelaySeconds of
+	// 30, the controller will only create the next attempts at t=30 and t=45
+	// respectively.
+	//
+	// Value must be a non-negative integer.
 	//
 	// +optional
 	RetryDelaySeconds *int64 `json:"retryDelaySeconds,omitempty"`
@@ -183,6 +202,55 @@ type JobTemplate struct {
 	// +optional
 	ForbidTaskForceDeletion bool `json:"forbidTaskForceDeletion,omitempty"`
 }
+
+// ParallelismSpec specifies how to run multiple tasks in parallel in a Job.
+type ParallelismSpec struct {
+	// Specifies an exact number of tasks to be run in parallel. The index number
+	// can be retrieved via the "${task.index_num}" context variable.
+	//
+	// +optional
+	WithCount *int64 `json:"withCount,omitempty"`
+
+	// Specifies a list of keys corresponding to each task that will be run in
+	// parallel. The index key can be retrieved via the "${task.index_key}" context
+	// variable.
+	//
+	// +listType=atomic
+	// +optional
+	WithKeys []string `json:"withKeys,omitempty"`
+
+	// Specifies a matrix of key-value pairs, with each key mapped to a list of
+	// possible values, such that tasks will be started for each combination of
+	// key-value pairs. The matrix values can be retrieved via context variables in
+	// the following format: "${task.index_matrix.<key>}".
+	//
+	// +mapType=atomic
+	// +optional
+	WithMatrix map[string][]string `json:"withMatrix,omitempty"`
+
+	// Defines when the Job will complete when there are multiple tasks running in
+	// parallel. For example, if using the AllSuccessful strategy, the Job will only
+	// terminate once all parallel tasks have terminated successfully, or once any
+	// task has exhausted its maxAttempts limit.
+	//
+	// +optional
+	CompletionStrategy ParallelCompletionStrategy `json:"completionStrategy,omitempty"`
+}
+
+// ParallelCompletionStrategy defines the condition when a Job is completed when
+// there are multiple tasks running in parallel.
+type ParallelCompletionStrategy string
+
+const (
+	// AllSuccessful means that the Job will only stop once all parallel tasks have
+	// completed successfully, or when any task index has exhausted all its retries
+	// and immediately terminate all remaining tasks.
+	AllSuccessful ParallelCompletionStrategy = "AllSuccessful"
+
+	// AnySuccessful means that the Job will stop once any parallel task has
+	// completed successfully and immediately terminate all remaining tasks.
+	AnySuccessful ParallelCompletionStrategy = "AnySuccessful"
+)
 
 // JobStatus defines the observed state of a Job.
 type JobStatus struct {
@@ -470,6 +538,14 @@ type TaskRef struct {
 	// +optional
 	FinishTimestamp *metav1.Time `json:"finishTimestamp,omitempty"`
 
+	// The retry index of the task, starting from 0 up to maxAttempts - 1.
+	RetryIndex int64 `json:"retryIndex"`
+
+	// If the Job is a parallel job, then contains the parallel index of the task.
+	//
+	// +optional
+	ParallelIndex *TaskParallelIndex `json:"parallelIndex"`
+
 	// Status of the task. This field will be reconciled from the relevant task
 	// object, may not be always up-to-date. This field will persist the state of
 	// tasks beyond the lifetime of the task resources, even if they are deleted.
@@ -589,6 +665,28 @@ type TaskContainerState struct {
 	// created.
 	// +optional
 	ContainerID string `json:"containerID,omitempty"`
+}
+
+// TaskParallelIndex specifies the index for a single parallel task.
+type TaskParallelIndex struct {
+	// If withCount is used for parallelism, contains the index number of the job
+	// numbered from 0 to N-1.
+	//
+	// +optional
+	IndexNumber *int64 `json:"indexNumber,omitempty"`
+
+	// If withKeys is used for parallelism, contains the index key of the job as a
+	// string.
+	//
+	// +optional
+	IndexKey string `json:"indexKey,omitempty"`
+
+	// If withMatrix is used for parallelism, contains key-value pairs of the job as
+	// strings.
+	//
+	// +mapType=atomic
+	// +optional
+	MatrixValues map[string]string `json:"matrixValues,omitempty"`
 }
 
 // nolint:lll
