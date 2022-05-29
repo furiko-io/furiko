@@ -35,6 +35,7 @@ import (
 	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
 	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
+	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/meta"
@@ -139,7 +140,11 @@ func (w *Reconciler) sync(
 	// Compute JobStatus.
 	// TODO(irvinlim): This performs duplicate work from syncJobTasks but is
 	//  unfortunately necessary to handle non-started Jobs.
-	rj = w.syncJobStatusFromTaskRefs(rj)
+	updatedRj, err := w.syncJobStatusFromTaskRefs(rj)
+	if err != nil {
+		return rj, err
+	}
+	rj = updatedRj
 
 	// Clean up Job if it is finished and beyond its TTL.
 	if err := w.handleTTLAfterFinished(ctx, rj, cfg); err != nil {
@@ -148,7 +153,7 @@ func (w *Reconciler) sync(
 	trace.Step("Handle TTLAfterFinished done")
 
 	// Finalize Job if deleting.
-	updatedRj, err := w.handleFinishFinalizer(ctx, rj)
+	updatedRj, err = w.handleFinishFinalizer(ctx, rj)
 	if err != nil {
 		return rj, errors.Wrapf(err, "could not finalize %v", executiongroup.DeleteDependentsFinalizer)
 	}
@@ -164,53 +169,27 @@ func (w *Reconciler) syncJobTasks(
 ) (*execution.Job, error) {
 	taskMgr, err := w.tasks.ForJob(rj)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot create task manager")
+		return rj, errors.Wrapf(err, "cannot create task manager")
 	}
 
-	maxAllowedTasks := jobutil.GetMaxAllowedTasks(rj)
-
-	// Get all tasks for job from cache.
-	tasks, err := taskMgr.Lister().List()
-	if err != nil {
-		return rj, errors.Wrapf(err, "could not list tasks")
+	// Get all tasks in the job's status from the cache. Any tasks that are not in
+	// the status will be attempted to be adopted in the creation step.
+	// NOTE(irvinlim): Avoid using List() which performs a complete linear search.
+	tasks := make([]jobtasks.Task, 0, len(rj.Status.Tasks))
+	for _, ref := range rj.Status.Tasks {
+		if task, err := taskMgr.Lister().Get(ref.Name); err == nil {
+			tasks = append(tasks, task)
+		}
 	}
 	trace.Step("List tasks from cache done")
 
-	// Skip adoption step if there is an active task.
-	// We assume there is only 1 task active at a time.
-	if !jobutil.ContainsActiveTask(tasks) {
-		// Get the maximum retry index out of all tasks.
-		// This may not contain all tasks created by the controller, only the non-deleted ones in the cache.
-		maxRetryIndex := jobutil.MaxTaskRetryIndex(tasks)
-
-		// Try to adopt task(s) until exceed retries.
-		// We assume this should not take too long because the cache should be almost up-to-date with apiserver.
-		for i := maxRetryIndex + 1; i <= maxAllowedTasks; i++ {
-			// Attempt to fetch task with next retry index from server
-			task, err := taskMgr.Client().Index(ctx, i)
-			if kerrors.IsNotFound(err) {
-				break
-			} else if err != nil {
-				return rj, errors.Wrapf(err, "could not fetch task index %v", i)
-			}
-
-			// Found a task, add to our list.
-			tasks = append(tasks, task)
-		}
-		trace.Step("Look for retries to adopt done")
-	}
-
-	// After adopting tasks, ensure that CreatedTask status is up-to-date for use later.
-	rj = w.updateTaskRefStatus(rj, tasks)
-	trace.Step("Update status from adopted tasks done")
-
-	// Determine if we need to create new task based on status.
-	newRj, tasks, err := w.syncCreateNewTask(ctx, rj, tasks)
+	// Create all tasks that need to be created.
+	newRj, tasks, err := w.syncCreateTasks(ctx, rj, tasks)
 	if err != nil {
 		return rj, err
 	}
 	rj = newRj
-	trace.Step("Create new task done")
+	trace.Step("Create tasks done")
 
 	// Check if any tasks exceed pending timeout.
 	if err := w.handlePendingTasks(ctx, rj, tasks, cfg); err != nil {
@@ -241,7 +220,11 @@ func (w *Reconciler) syncJobTasks(
 	trace.Step("Force delete undeletable tasks done")
 
 	// Final update of task refs.
-	rj = w.updateTaskRefStatus(rj, tasks)
+	newRj, err = w.updateTaskRefStatus(rj, tasks)
+	if err != nil {
+		return rj, errors.Wrapf(err, "cannot update status")
+	}
+	rj = newRj
 	trace.Step("Final update status for tasks done")
 
 	return rj, nil
@@ -249,7 +232,7 @@ func (w *Reconciler) syncJobTasks(
 
 // updateTaskRefStatus will update the CreatedTask fields in the Job's status from a list of tasks.
 // We will always update tasks into Job before computing the rest of the JobStatus.
-func (w *Reconciler) updateTaskRefStatus(rj *execution.Job, tasks []jobtasks.Task) *execution.Job {
+func (w *Reconciler) updateTaskRefStatus(rj *execution.Job, tasks []jobtasks.Task) (*execution.Job, error) {
 	// Generate new TaskRefs in Job status.
 	updatedRj := jobutil.UpdateJobTaskRefs(rj, tasks)
 
@@ -259,8 +242,11 @@ func (w *Reconciler) updateTaskRefStatus(rj *execution.Job, tasks []jobtasks.Tas
 
 // syncJobStatusFromTaskRefs will sync the rest of the JobStatus from CreatedTaskRefs.
 // The exact flow of data is: PodStatus -> CreatedTaskRefs -> Condition -> Phase.
-func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
-	newRj := UpdateJobStatusFromTaskRefs(rj)
+func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) (*execution.Job, error) {
+	newRj, err := UpdateJobStatusFromTaskRefs(rj)
+	if err != nil {
+		return rj, errors.Wrapf(err, "cannot update job status")
+	}
 
 	// Handle job that is newly running.
 	if rj.Status.Condition.Running == nil && newRj.Status.Condition.Running != nil {
@@ -284,40 +270,52 @@ func (w *Reconciler) syncJobStatusFromTaskRefs(rj *execution.Job) *execution.Job
 	if newRj.Status.Condition.Finished != nil && !isDeleted(newRj) {
 		if newRj.Spec.TTLSecondsAfterFinished != nil {
 			timeout := time.Duration(*newRj.Spec.TTLSecondsAfterFinished) * time.Second
-			duration := time.Until(newRj.Status.Condition.Finished.FinishedAt.Add(timeout))
+			duration := time.Until(newRj.Status.Condition.Finished.FinishTimestamp.Add(timeout))
 			w.enqueueAfter(rj, "ttl_seconds_after_finished", duration)
 		}
 	}
 
-	return newRj
+	return newRj, nil
 }
 
 // UpdateJobStatusFromTaskRefs returns a new Job after updating JobStatus from TaskRefs.
-func UpdateJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
+func UpdateJobStatusFromTaskRefs(rj *execution.Job) (*execution.Job, error) {
 	newRj := rj.DeepCopy()
 
+	// Compute parallel status if the Job is parallel.
+	if rj.Spec.Template.Parallelism != nil {
+		parallelStatus, err := parallel.GetParallelStatus(rj, rj.Status.Tasks)
+		if err != nil {
+			return rj, errors.Wrapf(err, "cannot compute parallel status")
+		}
+		newRj.Status.ParallelStatus = &parallelStatus
+	}
+
 	// Compute consolidated condition for Job.
-	newRj.Status.Condition = jobutil.GetCondition(rj)
+	condition, err := jobutil.GetCondition(rj)
+	if err != nil {
+		return rj, errors.Wrapf(err, "cannot compute condition")
+	}
+	newRj.Status.Condition = condition
 
 	// If job is being deleted and is not properly finished (e.g. being deleted midway),
 	// we use Killed as the final result for the job.
 	// This ensures that the final status before the job is finalized (during deletion) is terminal.
+	// TODO(irvinlim): Verify if this is still needed
 	if newRj.DeletionTimestamp != nil && newRj.Status.Condition.Finished == nil {
-		createdAt := *ktime.Now()
-		var startedAt *metav1.Time
-		if condition := newRj.Status.Condition.Waiting; condition != nil && condition.CreatedAt != nil {
-			createdAt = *condition.CreatedAt
-		} else if condition := newRj.Status.Condition.Running; condition != nil {
-			createdAt = condition.CreatedAt
-			startedAt = &condition.StartedAt
+		latestCreation := *ktime.Now()
+		var latestRunning *metav1.Time
+		if condition := newRj.Status.Condition.Running; condition != nil {
+			latestCreation = condition.LatestCreationTimestamp
+			latestRunning = &condition.LatestRunningTimestamp
 		}
 
 		newRj.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
-				CreatedAt:  &createdAt,
-				StartedAt:  startedAt,
-				FinishedAt: createdAt,
-				Result:     execution.JobResultKilled,
+				LatestCreationTimestamp: &latestCreation,
+				LatestRunningTimestamp:  latestRunning,
+				FinishTimestamp:         latestCreation,
+				Result:                  execution.JobResultKilled,
 			},
 		}
 	}
@@ -325,36 +323,128 @@ func UpdateJobStatusFromTaskRefs(rj *execution.Job) *execution.Job {
 	// Set phase based on computed status so far.
 	newRj.Status.Phase = jobutil.GetPhase(newRj)
 
-	return newRj
+	return newRj, nil
 }
 
-// syncCreateNewTask will determine if a new task needs to be created, and if
-// so, create it and update the list of tasks with the newly created task. At
-// this point, the entire JobStatus should be up-to-date. We use
-// CreatedTask fields in the Status to authoritatively determine how many tasks
-// have been created, but use the tasks list to get the list of non-deleted
-// tasks.
-func (w *Reconciler) syncCreateNewTask(
-	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task,
+// syncCreateTasks will determine if a new task needs to be created, and if so,
+// create it and update the list of tasks with the newly created task. At this
+// point, the entire JobStatus should be up-to-date. We use Tasks in the Status
+// to authoritatively determine how many tasks have been created, but use the
+// tasks list to get the list of non-deleted tasks.
+func (w *Reconciler) syncCreateTasks(
+	ctx context.Context,
+	rj *execution.Job,
+	tasks []jobtasks.Task,
 ) (*execution.Job, []jobtasks.Task, error) {
 	now := ktime.Now().Time
 
-	// Not allowed to create new task.
-	if !jobutil.AllowedToCreateNewTask(rj) {
+	// Cannot create any tasks.
+	if !canCreateTask(rj) {
 		return rj, tasks, nil
 	}
 
-	// Delay creating new task if RetryDelay is set.
-	earliestCreateTime, err := jobutil.GetNextAllowedRetry(rj)
+	// Compute task refs first to get true completion status.
+	currentTasks := jobutil.GenerateTaskRefs(rj.Status.Tasks, tasks)
+	completion, err := parallel.GetParallelStatus(rj, currentTasks)
 	if err != nil {
-		return rj, tasks, errors.Wrapf(err, "cannot get next allowed retry")
-	} else if earliestCreateTime.After(now) {
-		w.enqueueAfter(rj, "retry_delay_create_task", time.Until(earliestCreateTime))
+		return rj, tasks, errors.Wrapf(err, "cannot compute completion status")
+	}
+
+	// If already complete, don't need to create any more tasks.
+	if completion.Complete {
 		return rj, tasks, nil
+	}
+
+	// Compute indexes that need to be created.
+	indexes := parallel.GenerateIndexes(rj.Spec.Template.Parallelism)
+	indexRequests, err := parallel.ComputeMissingIndexesForCreation(rj, indexes)
+	if err != nil {
+		return rj, tasks, errors.Wrapf(err, "cannot compute missing indexes")
+	}
+
+	// Create all tasks that need to be created.
+	var minEarliest time.Time
+	for _, request := range indexRequests {
+		minEarliest = timeutil.MinNonZero(request.Earliest, minEarliest)
+		if !request.Earliest.IsZero() && request.Earliest.After(now) {
+			continue
+		}
+		newRj, newTasks, err := w.syncCreateTask(ctx, rj, tasks, jobtasks.TaskIndex{
+			Retry:    request.RetryIndex,
+			Parallel: request.ParallelIndex,
+		})
+		if err != nil {
+			return rj, tasks, errors.Wrapf(err, "cannot create task")
+		}
+		rj = newRj
+		tasks = newTasks
+	}
+
+	// Trigger a sync for earliest next create time.
+	if !minEarliest.IsZero() {
+		w.enqueueAfter(rj, "retry_delay_create_task", time.Until(minEarliest))
+	}
+
+	// Sync Job's status with the new list of tasks before moving on.
+	updatedRj, err := w.updateTaskRefStatus(rj, tasks)
+	if err != nil {
+		return rj, tasks, errors.Wrapf(err, "cannot update status")
+	}
+
+	return updatedRj, tasks, nil
+}
+
+// syncCreateTask will perform the logic to create a new task for a given retry index.
+func (w *Reconciler) syncCreateTask(
+	ctx context.Context,
+	rj *execution.Job,
+	tasks []jobtasks.Task,
+	index jobtasks.TaskIndex,
+) (*execution.Job, []jobtasks.Task, error) {
+	// Generate desired task name.
+	name, err := jobutil.GenerateTaskName(rj.Name, index)
+	if err != nil {
+		return rj, tasks, errors.Wrapf(err, "cannot generate task name")
 	}
 
 	// Create new task.
-	task, err := w.createTask(ctx, rj)
+	task, err := w.createTask(ctx, rj, index)
+
+	// Handle case when task already exists by name, and safely adopt into the Job's status.
+	if kerrors.IsAlreadyExists(err) {
+		task, err := w.getTaskForAdoption(rj, name)
+		if err != nil {
+			return rj, tasks, errors.Wrapf(err, "cannot check if should adopt task")
+		}
+
+		// Cannot adopt task, mark it as an admission error.
+		if task == nil {
+			newRj := rj.DeepCopy()
+			jobutil.MarkAdmissionError(newRj, fmt.Sprintf("task already exists: %v", name))
+			klog.InfoS("jobcontroller: cannot adopt non-controllee task",
+				"worker", w.Name(),
+				"namespace", rj.GetNamespace(),
+				"name", rj.GetName(),
+				"task", name,
+			)
+			w.recorder.Eventf(rj, corev1.EventTypeWarning, "AdmissionError",
+				"Task already exists and cannot be adopted: %v", name)
+
+			return rj, tasks, nil
+		}
+
+		// Otherwise, simply add it to our list of tasks and move on.
+		tasks = append(tasks, task)
+		klog.InfoS("jobcontroller: adopted task",
+			"worker", w.Name(),
+			"namespace", rj.GetNamespace(),
+			"name", rj.GetName(),
+			"task", name,
+		)
+
+		return rj, tasks, nil
+	}
+
 	if err != nil {
 		// Handle this as a normal error.
 		rerr := coreerrors.Error(nil)
@@ -362,7 +452,6 @@ func (w *Reconciler) syncCreateNewTask(
 			return rj, tasks, errors.Wrapf(err, "could not create task")
 		}
 
-		// Cannot create task due to unretryable error.
 		// Give up trying to sync the task further, so we conclude it cannot be created.
 		newRj := rj.DeepCopy()
 		jobutil.MarkAdmissionError(newRj, rerr.Error())
@@ -391,23 +480,48 @@ func (w *Reconciler) syncCreateNewTask(
 		tasks = append(tasks, task)
 	}
 
-	// Sync Job's status with the new list of tasks before moving on.
-	updatedRj := w.updateTaskRefStatus(rj, tasks)
+	return rj, tasks, nil
+}
 
-	return updatedRj, tasks, nil
+func (w *Reconciler) getTaskForAdoption(rj *execution.Job, name string) (jobtasks.Task, error) {
+	taskMgr, err := w.tasks.ForJob(rj)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot get task manager")
+	}
+
+	// Assumes that the task exists.
+	task, err := taskMgr.Lister().Get(name)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot get existing task")
+	}
+
+	// Check the task's controllerRef.
+	for _, ref := range task.GetOwnerReferences() {
+		if ref.Controller != nil && *ref.Controller {
+			// Check that the controller matches.
+			if ref.Kind == execution.KindJob && rj.UID == ref.UID {
+				return task, nil
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 // createTask will create a new task for the Job.
 // May return AdmissionError if it cannot be created due to an unretryable or irrecoverable error.
-func (w *Reconciler) createTask(ctx context.Context, rj *execution.Job) (jobtasks.Task, error) {
-	// Get task manager after substituting variables in Job.
+func (w *Reconciler) createTask(
+	ctx context.Context,
+	rj *execution.Job,
+	index jobtasks.TaskIndex,
+) (jobtasks.Task, error) {
 	taskMgr, err := w.tasks.ForJob(rj)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get task manager")
 	}
 
 	// Create new task.
-	task, err := taskMgr.Client().CreateIndex(ctx, rj.Status.CreatedTasks+1)
+	task, err := taskMgr.Client().CreateIndex(ctx, index)
 	if err != nil {
 		return nil, err
 	}
@@ -507,7 +621,7 @@ func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks
 	needUpdate := make([]jobtasks.Task, 0, len(tasks))
 	for _, task := range tasks {
 		// Skip finished tasks
-		if jobutil.IsTaskFinished(task) {
+		if isTaskFinished(task) {
 			continue
 		}
 
@@ -541,7 +655,7 @@ func (w *Reconciler) handleDeleteKillingTasks(
 
 	for _, task := range tasks {
 		// Skip finished tasks.
-		if jobutil.IsTaskFinished(task) {
+		if isTaskFinished(task) {
 			continue
 		}
 
@@ -588,15 +702,13 @@ func (w *Reconciler) handleDeleteKillingTasks(
 		if task, ok := needDeleteMap[taskRef.Name]; ok {
 			// Assume that task is being killed.
 			newRef.DeletedStatus = &execution.TaskStatus{
-				State:   execution.TaskKilled,
-				Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+				State:   execution.TaskTerminated,
+				Result:  execution.TaskKilled,
 				Reason:  "Deleted",
 				Message: "Task was killed via deletion",
 			}
-
-			// Set unschedulable reason if was marked to be killed by pending timeout.
 			if killedFromPending := task.GetKilledFromPendingTimeoutMarker(); killedFromPending {
-				newRef.DeletedStatus.Result = jobutil.GetResultPtr(execution.JobResultPendingTimeout)
+				newRef.DeletedStatus.Result = execution.TaskPendingTimeout
 			}
 		}
 
@@ -674,18 +786,15 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 		newRef := taskRef.DeepCopy()
 		if task, ok := needDeleteMap[taskRef.Name]; ok {
 			newRef.DeletedStatus = &execution.TaskStatus{
-				// TaskUnreachable implies that the node was not reachable.
-				State: execution.TaskKilled, // TODO(irvinlim): Consider adding additional state for this
+				State: execution.TaskTerminated,
 				// Use Killed state since we are trying to kill it.
-				Result: jobutil.GetResultPtr(execution.JobResultKilled),
+				Result: execution.TaskKilled,
 				// Explain that this task was forcefully deleted.
 				Reason:  "ForceDeleted",
 				Message: "Forcefully deleted the task, container may still be running",
 			}
-
-			// Set unschedulable reason if was marked to be killed by pending timeout.
 			if killedFromPending := task.GetKilledFromPendingTimeoutMarker(); killedFromPending {
-				newRef.DeletedStatus.Result = jobutil.GetResultPtr(execution.JobResultPendingTimeout)
+				newRef.DeletedStatus.Result = execution.TaskPendingTimeout
 			}
 		}
 
@@ -723,7 +832,7 @@ func (w *Reconciler) handleTTLAfterFinished(
 	}
 
 	// Not yet expired.
-	if rj.Status.Condition.Finished.FinishedAt.Add(ttl).After(ktime.Now().Time) {
+	if rj.Status.Condition.Finished.FinishTimestamp.Add(ttl).After(ktime.Now().Time) {
 		return nil
 	}
 
@@ -732,7 +841,7 @@ func (w *Reconciler) handleTTLAfterFinished(
 		"namespace", rj.GetNamespace(),
 		"name", rj.GetName(),
 		"ttl", ttl,
-		"ageSinceFinish", time.Since(rj.Status.Condition.Finished.FinishedAt.Time),
+		"ageSinceFinish", time.Since(rj.Status.Condition.Finished.FinishTimestamp.Time),
 	)
 
 	// Delete this job.
@@ -789,15 +898,19 @@ func (w *Reconciler) handleFinishFinalizer(
 		// Update DeletedStatus for tasks.
 		for _, task := range tasks {
 			rj = jobutil.UpdateTaskRefDeletedStatusIfNotSet(rj, task.GetName(), execution.TaskStatus{
-				State:   execution.TaskKilled,
-				Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+				State:   execution.TaskTerminated,
+				Result:  execution.TaskKilled,
 				Reason:  "JobDeleted",
 				Message: "Task was killed in response to deletion of Job",
 			})
 		}
 
 		// Compute new task status.
-		rj = w.updateTaskRefStatus(rj, tasks)
+		updatedRj, err := w.updateTaskRefStatus(rj, tasks)
+		if err != nil {
+			return rj, errors.Wrapf(err, "cannot update status")
+		}
+		rj = updatedRj
 
 		// Proceed to delete tasks.
 		// Task deletion should trigger a sync via informer, so don't need to enqueue a sync.
@@ -810,9 +923,12 @@ func (w *Reconciler) handleFinishFinalizer(
 
 	// Once at this part, all tasks are guaranteed to have been completely deleted.
 	// Update Job's task ref status first.
-	rj = w.updateTaskRefStatus(rj, tasks)
+	updatedRj, err := w.updateTaskRefStatus(rj, tasks)
+	if err != nil {
+		return rj, errors.Wrapf(err, "cannot update status")
+	}
 
-	newRj := rj.DeepCopy()
+	newRj := updatedRj.DeepCopy()
 
 	// Remove the finalizer.
 	newRj.Finalizers = meta.RemoveFinalizer(newRj.Finalizers, executiongroup.DeleteDependentsFinalizer)

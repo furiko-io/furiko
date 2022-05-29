@@ -40,9 +40,7 @@ func TestGetPhase(t *testing.T) {
 				Status: execution.JobStatus{
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
-						Waiting: &execution.JobConditionWaiting{
-							CreatedAt: &createTime,
-						},
+						Waiting: &execution.JobConditionWaiting{},
 					},
 				},
 			},
@@ -54,9 +52,7 @@ func TestGetPhase(t *testing.T) {
 				Status: execution.JobStatus{
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
-						Waiting: &execution.JobConditionWaiting{
-							CreatedAt: &createTime,
-						},
+						Waiting: &execution.JobConditionWaiting{},
 					},
 					CreatedTasks: 1,
 					Tasks: []execution.TaskRef{
@@ -76,8 +72,8 @@ func TestGetPhase(t *testing.T) {
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
 						Running: &execution.JobConditionRunning{
-							CreatedAt: createTime,
-							StartedAt: startTime,
+							LatestCreationTimestamp: createTime,
+							LatestRunningTimestamp:  startTime,
 						},
 					},
 					CreatedTasks: 1,
@@ -92,10 +88,10 @@ func TestGetPhase(t *testing.T) {
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
 						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							StartedAt:  &startTime,
-							FinishedAt: finishTime,
-							Result:     execution.JobResultSuccess,
+							LatestCreationTimestamp: &createTime,
+							LatestRunningTimestamp:  &startTime,
+							FinishTimestamp:         finishTime,
+							Result:                  execution.JobResultSuccess,
 						},
 					},
 					CreatedTasks: 1,
@@ -110,10 +106,10 @@ func TestGetPhase(t *testing.T) {
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
 						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							StartedAt:  &startTime,
-							FinishedAt: finishTime,
-							Result:     execution.JobResultFinalStateUnknown,
+							LatestCreationTimestamp: &createTime,
+							LatestRunningTimestamp:  &startTime,
+							FinishTimestamp:         finishTime,
+							Result:                  execution.JobResultFinalStateUnknown,
 						},
 					},
 					CreatedTasks: 1,
@@ -128,10 +124,10 @@ func TestGetPhase(t *testing.T) {
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
 						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							StartedAt:  &startTime,
-							FinishedAt: finishTime,
-							Result:     "",
+							LatestCreationTimestamp: &createTime,
+							LatestRunningTimestamp:  &startTime,
+							FinishTimestamp:         finishTime,
+							Result:                  "",
 						},
 					},
 					CreatedTasks: 1,
@@ -157,8 +153,8 @@ func TestGetPhase(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								State:  execution.TaskTerminated,
+								Result: execution.TaskFailed,
 							},
 						},
 					},
@@ -172,9 +168,7 @@ func TestGetPhase(t *testing.T) {
 				Status: execution.JobStatus{
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
-						Waiting: &execution.JobConditionWaiting{
-							CreatedAt: &createTime,
-						},
+						Waiting: &execution.JobConditionWaiting{},
 					},
 					CreatedTasks: 2,
 					Tasks: []execution.TaskRef{
@@ -184,8 +178,8 @@ func TestGetPhase(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								State:  execution.TaskFailed,
-								Result: job.GetResultPtr(execution.JobResultTaskFailed),
+								State:  execution.TaskTerminated,
+								Result: execution.TaskFailed,
 							},
 						},
 						{
@@ -198,57 +192,22 @@ func TestGetPhase(t *testing.T) {
 			want: execution.JobRetrying,
 		},
 		{
-			name: "RetryLimitExceeded",
+			name: "Failed",
 			rj: &execution.Job{
 				Status: execution.JobStatus{
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
 						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							StartedAt:  &startTime,
-							FinishedAt: finishTime,
-							Result:     execution.JobResultTaskFailed,
+							LatestCreationTimestamp: &createTime,
+							LatestRunningTimestamp:  &startTime,
+							FinishTimestamp:         finishTime,
+							Result:                  execution.JobResultFailed,
 						},
 					},
 					CreatedTasks: 1,
 				},
 			},
-			want: execution.JobRetryLimitExceeded,
-		},
-		{
-			name: "PendingTimeout",
-			rj: &execution.Job{
-				Status: execution.JobStatus{
-					StartTime: &startTime,
-					Condition: execution.JobCondition{
-						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							FinishedAt: finishTime,
-							Result:     execution.JobResultPendingTimeout,
-						},
-					},
-					CreatedTasks: 1,
-				},
-			},
-			want: execution.JobPendingTimeout,
-		},
-		{
-			name: "DeadlineExceeded",
-			rj: &execution.Job{
-				Status: execution.JobStatus{
-					StartTime: &startTime,
-					Condition: execution.JobCondition{
-						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							StartedAt:  &startTime,
-							FinishedAt: finishTime,
-							Result:     execution.JobResultDeadlineExceeded,
-						},
-					},
-					CreatedTasks: 1,
-				},
-			},
-			want: execution.JobDeadlineExceeded,
+			want: execution.JobFailed,
 		},
 		{
 			name: "AdmissionError",
@@ -257,9 +216,9 @@ func TestGetPhase(t *testing.T) {
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
 						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							FinishedAt: finishTime,
-							Result:     execution.JobResultAdmissionError,
+							LatestCreationTimestamp: &createTime,
+							FinishTimestamp:         finishTime,
+							Result:                  execution.JobResultAdmissionError,
 						},
 					},
 					CreatedTasks: 1,
@@ -273,9 +232,9 @@ func TestGetPhase(t *testing.T) {
 				Status: execution.JobStatus{
 					Condition: execution.JobCondition{
 						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							FinishedAt: finishTime,
-							Result:     execution.JobResultAdmissionError,
+							LatestCreationTimestamp: &createTime,
+							FinishTimestamp:         finishTime,
+							Result:                  execution.JobResultAdmissionError,
 						},
 					},
 				},
@@ -291,9 +250,7 @@ func TestGetPhase(t *testing.T) {
 				Status: execution.JobStatus{
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
-						Waiting: &execution.JobConditionWaiting{
-							CreatedAt: &createTime,
-						},
+						Waiting: &execution.JobConditionWaiting{},
 					},
 					CreatedTasks: 1,
 				},
@@ -310,8 +267,8 @@ func TestGetPhase(t *testing.T) {
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
 						Running: &execution.JobConditionRunning{
-							CreatedAt: createTime,
-							StartedAt: startTime,
+							LatestCreationTimestamp: createTime,
+							LatestRunningTimestamp:  startTime,
 						},
 					},
 					CreatedTasks: 1,
@@ -326,10 +283,10 @@ func TestGetPhase(t *testing.T) {
 					StartTime: &startTime,
 					Condition: execution.JobCondition{
 						Finished: &execution.JobConditionFinished{
-							CreatedAt:  &createTime,
-							StartedAt:  &startTime,
-							FinishedAt: finishTime,
-							Result:     execution.JobResultKilled,
+							LatestCreationTimestamp: &createTime,
+							LatestRunningTimestamp:  &startTime,
+							FinishTimestamp:         finishTime,
+							Result:                  execution.JobResultKilled,
 						},
 					},
 					CreatedTasks: 1,

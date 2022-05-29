@@ -85,11 +85,36 @@ spec:
                       description: "Defines whether tasks are allowed to be force deleted or not. If the node is unresponsive, it may be possible that the task cannot be killed by normal graceful deletion. The controller may choose to force delete the task, which would ignore the final state of the task since the node is unable to return whether the task is actually still alive. \n If not set to true, there may be some cases when there may actually be two concurrently running tasks when even when ConcurrencyPolicyForbid. Setting this to true would prevent this from happening, but the Job may remain stuck indefinitely until the node recovers."
                       type: boolean
                     maxAttempts:
-                      description: Specifies maximum number of attempts for the Job. Each attempt will create a single task at a time, and if the task fails, the controller will wait retryDelaySeconds before creating the next task attempt. Once maxAttempts is reached, the Job terminates in RetryLimitExceeded. Value must be a positive integer. Defaults to 1.
+                      description: "Specifies maximum number of attempts before the Job will terminate in failure. If defined, the controller will wait retryDelaySeconds before creating the next task. Once maxAttempts is reached, the Job terminates in RetryLimitExceeded. \n If parallelism is also defined, this corresponds to the maximum attempts for each parallel task. That is, if there are 5 parallel task to be run at a time, with maxAttempts of 3, the Job may create up to a maximum of 15 tasks if each has failed. \n Value must be a positive integer. Defaults to 1."
                       format: int64
                       type: integer
+                    parallelism:
+                      description: Describes how to run multiple tasks in parallel for the Job. If not set, then there will be at most a single task running at any time.
+                      properties:
+                        completionStrategy:
+                          description: Defines when the Job will complete when there are multiple tasks running in parallel. For example, if using the AllSuccessful strategy, the Job will only terminate once all parallel tasks have terminated successfully, or once any task has exhausted its maxAttempts limit.
+                          type: string
+                        withCount:
+                          description: Specifies an exact number of tasks to be run in parallel. The index number can be retrieved via the "${task.index_num}" context variable.
+                          format: int64
+                          type: integer
+                        withKeys:
+                          description: Specifies a list of keys corresponding to each task that will be run in parallel. The index key can be retrieved via the "${task.index_key}" context variable.
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        withMatrix:
+                          additionalProperties:
+                            items:
+                              type: string
+                            type: array
+                          description: 'Specifies a matrix of key-value pairs, with each key mapped to a list of possible values, such that tasks will be started for each combination of key-value pairs. The matrix values can be retrieved via context variables in the following format: "${task.index_matrix.<key>}".'
+                          type: object
+                          x-kubernetes-map-type: atomic
+                      type: object
                     retryDelaySeconds:
-                      description: Optional duration in seconds to wait between retries. If left empty or zero, it means no delay (i.e. retry immediately). Value must be a non-negative integer.
+                      description: "Optional duration in seconds to wait between retries. If left empty or zero, it means no delay (i.e. retry immediately). \n If parallelism is also defined, the retry delay is from the time of the last failed task with the same index. That is, if there are two parallel tasks - index 0 and index 1 - which failed at t=0 and t=15, with retryDelaySeconds of 30, the controller will only create the next attempts at t=30 and t=45 respectively. \n Value must be a non-negative integer."
                       format: int64
                       type: integer
                     taskPendingTimeoutSeconds:
@@ -131,14 +156,18 @@ spec:
                   description: Condition stores details about the Job's current condition.
                   properties:
                     finished:
-                      description: Stores the status of the Job's finished state. If specified, it also means that the Job is terminal.
+                      description: Stores the status of the Job's finished state. If specified, it means that all tasks in the Job have terminated.
                       properties:
-                        createTime:
+                        finishTime:
+                          description: The time at which the Job was first marked as finished by the controller.
+                          format: date-time
+                          type: string
+                        latestCreationTimestamp:
                           description: The time at which the latest task was created by the controller. May be nil if no tasks were ever created.
                           format: date-time
                           type: string
-                        finishTime:
-                          description: The time at which the Job was first marked as finished by the controller.
+                        latestRunningTimestamp:
+                          description: The time at which the latest task had started running. May be nil if no tasks had started running.
                           format: date-time
                           type: string
                         message:
@@ -149,10 +178,6 @@ spec:
                           type: string
                         result:
                           description: The result of it being finished.
-                          type: string
-                        startTime:
-                          description: The time at which the latest task had started running. May be nil if the task never started running.
-                          format: date-time
                           type: string
                       required:
                         - finishTime
@@ -169,27 +194,27 @@ spec:
                           type: string
                       type: object
                     running:
-                      description: Stores the status of the Job's running state. If specified, it means that the Job currently has a running task.
+                      description: Stores the status of the Job's running state. If specified, it means that all tasks in the Job have started running. If the Job is already complete, this status may be set of not all tasks are terminated.
                       properties:
-                        createTime:
-                          description: The time at which the running task was created by the controller.
+                        latestRunningTimestamp:
+                          description: The time at which the latest task had started running.
                           format: date-time
                           type: string
-                        startTime:
-                          description: The time at which the running task had started running.
+                        latestTaskCreationTimestamp:
+                          description: The timestamp for the latest task that was created by the controller.
                           format: date-time
                           type: string
+                        terminatingTasks:
+                          description: Number of tasks waiting to be terminated.
+                          format: int64
+                          type: integer
                       required:
-                        - createTime
-                        - startTime
+                        - latestRunningTimestamp
+                        - latestTaskCreationTimestamp
                       type: object
                     waiting:
-                      description: Stores the status of the Job's waiting condition. If specified, it means that the Job currently is waiting for a task.
+                      description: Stores the status of the Job's waiting condition. If specified, it means that the Job currently is waiting for at least one task to be created and start running.
                       properties:
-                        createTime:
-                          description: The time at which the latest task was created by the controller, if any.
-                          format: date-time
-                          type: string
                         message:
                           description: Optional descriptive message explaining the condition's last transition.
                           type: string
@@ -202,6 +227,53 @@ spec:
                   description: CreatedTasks describes how many tasks were created in total for this Job.
                   format: int64
                   type: integer
+                parallelStatus:
+                  description: The current status for parallel execution of the job. May not be set if the job is not a parallel job.
+                  properties:
+                    complete:
+                      description: If true, the job is complete and currently in the process of waiting for all remaining tasks to be terminated.
+                      type: boolean
+                    created:
+                      description: Total number of task parallel indexes that have created tasks.
+                      format: int64
+                      type: integer
+                    failed:
+                      description: Total number of task parallel indexes that failed (including all retries).
+                      format: int64
+                      type: integer
+                    retryBackoff:
+                      description: Total number of task parallel indexes that are currently in retry backoff.
+                      format: int64
+                      type: integer
+                    running:
+                      description: Total number of task parallel indexes that are currently running.
+                      format: int64
+                      type: integer
+                    starting:
+                      description: Total number of task parallel indexes that are currently starting.
+                      format: int64
+                      type: integer
+                    succeeded:
+                      description: Total number of task parallel indexes that are successful.
+                      format: int64
+                      type: integer
+                    successful:
+                      description: If complete, contains whether the job is successful according to the ParallelCompletionStrategy.
+                      type: boolean
+                    terminated:
+                      description: Total number of task parallel indexes where all tasks are completely terminated, including when no tasks are created.
+                      format: int64
+                      type: integer
+                  required:
+                    - complete
+                    - created
+                    - failed
+                    - retryBackoff
+                    - running
+                    - starting
+                    - succeeded
+                    - terminated
+                  type: object
                 phase:
                   description: Phase stores the high-level description of a Job's state.
                   type: string
@@ -253,7 +325,7 @@ spec:
                             description: Unique, one-word, CamelCase reason for the task's status.
                             type: string
                           result:
-                            description: The execution result derived from this task if it was finished. For simplicity, the values of this field also matches that of the Job's result field.
+                            description: If the state is Terminated, the result of the task.
                             type: string
                           state:
                             description: State of the task.
@@ -271,6 +343,27 @@ spec:
                       nodeName:
                         description: Node name that the task was bound to. May be empty if task was never scheduled.
                         type: string
+                      parallelIndex:
+                        description: If the Job is a parallel job, then contains the parallel index of the task.
+                        properties:
+                          indexKey:
+                            description: If withKeys is used for parallelism, contains the index key of the job as a string.
+                            type: string
+                          indexNumber:
+                            description: If withCount is used for parallelism, contains the index number of the job numbered from 0 to N-1.
+                            format: int64
+                            type: integer
+                          matrixValues:
+                            additionalProperties:
+                              type: string
+                            description: If withMatrix is used for parallelism, contains key-value pairs of the job as strings.
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      retryIndex:
+                        description: The retry index of the task, starting from 0 up to maxAttempts - 1.
+                        format: int64
+                        type: integer
                       runningTimestamp:
                         description: Timestamp that the task transitioned to running. May be zero if the task was never observed as started running.
                         format: date-time
@@ -285,7 +378,7 @@ spec:
                             description: Unique, one-word, CamelCase reason for the task's status.
                             type: string
                           result:
-                            description: The execution result derived from this task if it was finished. For simplicity, the values of this field also matches that of the Job's result field.
+                            description: If the state is Terminated, the result of the task.
                             type: string
                           state:
                             description: State of the task.
@@ -297,12 +390,14 @@ spec:
                       - containerStates
                       - creationTimestamp
                       - name
+                      - retryIndex
                       - status
                     type: object
                   type: array
                   x-kubernetes-list-type: atomic
               required:
                 - condition
+                - createdTasks
                 - phase
               type: object
           type: object

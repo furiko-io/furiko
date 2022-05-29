@@ -25,6 +25,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
+	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 // PodTaskLister lists Pod tasks.
@@ -52,8 +53,12 @@ func (p *PodTaskLister) Get(name string) (jobtasks.Task, error) {
 	return p.new(pod), nil
 }
 
-func (p *PodTaskLister) Index(index int64) (jobtasks.Task, error) {
-	return p.Get(GetPodIndexedName(p.rj.GetName(), index))
+func (p *PodTaskLister) Index(index jobtasks.TaskIndex) (jobtasks.Task, error) {
+	name, err := jobutil.GenerateTaskName(p.rj.GetName(), index)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot generate pod name")
+	}
+	return p.Get(name)
 }
 
 func (p *PodTaskLister) List() ([]jobtasks.Task, error) {

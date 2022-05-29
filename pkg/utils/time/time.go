@@ -33,3 +33,24 @@ func DurationMin(a, b time.Duration) time.Duration {
 	}
 	return b
 }
+
+func Max(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return b
+	}
+	return a
+}
+
+func Min(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
+
+func MinNonZero(a, b time.Time) time.Time {
+	if a.IsZero() {
+		return b
+	}
+	return Min(a, b)
+}

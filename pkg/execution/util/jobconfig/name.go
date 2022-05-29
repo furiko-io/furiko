@@ -35,6 +35,6 @@ func GenerateName(jobConfigName string, startTime time.Time) string {
 	ts := startTime.Unix()
 
 	// Example name:
-	// job-sample.1606987620
-	return fmt.Sprintf("%v.%v", jobConfigName, ts)
+	// job-sample-1606987620
+	return fmt.Sprintf("%v-%v", jobConfigName, ts)
 }

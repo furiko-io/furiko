@@ -26,7 +26,6 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
-	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
@@ -48,8 +47,8 @@ var (
 			Phase: execution.JobRunning,
 			Condition: execution.JobCondition{
 				Running: &execution.JobConditionRunning{
-					CreatedAt: testutils.Mkmtime(taskCreateTime),
-					StartedAt: testutils.Mkmtime(taskLaunchTime),
+					LatestCreationTimestamp: testutils.Mkmtime(taskCreateTime),
+					LatestRunningTimestamp:  testutils.Mkmtime(taskLaunchTime),
 				},
 			},
 			StartTime:    testutils.Mkmtimep(startTime),
@@ -73,15 +72,15 @@ var (
 			Namespace: DefaultNamespace,
 		},
 		Status: execution.JobStatus{
-			Phase: execution.JobRetryLimitExceeded,
+			Phase: execution.JobFailed,
 			Condition: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  testutils.Mkmtimep(taskCreateTime),
-					StartedAt:  testutils.Mkmtimep(taskLaunchTime),
-					FinishedAt: testutils.Mkmtime(taskFinishTime),
-					Result:     execution.JobResultTaskFailed,
-					Reason:     "Error",
-					Message:    "some error message",
+					LatestCreationTimestamp: testutils.Mkmtimep(taskCreateTime),
+					LatestRunningTimestamp:  testutils.Mkmtimep(taskLaunchTime),
+					FinishTimestamp:         testutils.Mkmtime(taskFinishTime),
+					Result:                  execution.JobResultFailed,
+					Reason:                  "Error",
+					Message:                 "some error message",
 				},
 			},
 			StartTime:    testutils.Mkmtimep(startTime),
@@ -93,8 +92,8 @@ var (
 					RunningTimestamp:  testutils.Mkmtimep(taskLaunchTime),
 					FinishTimestamp:   testutils.Mkmtimep(taskFinishTime),
 					Status: execution.TaskStatus{
-						State:   execution.TaskFailed,
-						Result:  job.GetResultPtr(execution.JobResultTaskFailed),
+						State:   execution.TaskTerminated,
+						Result:  execution.TaskFailed,
 						Reason:  "Error",
 						Message: "some error message",
 					},

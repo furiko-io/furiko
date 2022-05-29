@@ -41,14 +41,13 @@ var (
 	createTime2      = metav1.NewTime(createTime.Add(time.Minute))
 	startTime        = metav1.NewTime(stdStartTime)
 	finishTime       = metav1.NewTime(stdFinishTime)
-	finishTime2      = metav1.NewTime(stdFinishTime.Add(time.Minute))
 	killTime         = metav1.NewTime(stdKillTime)
 )
 
 type stubTask struct {
+	metav1.ObjectMeta
 	taskRef                        v1alpha1.TaskRef
 	killTimestamp                  *metav1.Time
-	deletionTimestamp              *metav1.Time
 	retryIndex                     int64
 	killedFromPendingTimeoutMarker bool
 	killable                       bool
@@ -76,15 +75,18 @@ func (t *stubTask) GetKind() string {
 }
 
 func (t *stubTask) GetRetryIndex() (int64, bool) {
-	return t.retryIndex, true
+	return t.taskRef.RetryIndex, true
+}
+
+func (t *stubTask) GetParallelIndex() (*v1alpha1.ParallelIndex, bool) {
+	if t.taskRef.ParallelIndex != nil {
+		return t.taskRef.ParallelIndex, true
+	}
+	return nil, false
 }
 
 func (t *stubTask) RequiresKillWithDeletion() bool {
 	return t.killable
-}
-
-func (t *stubTask) GetDeletionTimestamp() *metav1.Time {
-	return t.deletionTimestamp
 }
 
 func (t *stubTask) GetKillTimestamp() *metav1.Time {

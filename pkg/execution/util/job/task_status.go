@@ -128,9 +128,6 @@ func GenerateTaskRefs(existing []execution.TaskRef, tasks []tasks.Task) []execut
 				newRef.Status = *existingRef.DeletedStatus
 			} else {
 				newRef.Status.State = execution.TaskDeletedFinalStateUnknown
-				if newRef.Status.Result == nil {
-					newRef.Status.Result = GetResultPtr(execution.JobResultFinalStateUnknown)
-				}
 			}
 
 			newRefs = append(newRefs, *newRef)
@@ -148,7 +145,7 @@ func SortTaskRefs(taskRefs []execution.TaskRef) {
 	sort.Slice(taskRefs, func(i, j int) bool {
 		ti, tj := taskRefs[i], taskRefs[j]
 		if !ti.CreationTimestamp.Equal(&tj.CreationTimestamp) {
-			return taskRefs[i].CreationTimestamp.Before(&taskRefs[j].CreationTimestamp)
+			return ti.CreationTimestamp.Before(&tj.CreationTimestamp)
 		}
 		return ti.Name < tj.Name
 	})

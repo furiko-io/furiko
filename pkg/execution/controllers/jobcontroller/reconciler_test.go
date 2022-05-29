@@ -52,22 +52,12 @@ func TestReconciler(t *testing.T) {
 			Name:   "create pod",
 			Target: fakeJob,
 			Reactors: runtimetesting.CombinedReactors{
-				Kubernetes: []*ktesting.SimpleReactor{
-					{
-						Verb:     "create",
-						Resource: "pods",
-						Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
-							// NOTE(irvinlim): Use Reactor to inject a different return value.
-							// Here we return a Pod with creationTimestamp added to simulate kube-apiserver.
-							return true, fakePodResult.DeepCopy(), nil
-						},
-					},
-				},
+				Kubernetes: []*ktesting.SimpleReactor{podCreateReactor},
 			},
 			WantActions: runtimetesting.CombinedActions{
 				Kubernetes: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
-						runtimetesting.NewCreatePodAction(jobNamespace, fakePod),
+						runtimetesting.NewCreatePodAction(jobNamespace, fakePod0),
 					},
 				},
 				Furiko: runtimetesting.ActionTest{
@@ -212,7 +202,7 @@ func TestReconciler(t *testing.T) {
 				},
 				Kubernetes: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
-						runtimetesting.NewDeletePodAction(jobNamespace, fakePod.Name),
+						runtimetesting.NewDeletePodAction(jobNamespace, fakePod0.Name),
 					},
 				},
 			},
@@ -234,7 +224,7 @@ func TestReconciler(t *testing.T) {
 				},
 				Kubernetes: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
-						runtimetesting.NewDeletePodAction(jobNamespace, fakePod.Name),
+						runtimetesting.NewDeletePodAction(jobNamespace, fakePod0.Name),
 					},
 				},
 			},
@@ -288,7 +278,7 @@ func TestReconciler(t *testing.T) {
 				},
 				Kubernetes: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
-						runtimetesting.NewDeletePodAction(jobNamespace, fakePod.Name),
+						runtimetesting.NewDeletePodAction(jobNamespace, fakePod0.Name),
 					},
 				},
 			},
@@ -375,6 +365,148 @@ func TestReconciler(t *testing.T) {
 				Furiko: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
 						runtimetesting.NewDeleteJobAction(jobNamespace, fakeJob.Name),
+					},
+				},
+			},
+		},
+
+		// Parallelism test cases
+		{
+			Name:   "parallel: create multiple pods",
+			Target: fakeJobParallel,
+			Reactors: runtimetesting.CombinedReactors{
+				Kubernetes: []*ktesting.SimpleReactor{podCreateReactor},
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Kubernetes: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreatePodAction(jobNamespace, fakePod0),
+						runtimetesting.NewCreatePodAction(jobNamespace, fakePod1),
+						runtimetesting.NewCreatePodAction(jobNamespace, fakePod2),
+					},
+				},
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobParallelResult),
+					},
+				},
+			},
+		},
+		{
+			Name: "parallel: create remaining uncreated pods",
+			Target: generateJobStatusFromPod(
+				fakeJobParallel,
+				podCreated(fakePod0),
+				podCreated(fakePod1),
+			),
+			Reactors: runtimetesting.CombinedReactors{
+				Kubernetes: []*ktesting.SimpleReactor{podCreateReactor},
+			},
+			Fixtures: []runtime.Object{
+				podCreated(fakePod0),
+				podCreated(fakePod1),
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Kubernetes: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreatePodAction(jobNamespace, fakePod2),
+					},
+				},
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobParallelResult),
+					},
+				},
+			},
+		},
+		{
+			Name: "parallel: adopt already existing pods but not in status",
+			Target: generateJobStatusFromPod(
+				fakeJobParallel,
+				podCreated(fakePod0),
+				podCreated(fakePod1),
+			),
+			Fixtures: []runtime.Object{
+				podCreated(fakePod0),
+				podCreated(fakePod1),
+				podCreated(fakePod2),
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Kubernetes: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreatePodAction(jobNamespace, fakePod2),
+					},
+				},
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobParallelResult),
+					},
+				},
+			},
+		},
+		{
+			Name:   "parallel: do nothing with all pods created and updated result",
+			Target: fakeJobParallelResult,
+			Fixtures: []runtime.Object{
+				podCreated(fakePod0),
+				podCreated(fakePod1),
+				podCreated(fakePod2),
+			},
+		},
+		{
+			Name: "parallel: delay retry creating next task after failure",
+			Now:  testutils.Mktime(finishTime),
+			Target: generateJobStatusFromPod(
+				withRetryDelay(withMaxAttempts(fakeJobParallel, 2), time.Minute),
+				podFinished(fakePod0),
+				podFinished(fakePod1),
+				podFailed(fakePod2)),
+			Fixtures: []runtime.Object{
+				podFinished(fakePod0),
+				podFinished(fakePod1),
+				podFailed(fakePod2),
+			},
+		},
+		{
+			Name: "parallel: retry creating next task after failure and delay",
+			Now:  testutils.Mktime(retryTime),
+			Reactors: runtimetesting.CombinedReactors{
+				Kubernetes: []*ktesting.SimpleReactor{newPodCreateReactor(testutils.Mkmtime(retryTime))},
+			},
+			Target: fakeJobParallelDelayingRetry,
+			Fixtures: []runtime.Object{
+				podFinished(fakePod0),
+				podFinished(fakePod1),
+				podFailed(fakePod2),
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Kubernetes: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreatePodAction(jobNamespace, fakePod21),
+					},
+				},
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobParallelRetried),
+					},
+				},
+			},
+		},
+		{
+			Name:   "parallel: stop creating tasks after retry has succeeded",
+			Now:    testutils.Mktime(retryTime),
+			Target: fakeJobParallelRetried,
+			Fixtures: []runtime.Object{
+				podFinished(fakePod0),
+				podFinished(fakePod1),
+				podFailed(fakePod2),
+				podFinished(fakePod21),
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace,
+							generateJobStatusFromPod(fakeJobParallelRetried, podFinished(fakePod21))),
 					},
 				},
 			},

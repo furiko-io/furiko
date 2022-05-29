@@ -19,6 +19,7 @@ package validation
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -50,11 +51,14 @@ const (
 	// characters.
 	maxJobNameLen = apimachineryvalidation.DNS1035LabelMaxLength - 3
 
-	errMessageTooManyTemplates = "cannot specify more than 1 template type"
+	errMessageTooManyParallelismTypes = "cannot specify more than 1 parallelism type"
+	errMessageTooManyTemplates        = "cannot specify more than 1 template type"
 )
 
 var (
 	Clock clock.Clock = &clock.RealClock{}
+
+	withMatrixKeyRegexp = regexp.MustCompile(`^[a-z0-9_-]+$`)
 )
 
 // Validator encapsulates all validator methods.
@@ -335,6 +339,7 @@ func (v *Validator) ValidateJobSpecUpdate(oldSpec, spec *v1alpha1.JobSpec, fldPa
 func (v *Validator) ValidateJobTemplateSpecImmutable(oldTemplate, template *v1alpha1.JobTemplate, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.TaskTemplate, oldTemplate.TaskTemplate, fldPath.Child("taskTemplate"))...)
+	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.Parallelism, oldTemplate.Parallelism, fldPath.Child("parallelism"))...)
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.MaxAttempts, oldTemplate.MaxAttempts, fldPath.Child("maxAttempts"))...)
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(template.RetryDelaySeconds, oldTemplate.RetryDelaySeconds, fldPath.Child("retryDelaySeconds"))...)
 	return allErrs
@@ -384,6 +389,9 @@ func (v *Validator) ValidateStartPolicySpec(spec *v1alpha1.StartPolicySpec, fldP
 func (v *Validator) ValidateJobTemplateSpec(template *v1alpha1.JobTemplate, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, v.ValidateTaskTemplate(&template.TaskTemplate, fldPath.Child("taskTemplate"))...)
+	if template.Parallelism != nil {
+		allErrs = append(allErrs, v.ValidateParallelismSpec(template.Parallelism, fldPath.Child("parallelism"))...)
+	}
 	if template.TaskPendingTimeoutSeconds != nil {
 		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(*template.TaskPendingTimeoutSeconds, fldPath.Child("taskPendingTimeoutSeconds"))...)
 	}
@@ -406,6 +414,91 @@ func (v *Validator) ValidateMaxRetryAttempts(attempts int64, fldPath *field.Path
 	// TODO(irvinlim): Support configuring this value
 	allErrs = append(allErrs, validation.ValidateLTE(attempts, 50, fldPath)...)
 
+	return allErrs
+}
+
+func (v *Validator) ValidateParallelismSpec(spec *v1alpha1.ParallelismSpec, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	var numSpecified int
+	if spec.WithCount != nil {
+		fldPath := fldPath.Child("withCount")
+		if numSpecified >= 1 {
+			allErrs = append(allErrs, field.Forbidden(fldPath, errMessageTooManyParallelismTypes))
+		} else {
+			numSpecified++
+			allErrs = append(allErrs, validation.ValidateGT(*spec.WithCount, 0, fldPath)...)
+		}
+	}
+	if len(spec.WithKeys) > 0 {
+		fldPath := fldPath.Child("withKeys")
+		if numSpecified >= 1 {
+			allErrs = append(allErrs, field.Forbidden(fldPath, errMessageTooManyParallelismTypes))
+		} else {
+			numSpecified++
+			for i, key := range spec.WithKeys {
+				if len(key) == 0 {
+					allErrs = append(allErrs, field.Required(fldPath.Index(i), "key cannot be empty"))
+				}
+			}
+		}
+	}
+	if len(spec.WithMatrix) > 0 {
+		fldPath := fldPath.Child("withMatrix")
+		if numSpecified >= 1 {
+			allErrs = append(allErrs, field.Forbidden(fldPath, errMessageTooManyParallelismTypes))
+		} else {
+			numSpecified++
+			allErrs = append(allErrs, v.validateParallelismSpecWithMatrix(spec.WithMatrix, fldPath)...)
+		}
+	}
+	if numSpecified == 0 {
+		allErrs = append(allErrs, field.Required(fldPath, "must specify a parallelism type"))
+	}
+
+	allErrs = append(allErrs, v.ValidateParallelCompletionStrategy(spec.CompletionStrategy, fldPath.Child("completionStrategy"))...)
+
+	return allErrs
+}
+
+func (v *Validator) validateParallelismSpecWithMatrix(
+	withMatrix map[string][]string,
+	fldPath *field.Path,
+) field.ErrorList {
+	allErrs := field.ErrorList{}
+	for key, vals := range withMatrix {
+		if !withMatrixKeyRegexp.MatchString(key) {
+			detail := fmt.Sprintf("withMatrix key must match regexp: %v", withMatrixKeyRegexp)
+			allErrs = append(allErrs, field.Invalid(fldPath, key, detail))
+			continue
+		}
+		for _, val := range vals {
+			if len(val) == 0 {
+				allErrs = append(allErrs, field.Required(fldPath.Key(key), "value cannot be empty"))
+			}
+		}
+	}
+	return allErrs
+}
+
+func (v *Validator) ValidateParallelCompletionStrategy(
+	completionStrategy v1alpha1.ParallelCompletionStrategy,
+	fldPath *field.Path,
+) field.ErrorList {
+	allErrs := field.ErrorList{}
+	switch completionStrategy {
+	case v1alpha1.AllSuccessful,
+		v1alpha1.AnySuccessful:
+		break
+	case "":
+		allErrs = append(allErrs, field.Required(fldPath, ""))
+	default:
+		validValues := []string{
+			string(v1alpha1.AllSuccessful),
+			string(v1alpha1.AnySuccessful),
+		}
+		allErrs = append(allErrs, field.NotSupported(fldPath, completionStrategy, validValues))
+	}
 	return allErrs
 }
 

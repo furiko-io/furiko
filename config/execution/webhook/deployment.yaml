@@ -29,6 +29,7 @@ spec:
             - "--config=/etc/webhook/config.yaml"
             - "-v=2"
           image: execution-webhook:latest
+          imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
           livenessProbe:

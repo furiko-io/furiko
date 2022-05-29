@@ -14,14 +14,22 @@
  * limitations under the License.
  */
 
-package podtaskexecutor
+package job
 
 import (
 	"fmt"
+
+	"github.com/pkg/errors"
+
+	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 )
 
-// GetPodIndexedName returns a name for the pod with a given index.
-// Currently it always suffixes with a period and the retry index.
-func GetPodIndexedName(name string, index int64) string {
-	return fmt.Sprintf("%v.%v", name, index)
+// GenerateTaskName generates a deterministic task name given a TaskIndex.
+func GenerateTaskName(name string, index tasks.TaskIndex) (string, error) {
+	hash, err := parallel.HashIndex(index.Parallel)
+	if err != nil {
+		return "", errors.Wrapf(err, "cannot hash parallel index")
+	}
+	return fmt.Sprintf("%v-%v-%v", name, hash, index.Retry), nil
 }

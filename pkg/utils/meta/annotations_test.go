@@ -39,7 +39,7 @@ func (o *object) SetAnnotations(annotations map[string]string) {
 func TestSetAnnotation(t *testing.T) {
 	tests := []struct {
 		name   string
-		object meta.ObjectMeta
+		object meta.Annotatable
 		key    string
 		value  string
 		want   map[string]string

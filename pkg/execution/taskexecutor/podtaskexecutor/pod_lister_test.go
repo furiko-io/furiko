@@ -29,6 +29,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
+	"github.com/furiko-io/furiko/pkg/execution/tasks"
 )
 
 const (
@@ -57,7 +58,7 @@ var (
 	fakePods = []*corev1.Pod{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      podtaskexecutor.GetPodIndexedName(fakeJob.Name, 1),
+				Name:      getPodIndexedName(fakeJob.Name, 1),
 				Namespace: jobNamespace,
 				Labels: map[string]string{
 					podtaskexecutor.LabelKeyJobUID: jobUID,
@@ -66,7 +67,7 @@ var (
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      podtaskexecutor.GetPodIndexedName(fakeJob.Name, 2),
+				Name:      getPodIndexedName(fakeJob.Name, 2),
 				Namespace: nonJobNamespace,
 				Labels: map[string]string{
 					podtaskexecutor.LabelKeyJobUID: jobUID,
@@ -75,7 +76,7 @@ var (
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      podtaskexecutor.GetPodIndexedName(fakeJob.Name, 3),
+				Name:      getPodIndexedName(fakeJob.Name, 3),
 				Namespace: jobNamespace,
 				Labels: map[string]string{
 					podtaskexecutor.LabelKeyJobUID: nonJobUID,
@@ -84,7 +85,7 @@ var (
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      podtaskexecutor.GetPodIndexedName(fakeJob.Name, 4),
+				Name:      getPodIndexedName(fakeJob.Name, 4),
 				Namespace: jobNamespace,
 			},
 		},
@@ -124,14 +125,14 @@ func TestNewPodTaskLister(t *testing.T) {
 	assert.Equal(t, createdPods[0].GetName(), list[0].GetName())
 
 	// Should be able to get task by index
-	task, err := lister.Index(1)
+	task, err := lister.Index(tasks.TaskIndex{Retry: 1})
 	assert.NoError(t, err)
 	assert.Equal(t, createdPods[0].GetName(), task.GetName())
 
 	// Returns NotFound error when index not found
-	_, err = lister.Index(0)
+	_, err = lister.Index(tasks.TaskIndex{Retry: 0})
 	assert.True(t, kerrors.IsNotFound(err))
-	_, err = lister.Index(2)
+	_, err = lister.Index(tasks.TaskIndex{Retry: 2})
 	assert.True(t, kerrors.IsNotFound(err))
 
 	// Should be able to get task by name

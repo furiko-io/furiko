@@ -48,9 +48,10 @@ type Provider interface {
 
 // TaskSpec contains minimal information about a task.
 type TaskSpec struct {
-	Name       string
-	Namespace  string
-	RetryIndex int64
+	Name          string
+	Namespace     string
+	RetryIndex    int64
+	ParallelIndex execution.ParallelIndex
 }
 
 // defaultProvider provides the default set of context variables for a vanilla
@@ -97,9 +98,23 @@ func (c *defaultProvider) MakeVariablesFromJob(rj *execution.Job) map[string]str
 }
 
 func (c *defaultProvider) MakeVariablesFromTask(task TaskSpec) map[string]string {
-	return map[string]string{
+	subs := map[string]string{
 		"task.name":        task.Name,
 		"task.namespace":   task.Namespace,
 		"task.retry_index": strconv.Itoa(int(task.RetryIndex)),
 	}
+
+	// Add parallel indexes.
+	switch {
+	case task.ParallelIndex.IndexNumber != nil:
+		subs["task.index_num"] = strconv.Itoa(int(*task.ParallelIndex.IndexNumber))
+	case task.ParallelIndex.IndexKey != "":
+		subs["task.index_key"] = task.ParallelIndex.IndexKey
+	case len(task.ParallelIndex.MatrixValues) > 0:
+		for k, v := range task.ParallelIndex.MatrixValues {
+			subs["task.index_matrix."+k] = v
+		}
+	}
+
+	return subs
 }

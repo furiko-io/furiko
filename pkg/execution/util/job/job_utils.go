@@ -21,58 +21,6 @@ import (
 	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
-// AllowedToCreateNewTask returns whether a Job is allowed to create more tasks
-// based on TaskRefs. The JobStatus should be up-to-date with all tasks created
-// by the Job controller.
-//
-// It assumes that it should only have at most 1 task running at a time, does
-// not create more tasks on success, and stops creating tasks once KillTimestamp
-// is set (even if it is in the future).
-func AllowedToCreateNewTask(rj *execution.Job) bool {
-	// Previously determined cannot create task, so give up.
-	if _, ok := GetAdmissionErrorMessage(rj); ok {
-		return false
-	}
-
-	// There is an active task, or already have a successful task.
-	if HasActiveTask(rj) || HasSuccessTask(rj) {
-		return false
-	}
-
-	// Exceed maximum retries.
-	if rj.Status.CreatedTasks >= GetMaxAllowedTasks(rj) {
-		return false
-	}
-
-	// Job being killed.
-	if rj.Spec.KillTimestamp != nil {
-		return false
-	}
-
-	return true
-}
-
-// HasActiveTask returns true if any of the TaskRefs is still active.
-// Active means that the task is currently active (pending/running).
-func HasActiveTask(rj *execution.Job) bool {
-	for _, task := range rj.Status.Tasks {
-		if task.FinishTimestamp.IsZero() {
-			return true
-		}
-	}
-	return false
-}
-
-// HasSuccessTask returns true if any of the TaskRefs are successful.
-func HasSuccessTask(rj *execution.Job) bool {
-	for _, task := range rj.Status.Tasks {
-		if result := task.Status.Result; result != nil && *result == execution.JobResultSuccess {
-			return true
-		}
-	}
-	return false
-}
-
 // MarkAdmissionError updates a Job to add the AdmissionError annotation.
 func MarkAdmissionError(rj *execution.Job, msg string) {
 	meta.SetAnnotation(rj, LabelKeyAdmissionErrorMessage, msg)

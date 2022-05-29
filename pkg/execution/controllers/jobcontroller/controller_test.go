@@ -17,11 +17,14 @@
 package jobcontroller_test
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	ktesting "k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
 
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
@@ -43,6 +46,7 @@ const (
 	startTime  = "2021-02-09T04:06:01Z"
 	killTime   = "2021-02-09T04:06:10Z"
 	finishTime = "2021-02-09T04:06:18Z"
+	retryTime  = "2021-02-09T04:07:18Z"
 	now        = "2021-02-09T04:06:05Z"
 	later15m   = "2021-02-09T04:21:00Z"
 	later60m   = "2021-02-09T05:06:00Z"
@@ -114,14 +118,14 @@ var (
 		newJob.Status.Phase = execution.JobKilled
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
-				CreatedAt:  testutils.Mkmtimep(createTime),
-				FinishedAt: testutils.Mkmtime(killTime),
-				Result:     execution.JobResultKilled,
+				LatestCreationTimestamp: testutils.Mkmtimep(createTime),
+				FinishTimestamp:         testutils.Mkmtime(killTime),
+				Result:                  execution.JobResultKilled,
 			},
 		}
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
-			State:   execution.TaskKilled,
-			Result:  job.GetResultPtr(execution.JobResultKilled),
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskKilled,
 			Reason:  "JobDeleted",
 			Message: "Task was killed in response to deletion of Job",
 		}
@@ -133,19 +137,17 @@ var (
 	fakeJobWithDeletionTimestampAndDeletedPods = func() *execution.Job {
 		newJob := fakeJobWithDeletionTimestamp.DeepCopy()
 		newJob.Finalizers = meta.RemoveFinalizer(newJob.Finalizers, executiongroup.DeleteDependentsFinalizer)
-		newJob.Status.Phase = execution.JobKilled
+		newJob.Status.Phase = execution.JobFailed
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
-				CreatedAt:  testutils.Mkmtimep(createTime),
-				FinishedAt: testutils.Mkmtime(killTime),
-				Result:     execution.JobResultKilled,
-				Reason:     "JobDeleted",
-				Message:    "Task was killed in response to deletion of Job",
+				LatestCreationTimestamp: testutils.Mkmtimep(createTime),
+				FinishTimestamp:         testutils.Mkmtime(killTime),
+				Result:                  execution.JobResultFailed,
 			},
 		}
 		newJob.Status.Tasks[0].Status = execution.TaskStatus{
-			State:   execution.TaskKilled,
-			Result:  job.GetResultPtr(execution.JobResultKilled),
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskKilled,
 			Reason:  "JobDeleted",
 			Message: "Task was killed in response to deletion of Job",
 		}
@@ -165,8 +167,8 @@ var (
 	fakeJobPodDeleting = func() *execution.Job {
 		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
-			State:   execution.TaskKilled,
-			Result:  job.GetResultPtr(execution.JobResultKilled),
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskKilled,
 			Reason:  "Deleted",
 			Message: "Task was killed via deletion",
 		}
@@ -184,8 +186,8 @@ var (
 	fakeJobPodForceDeleting = func() *execution.Job {
 		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
-			State:   execution.TaskKilled,
-			Result:  job.GetResultPtr(execution.JobResultKilled),
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskKilled,
 			Reason:  "ForceDeleted",
 			Message: "Forcefully deleted the task, container may still be running",
 		}
@@ -198,11 +200,9 @@ var (
 		newJob.Status.Phase = execution.JobKilled
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
-				CreatedAt:  testutils.Mkmtimep(createTime),
-				FinishedAt: testutils.Mkmtime(now),
-				Result:     execution.JobResultKilled,
-				Reason:     "Deleted",
-				Message:    "Task was killed via deletion",
+				LatestCreationTimestamp: testutils.Mkmtimep(createTime),
+				FinishTimestamp:         testutils.Mkmtime(now),
+				Result:                  execution.JobResultKilled,
 			},
 		}
 		newJob.Status.Tasks[0].Status = *newJob.Status.Tasks[0].DeletedStatus.DeepCopy()
@@ -221,14 +221,13 @@ var (
 	}()
 
 	// Pod that is to be created.
-	fakePod, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), 1)
+	fakePod0  = newPod(0, 0)
+	fakePod1  = newPod(1, 0)
+	fakePod2  = newPod(2, 0)
+	fakePod21 = newPod(2, 1)
 
 	// Pod that adds CreationTimestamp to mimic mutation on apiserver.
-	fakePodResult = func() *corev1.Pod {
-		newPod := fakePod.DeepCopy()
-		newPod.CreationTimestamp = testutils.Mkmtime(createTime)
-		return newPod
-	}()
+	fakePodResult = podCreated(fakePod0)
 
 	// Pod that is in Pending state.
 	fakePodPending = func() *corev1.Pod {
@@ -291,7 +290,135 @@ var (
 		}
 		return newPod
 	}()
+
+	// Job with parallelism.
+	fakeJobParallel = &execution.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              jobName,
+			Namespace:         jobNamespace,
+			CreationTimestamp: testutils.Mkmtime(createTime),
+			Finalizers: []string{
+				executiongroup.DeleteDependentsFinalizer,
+			},
+		},
+		Spec: execution.JobSpec{
+			Type: execution.JobTypeAdhoc,
+			Template: &execution.JobTemplate{
+				TaskTemplate: execution.TaskTemplate{
+					Pod: podTemplate,
+				},
+				MaxAttempts: pointer.Int64(3),
+				Parallelism: &execution.ParallelismSpec{
+					WithCount:          pointer.Int64(3),
+					CompletionStrategy: execution.AllSuccessful,
+				},
+			},
+		},
+		Status: execution.JobStatus{
+			StartTime: testutils.Mkmtimep(startTime),
+		},
+	}
+
+	// Job that was created with a fully populated status.
+	fakeJobParallelResult = generateJobStatusFromPod(
+		fakeJobParallel,
+		podCreated(fakePod0),
+		podCreated(fakePod1),
+		podCreated(fakePod2),
+	)
+
+	fakeJobParallelDelayingRetry = generateJobStatusFromPod(
+		withRetryDelay(withMaxAttempts(fakeJobParallel, 2), time.Minute),
+		podFinished(fakePod0),
+		podFinished(fakePod1),
+		podFailed(fakePod2),
+	)
+
+	fakeJobParallelRetried = generateJobStatusFromPod(
+		fakeJobParallelDelayingRetry,
+		podCreatedWithTime(fakePod21, testutils.Mkmtime(retryTime)),
+	)
 )
+
+var (
+	podCreateReactor = newPodCreateReactor(testutils.Mkmtime(createTime))
+)
+
+func newPodCreateReactor(createTime metav1.Time) *ktesting.SimpleReactor {
+	return &ktesting.SimpleReactor{
+		Verb:     "create",
+		Resource: "pods",
+		Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
+			createAction, ok := action.(ktesting.CreateAction)
+			if !ok {
+				return false, nil, fmt.Errorf("not a CreateAction: %v", action)
+			}
+			pod, ok := createAction.GetObject().(*corev1.Pod)
+			if !ok {
+				return false, nil, fmt.Errorf("not a Pod: %T", createAction.GetObject())
+			}
+			return true, podCreatedWithTime(pod, createTime), nil
+		},
+	}
+}
+
+func newPod(parallelIndex int64, retryIndex int64) *corev1.Pod {
+	pod, _ := podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
+		Retry: retryIndex,
+		Parallel: execution.ParallelIndex{
+			IndexNumber: pointer.Int64(parallelIndex),
+		},
+	})
+	return pod
+}
+
+func podCreated(pod *corev1.Pod) *corev1.Pod {
+	return podCreatedWithTime(pod, testutils.Mkmtime(createTime))
+}
+
+func podCreatedWithTime(pod *corev1.Pod, createTime metav1.Time) *corev1.Pod {
+	newPod := pod.DeepCopy()
+	newPod.CreationTimestamp = createTime
+	return newPod
+}
+
+func podFinished(pod *corev1.Pod) *corev1.Pod {
+	newPod := podCreated(pod)
+	newPod.Status = corev1.PodStatus{
+		Phase:     corev1.PodSucceeded,
+		StartTime: testutils.Mkmtimep(startTime),
+		ContainerStatuses: []corev1.ContainerStatus{
+			{
+				Name: "container",
+				State: corev1.ContainerState{
+					Terminated: &corev1.ContainerStateTerminated{
+						StartedAt:  testutils.Mkmtime(startTime),
+						FinishedAt: testutils.Mkmtime(finishTime),
+					},
+				},
+			},
+		},
+	}
+	return newPod
+}
+
+func podFailed(pod *corev1.Pod) *corev1.Pod {
+	newPod := podFinished(pod)
+	newPod.Status.Phase = corev1.PodFailed
+	return newPod
+}
+
+func withMaxAttempts(job *execution.Job, maxAttempts int64) *execution.Job {
+	newJob := job.DeepCopy()
+	newJob.Spec.Template.MaxAttempts = pointer.Int64(maxAttempts)
+	return newJob
+}
+
+func withRetryDelay(job *execution.Job, delay time.Duration) *execution.Job {
+	newJob := job.DeepCopy()
+	newJob.Spec.Template.RetryDelaySeconds = pointer.Int64(int64(delay.Seconds()))
+	return newJob
+}
 
 // generateJobStatusFromPod returns a new Job whose status is reconciled from
 // the Pod.
@@ -299,9 +426,17 @@ var (
 // This method is basically identical to what is used in the controller, and is
 // meant to reduce flaky tests by coupling any changes to internal logic to the
 // fixtures themselves, thus making it suitable for integration tests.
-func generateJobStatusFromPod(rj *execution.Job, pod *corev1.Pod) *execution.Job {
-	newJob := job.UpdateJobTaskRefs(rj, []tasks.Task{podtaskexecutor.NewPodTask(pod, nil)})
-	return jobcontroller.UpdateJobStatusFromTaskRefs(newJob)
+func generateJobStatusFromPod(rj *execution.Job, pods ...*corev1.Pod) *execution.Job {
+	podTasks := make([]tasks.Task, 0, len(pods))
+	for _, pod := range pods {
+		podTasks = append(podTasks, podtaskexecutor.NewPodTask(pod, nil))
+	}
+	newJob := job.UpdateJobTaskRefs(rj, podTasks)
+	newRj, err := jobcontroller.UpdateJobStatusFromTaskRefs(newJob)
+	if err != nil {
+		panic(err) // panic ok for tests
+	}
+	return newRj
 }
 
 // killPod returns a new Pod after setting the kill timestamp.

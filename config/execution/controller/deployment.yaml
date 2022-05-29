@@ -29,6 +29,7 @@ spec:
             - "--config=/etc/controller/config.yaml"
             - "-v=2"
           image: execution-controller:latest
+          imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
           livenessProbe:
