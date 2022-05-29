@@ -18,6 +18,8 @@ package jobcontroller
 
 import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/utils/cmp"
 	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
@@ -45,4 +47,24 @@ func isDeleted(rj *execution.Job) bool {
 
 func isFinalized(rj *execution.Job, finalizer string) bool {
 	return isDeleted(rj) && !meta.ContainsFinalizer(rj.Finalizers, finalizer)
+}
+
+func canCreateTask(rj *execution.Job) bool {
+	// Job is being killed.
+	if rj.Spec.KillTimestamp != nil {
+		return false
+	}
+
+	// Stop creating tasks on AdmissionError.
+	// TODO(irvinlim): Currently if a single task causes AdmissionError, then the whole job will be terminated.
+	if _, ok := job.GetAdmissionErrorMessage(rj); ok {
+		return false
+	}
+
+	return true
+}
+
+func isTaskFinished(task tasks.Task) bool {
+	taskStatus := task.GetTaskRef()
+	return !taskStatus.FinishTimestamp.IsZero()
 }

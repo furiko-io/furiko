@@ -41,6 +41,9 @@ type Task interface {
 	// All tasks should be numbered sequentially starting from 1 for a single job.
 	GetRetryIndex() (int64, bool)
 
+	// GetParallelIndex returns the parallel index for the task.
+	GetParallelIndex() (*execution.ParallelIndex, bool)
+
 	// RequiresKillWithDeletion returns true if the task cannot be killed via kill
 	// timestamp and needs deletion instead. If the task is already finished, this
 	// should always return false (i.e. cannot/should not kill finished tasks).
@@ -65,20 +68,26 @@ type Task interface {
 // TaskLister implements methods to list Tasks from informer cache.
 type TaskLister interface {
 	Get(name string) (Task, error)
-	Index(index int64) (Task, error)
+	Index(index TaskIndex) (Task, error)
 	List() ([]Task, error)
+}
+
+// TaskIndex contains indexes for a single task.
+type TaskIndex struct {
+	Retry    int64
+	Parallel execution.ParallelIndex
 }
 
 // TaskClient implements methods to perform operations on the apiserver.
 type TaskClient interface {
 	// CreateIndex creates a new Task with the given index.
-	CreateIndex(ctx context.Context, index int64) (task Task, err error)
+	CreateIndex(ctx context.Context, index TaskIndex) (task Task, err error)
 
 	// Get returns a single Task from apiserver.
 	Get(ctx context.Context, name string) (Task, error)
 
 	// Index returns a single Task for the given index from apiserver.
-	Index(ctx context.Context, index int64) (Task, error)
+	Index(ctx context.Context, index TaskIndex) (Task, error)
 
 	// Delete will delete the Task with the given name.
 	Delete(ctx context.Context, name string, force bool) error

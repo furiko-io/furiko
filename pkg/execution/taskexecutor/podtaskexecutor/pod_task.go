@@ -18,6 +18,7 @@ package podtaskexecutor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -28,7 +29,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/execution/util/job"
+	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
@@ -44,6 +45,8 @@ type PodTask struct {
 	*corev1.Pod
 	client v1.PodInterface
 }
+
+var _ jobtasks.Task = (*PodTask)(nil)
 
 func NewPodTask(pod *corev1.Pod, client v1.PodInterface) *PodTask {
 	return &PodTask{Pod: pod, client: client}
@@ -64,6 +67,12 @@ func (p *PodTask) GetTaskRef() execution.TaskRef {
 		ContainerStates: p.GetContainerStates(),
 	}
 
+	if index, ok := p.GetRetryIndex(); ok {
+		task.RetryIndex = index
+	}
+	if index, ok := p.GetParallelIndex(); ok {
+		task.ParallelIndex = index
+	}
 	if t := p.GetRunningTimestamp(); !t.IsZero() {
 		task.RunningTimestamp = &t
 	}
@@ -88,6 +97,18 @@ func (p *PodTask) GetRetryIndex() (int64, bool) {
 		return 0, false
 	}
 	return int64(i), true
+}
+
+func (p *PodTask) GetParallelIndex() (*execution.ParallelIndex, bool) {
+	val, ok := p.Annotations[AnnotationKeyTaskParallelIndex]
+	if !ok {
+		return nil, false
+	}
+	res := &execution.ParallelIndex{}
+	if err := json.Unmarshal([]byte(val), res); err != nil {
+		return nil, false
+	}
+	return res, true
 }
 
 // RequiresKillWithDeletion returns true if the Task should be killed with
@@ -181,82 +202,50 @@ func (p *PodTask) SetKilledFromPendingTimeoutMarker(ctx context.Context) error {
 }
 
 func (p *PodTask) GetState() execution.TaskState {
-	// Pod has a kill timestamp in the past.
-	if ktime.IsTimeSetAndEarlier(p.GetKillTimestamp()) {
-		if !p.IsFinished() {
-			// Pod in the midst of killing.
-			return execution.TaskKilling
-		} else if p.Status.Phase == corev1.PodFailed && p.IsDeadlineExceeded() {
-			// Pod was killed using active deadline.
-			return execution.TaskKilled
-		}
+	if ktime.IsTimeSetAndEarlier(p.GetKillTimestamp()) && !p.IsFinished() {
+		return execution.TaskKilling
 	}
 
-	// Pod was unschedulable (may have used active deadline).
-	if p.IsKilledFromPendingTimeout() {
-		return execution.TaskPendingTimeout
-	}
-
-	// Pod has DeadlineExceeded but no kill timestamp.
-	if p.IsDeadlineExceeded() {
-		return execution.TaskDeadlineExceeded
-	}
-
-	// Pod was OOMKilled, always use task failed. This is because kubelet may set
-	// PodSucceeded phase if the exit code is 0 even though oom_killer was invoked.
-	// TODO(irvinlim): This may not be necessary
-	if p.IsOOMKilled() {
-		return execution.TaskFailed
-	}
-
-	// Check pod phase
 	switch p.Status.Phase {
-	case corev1.PodPending:
-		if len(p.Status.ContainerStatuses) > 0 {
-			return execution.TaskStarting
-		}
-		return execution.TaskStaging
 	case corev1.PodRunning:
 		return execution.TaskRunning
-	case corev1.PodSucceeded:
-		return execution.TaskSuccess
-	case corev1.PodFailed:
-		return execution.TaskFailed
+	case corev1.PodSucceeded, corev1.PodFailed:
+		return execution.TaskTerminated
+	default:
+		return execution.TaskStarting
 	}
-
-	return execution.TaskStaging
 }
 
-func (p *PodTask) GetResult() *execution.JobResult {
+func (p *PodTask) GetResult() execution.TaskResult {
 	// Pod was OOMKilled, always use task failed.
 	if p.IsOOMKilled() {
-		return job.GetResultPtr(execution.JobResultTaskFailed)
+		return execution.TaskFailed
 	}
 
 	// Pod was killed by pending timeout.
 	if p.IsKilledFromPendingTimeout() {
-		return job.GetResultPtr(execution.JobResultPendingTimeout)
+		return execution.TaskPendingTimeout
 	}
 
 	// Killed pod using active deadline.
 	if p.IsDeadlineExceeded() {
 		// Kill timestamp was set but not from pending timeout.
 		if !p.GetKillTimestamp().IsZero() {
-			return job.GetResultPtr(execution.JobResultKilled)
+			return execution.TaskKilled
 		}
-		return job.GetResultPtr(execution.JobResultDeadlineExceeded)
+		return execution.TaskDeadlineExceeded
 	}
 
 	// Fallback to Pod phase for normal results.
 	switch p.Status.Phase {
 	case corev1.PodSucceeded:
-		return job.GetResultPtr(execution.JobResultSuccess)
+		return execution.TaskSucceeded
 	case corev1.PodFailed:
-		return job.GetResultPtr(execution.JobResultTaskFailed)
+		return execution.TaskFailed
 	case corev1.PodPending, corev1.PodRunning:
 	}
 
-	return nil
+	return ""
 }
 
 func (p *PodTask) GetRunningTimestamp() metav1.Time {

@@ -31,6 +31,14 @@ var (
 	// the task.
 	LabelKeyTaskRetryIndex = executiongroup.AddGroupToLabel("task-retry-index")
 
+	// LabelKeyTaskParallelIndexHash label is added on Pods to indicate the parallel
+	// index hash of the task.
+	LabelKeyTaskParallelIndexHash = executiongroup.AddGroupToLabel("task-parallel-index-hash")
+
+	// AnnotationKeyTaskParallelIndex annotations is added on Pods to indicate the parallel
+	// index of the task in JSON format.
+	AnnotationKeyTaskParallelIndex = executiongroup.AddGroupToLabel("task-parallel-index")
+
 	// LabelKeyTaskKillTimestamp annotation will be added on Pods as the
 	// authoritative time we requested to kill the Task.
 	LabelKeyTaskKillTimestamp = executiongroup.AddGroupToLabel("task-kill-timestamp")

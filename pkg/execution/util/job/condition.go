@@ -19,30 +19,35 @@ package job
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 // GetCondition returns a consolidated JobCondition computed from TaskRefs.
-func GetCondition(rj *execution.Job) execution.JobCondition {
+// nolint: gocognit
+func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 	state := execution.JobCondition{}
 
 	// We cannot create tasks due to a user error.
 	if message, ok := GetAdmissionErrorMessage(rj); ok {
 		newStatus := &execution.JobConditionFinished{
-			FinishedAt: *ktime.Now(),
-			Result:     execution.JobResultAdmissionError,
-			Reason:     "AdmissionError",
-			Message:    message,
+			FinishTimestamp: *ktime.Now(),
+			Result:          execution.JobResultAdmissionError,
+			Reason:          "AdmissionError",
+			Message:         message,
 		}
 
-		// Use old FinishedAt if previously set.
-		if oldStatus := rj.Status.Condition.Finished; oldStatus != nil && !oldStatus.FinishedAt.IsZero() {
-			newStatus.FinishedAt = oldStatus.FinishedAt
+		// Use old FinishTimestamp if previously set.
+		if oldStatus := rj.Status.Condition.Finished; oldStatus != nil && !oldStatus.FinishTimestamp.IsZero() {
+			newStatus.FinishTimestamp = oldStatus.FinishTimestamp
 		}
 
 		state.Finished = newStatus
-		return state
+		return state, nil
 	}
 
 	// Not yet started.
@@ -65,74 +70,120 @@ func GetCondition(rj *execution.Job) execution.JobCondition {
 			Reason:  reason,
 			Message: message,
 		}
-		return state
+		return state, nil
 	}
 
-	// No created tasks yet.
-	taskRefs := rj.Status.Tasks
-	if len(taskRefs) == 0 {
-		// If the job is killed before any tasks are created, we terminate this job.
-		if !rj.Spec.KillTimestamp.IsZero() {
-			state.Finished = &execution.JobConditionFinished{
-				FinishedAt: *rj.Spec.KillTimestamp,
-				Result:     execution.JobResultKilled,
-			}
-			return state
-		}
+	template := rj.Spec.Template
+	if template == nil {
+		template = &execution.JobTemplate{}
+	}
+	indexes := parallel.GenerateIndexes(template.Parallelism)
+	numIndexes := int64(len(indexes))
 
-		// Otherwise, the job is waiting for tasks to be created.
-		state.Waiting = &execution.JobConditionWaiting{}
-		return state
+	// Get parallel status.
+	parallelStatus, err := parallel.GetParallelStatus(rj, rj.Status.Tasks)
+	if err != nil {
+		return state, errors.Wrapf(err, "cannot compute parallel status")
 	}
 
-	// Get latest task ref.
-	latestTask := taskRefs[len(taskRefs)-1]
+	// Compute latest timestamps across all tasks.
+	var latestCreated, latestRunning, latestFinished *metav1.Time
+	for _, task := range rj.Status.Tasks {
+		latestCreated = ktime.TimeMax(latestCreated, &task.CreationTimestamp)
+		latestRunning = ktime.TimeMax(latestRunning, task.RunningTimestamp)
+		latestFinished = ktime.TimeMax(latestFinished, task.FinishTimestamp)
+	}
 
-	// Latest task is finished.
-	if finishTime := latestTask.FinishTimestamp; !finishTime.IsZero() {
-		// The task did not succeed, still got more retries.
-		if AllowedToCreateNewTask(rj) {
-			state.Waiting = &execution.JobConditionWaiting{
-				CreatedAt: &latestTask.CreationTimestamp,
-				Reason:    "RetryBackoff",
-				Message: fmt.Sprintf("Waiting to create new task (retrying %v out of %v)",
-					len(taskRefs)+1, GetMaxAllowedTasks(rj),
-				),
-			}
-			return state
+	// If the job is being killed and all tasks are terminated, we can use Finished.
+	if !rj.Spec.KillTimestamp.IsZero() && parallelStatus.Terminated >= parallelStatus.Created {
+		finishTimestamp := rj.Spec.KillTimestamp
+		if !latestFinished.IsZero() {
+			finishTimestamp = latestFinished
 		}
-
-		// No more tasks will be created.
 		state.Finished = &execution.JobConditionFinished{
-			CreatedAt:  &latestTask.CreationTimestamp,
-			FinishedAt: *finishTime,
-			Reason:     latestTask.Status.Reason,
-			Message:    latestTask.Status.Message,
+			LatestCreationTimestamp: latestCreated,
+			LatestRunningTimestamp:  latestRunning,
+			FinishTimestamp:         *finishTimestamp,
+			Result:                  execution.JobResultKilled,
 		}
-		if result := latestTask.Status.Result; result != nil {
-			state.Finished.Result = *result
-		}
-		if runningTime := latestTask.RunningTimestamp; !runningTime.IsZero() {
-			state.Finished.StartedAt = runningTime
-		}
-		return state
+		return state, nil
 	}
 
-	// Latest task is running.
-	if runningTime := latestTask.RunningTimestamp; !runningTime.IsZero() {
+	// If not complete, it must be either waiting or running.
+	if !parallelStatus.Complete {
+		// Not complete and created indexes is less than expected.
+		if parallelStatus.Created < numIndexes {
+			state.Waiting = &execution.JobConditionWaiting{
+				Reason: "PendingCreation",
+				Message: fmt.Sprintf("Waiting for %v out of %v task(s) to be created",
+					numIndexes-parallelStatus.Created, len(indexes)),
+			}
+			return state, nil
+		}
+
+		// Some tasks are in retry backoff.
+		if parallelStatus.RetryBackoff > 0 {
+			state.Waiting = &execution.JobConditionWaiting{
+				Reason:  "RetryBackoff",
+				Message: fmt.Sprintf("Waiting to retry creating %v task(s)", parallelStatus.RetryBackoff),
+			}
+			return state, nil
+		}
+
+		// Not complete and running indexes is less than expected.
+		if parallelStatus.Starting > 0 {
+			state.Waiting = &execution.JobConditionWaiting{
+				Reason:  "WaitingForTasks",
+				Message: fmt.Sprintf("Waiting for %v task(s) to start running", parallelStatus.Starting),
+			}
+			return state, nil
+		}
+
+		// The job is currently running.
+		state.Running = &execution.JobConditionRunning{}
+		if !latestCreated.IsZero() {
+			state.Running.LatestCreationTimestamp = *latestCreated
+		}
+		if !latestRunning.IsZero() {
+			state.Running.LatestRunningTimestamp = *latestRunning
+		}
+		return state, nil
+	}
+
+	// The job is complete but currently waiting to be terminated.
+	if parallelStatus.Terminated < numIndexes {
 		state.Running = &execution.JobConditionRunning{
-			CreatedAt: latestTask.CreationTimestamp,
-			StartedAt: *runningTime,
+			TerminatingTasks: parallelStatus.Created - parallelStatus.Terminated,
 		}
-		return state
+		if !latestCreated.IsZero() {
+			state.Running.LatestCreationTimestamp = *latestCreated
+		}
+		if !latestRunning.IsZero() {
+			state.Running.LatestRunningTimestamp = *latestRunning
+		}
+		return state, nil
 	}
 
-	// Latest task is still waiting.
-	createTime := latestTask.CreationTimestamp
-	state.Waiting = &execution.JobConditionWaiting{
-		CreatedAt: &createTime,
-		Reason:    latestTask.Status.Reason,
-		Message:   latestTask.Status.Message,
+	// The job is now completely finished.
+	state.Finished = &execution.JobConditionFinished{
+		LatestCreationTimestamp: latestCreated,
+		LatestRunningTimestamp:  latestRunning,
 	}
-	return state
+	if !latestFinished.IsZero() {
+		state.Finished.FinishTimestamp = *latestFinished
+	}
+
+	// Compute finished result.
+	state.Finished.Result = execution.JobResultFinalStateUnknown
+	if !rj.Spec.KillTimestamp.IsZero() {
+		state.Finished.Result = execution.JobResultKilled
+	} else if parallelStatus.Successful != nil {
+		if *parallelStatus.Successful {
+			state.Finished.Result = execution.JobResultSuccess
+		} else {
+			state.Finished.Result = execution.JobResultFailed
+		}
+	}
+
+	return state, nil
 }

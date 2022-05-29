@@ -595,6 +595,182 @@ func TestValidateJob(t *testing.T) {
 			},
 			wantErr: "spec.template.taskTemplate.pod.spec.restartPolicy: Invalid value: \"Always\": restartPolicy cannot be Always",
 		},
+		{
+			name: "required template.parallelism.completionStrategy",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							WithCount:          pointer.Int64(3),
+							CompletionStrategy: "",
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.parallelism.completionStrategy: Required value",
+		},
+		{
+			name: "invalid template.parallelism.completionStrategy",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							WithCount:          pointer.Int64(3),
+							CompletionStrategy: "invalid",
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.parallelism.completionStrategy: Unsupported value: \"invalid\"",
+		},
+		{
+			name: "required template.parallelism type",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							CompletionStrategy: v1alpha1.AllSuccessful,
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.parallelism: Required value: must specify a parallelism type",
+		},
+		{
+			name: "negative template.parallelism.withCount",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							WithCount:          pointer.Int64(-1),
+							CompletionStrategy: v1alpha1.AllSuccessful,
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.parallelism.withCount: Invalid value: -1: must be greater than 0",
+		},
+		{
+			name: "zero template.parallelism.withCount",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							WithCount:          pointer.Int64(0),
+							CompletionStrategy: v1alpha1.AllSuccessful,
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.parallelism.withCount: Invalid value: 0: must be greater than 0",
+		},
+		{
+			name: "empty string in template.parallelism.withKeys",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							WithKeys:           []string{"key1", ""},
+							CompletionStrategy: v1alpha1.AllSuccessful,
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.parallelism.withKeys[1]: Required value: key cannot be empty",
+		},
+		{
+			name: "empty string in template.parallelism.withMatrix",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							WithMatrix: map[string][]string{
+								"": {"value1", "value2"},
+							},
+							CompletionStrategy: v1alpha1.AllSuccessful,
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: `spec.template.parallelism.withMatrix: Invalid value: "": withMatrix key must match regexp`,
+		},
+		{
+			name: "invalid key in template.parallelism.withMatrix",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							WithMatrix: map[string][]string{
+								"invalid key": {"value1", "value2"},
+							},
+							CompletionStrategy: v1alpha1.AllSuccessful,
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: `spec.template.parallelism.withMatrix: Invalid value: "invalid key": withMatrix key must match regexp`,
+		},
+		{
+			name: "invalid value in template.parallelism.withMatrix",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJob,
+				Spec: v1alpha1.JobSpec{
+					Type: v1alpha1.JobTypeAdhoc,
+					Template: &v1alpha1.JobTemplate{
+						Parallelism: &v1alpha1.ParallelismSpec{
+							WithMatrix: map[string][]string{
+								"key": {"value1", ""},
+							},
+							CompletionStrategy: v1alpha1.AllSuccessful,
+						},
+						TaskTemplate: v1alpha1.TaskTemplate{
+							Pod: &podTemplateSpecBasic,
+						},
+					},
+				},
+			},
+			wantErr: "spec.template.parallelism.withMatrix[key]: Required value: value cannot be empty",
+		},
 	}
 	for _, tt := range tests {
 		tt := tt

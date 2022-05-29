@@ -114,14 +114,14 @@ var (
 		newJob.Status.Phase = execution.JobKilled
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
-				CreatedAt:  testutils.Mkmtimep(createTime),
-				FinishedAt: testutils.Mkmtime(killTime),
-				Result:     execution.JobResultKilled,
+				LatestCreationTimestamp: testutils.Mkmtimep(createTime),
+				FinishTimestamp:         testutils.Mkmtime(killTime),
+				Result:                  execution.JobResultKilled,
 			},
 		}
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
-			State:   execution.TaskKilled,
-			Result:  job.GetResultPtr(execution.JobResultKilled),
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskKilled,
 			Reason:  "JobDeleted",
 			Message: "Task was killed in response to deletion of Job",
 		}
@@ -133,19 +133,17 @@ var (
 	fakeJobWithDeletionTimestampAndDeletedPods = func() *execution.Job {
 		newJob := fakeJobWithDeletionTimestamp.DeepCopy()
 		newJob.Finalizers = meta.RemoveFinalizer(newJob.Finalizers, executiongroup.DeleteDependentsFinalizer)
-		newJob.Status.Phase = execution.JobKilled
+		newJob.Status.Phase = execution.JobFailed
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
-				CreatedAt:  testutils.Mkmtimep(createTime),
-				FinishedAt: testutils.Mkmtime(killTime),
-				Result:     execution.JobResultKilled,
-				Reason:     "JobDeleted",
-				Message:    "Task was killed in response to deletion of Job",
+				LatestCreationTimestamp: testutils.Mkmtimep(createTime),
+				FinishTimestamp:         testutils.Mkmtime(killTime),
+				Result:                  execution.JobResultFailed,
 			},
 		}
 		newJob.Status.Tasks[0].Status = execution.TaskStatus{
-			State:   execution.TaskKilled,
-			Result:  job.GetResultPtr(execution.JobResultKilled),
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskKilled,
 			Reason:  "JobDeleted",
 			Message: "Task was killed in response to deletion of Job",
 		}
@@ -165,8 +163,8 @@ var (
 	fakeJobPodDeleting = func() *execution.Job {
 		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
-			State:   execution.TaskKilled,
-			Result:  job.GetResultPtr(execution.JobResultKilled),
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskKilled,
 			Reason:  "Deleted",
 			Message: "Task was killed via deletion",
 		}
@@ -184,8 +182,8 @@ var (
 	fakeJobPodForceDeleting = func() *execution.Job {
 		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
-			State:   execution.TaskKilled,
-			Result:  job.GetResultPtr(execution.JobResultKilled),
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskKilled,
 			Reason:  "ForceDeleted",
 			Message: "Forcefully deleted the task, container may still be running",
 		}
@@ -198,11 +196,9 @@ var (
 		newJob.Status.Phase = execution.JobKilled
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
-				CreatedAt:  testutils.Mkmtimep(createTime),
-				FinishedAt: testutils.Mkmtime(now),
-				Result:     execution.JobResultKilled,
-				Reason:     "Deleted",
-				Message:    "Task was killed via deletion",
+				LatestCreationTimestamp: testutils.Mkmtimep(createTime),
+				FinishTimestamp:         testutils.Mkmtime(now),
+				Result:                  execution.JobResultKilled,
 			},
 		}
 		newJob.Status.Tasks[0].Status = *newJob.Status.Tasks[0].DeletedStatus.DeepCopy()
@@ -221,7 +217,12 @@ var (
 	}()
 
 	// Pod that is to be created.
-	fakePod, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), 1)
+	fakePod, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
+		Retry: 0,
+		Parallel: execution.ParallelIndex{
+			IndexNumber: pointer.Int64(0),
+		},
+	})
 
 	// Pod that adds CreationTimestamp to mimic mutation on apiserver.
 	fakePodResult = func() *corev1.Pod {
@@ -301,7 +302,11 @@ var (
 // fixtures themselves, thus making it suitable for integration tests.
 func generateJobStatusFromPod(rj *execution.Job, pod *corev1.Pod) *execution.Job {
 	newJob := job.UpdateJobTaskRefs(rj, []tasks.Task{podtaskexecutor.NewPodTask(pod, nil)})
-	return jobcontroller.UpdateJobStatusFromTaskRefs(newJob)
+	newRj, err := jobcontroller.UpdateJobStatusFromTaskRefs(newJob)
+	if err != nil {
+		panic(err) // panic ok for tests
+	}
+	return newRj
 }
 
 // killPod returns a new Pod after setting the kill timestamp.

@@ -300,9 +300,22 @@ func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplate, fldPath *fie
 		spec.MaxAttempts = pointer.Int64(1)
 	}
 
-	// Mutate task's PodTemplateSpec.
+	if spec.Parallelism != nil {
+		result.Merge(m.MutateParallelismSpec(spec.Parallelism, fldPath.Child("")))
+	}
 	if spec.TaskTemplate.Pod != nil {
-		result.Merge(m.MutatePodTemplateSpec(spec.TaskTemplate.Pod, fldPath.Child("task", "template")))
+		result.Merge(m.MutatePodTemplateSpec(spec.TaskTemplate.Pod, fldPath.Child("taskTemplate", "pod")))
+	}
+
+	return result
+}
+
+// MutateParallelismSpec mutates ParallelismSpec in-place.
+func (m *Mutator) MutateParallelismSpec(spec *v1alpha1.ParallelismSpec, fldPath *field.Path) *webhook.Result {
+	result := webhook.NewResult()
+
+	if spec.CompletionStrategy == "" {
+		spec.CompletionStrategy = v1alpha1.AllSuccessful
 	}
 
 	return result

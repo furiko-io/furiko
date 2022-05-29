@@ -152,10 +152,10 @@ func (c *ListJobCommand) makeJobRow(job *execution.Job) []string {
 	finishTime := ""
 
 	if condition := job.Status.Condition.Running; condition != nil {
-		runTime = formatter.FormatTimeAgo(&condition.StartedAt)
+		runTime = formatter.FormatTimeAgo(&condition.LatestRunningTimestamp)
 	}
 	if condition := job.Status.Condition.Finished; condition != nil {
-		finishTime = formatter.FormatTimeAgo(&condition.FinishedAt)
+		finishTime = formatter.FormatTimeAgo(&condition.FinishTimestamp)
 	}
 
 	return []string{

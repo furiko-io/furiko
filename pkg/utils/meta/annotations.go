@@ -16,7 +16,7 @@
 
 package meta
 
-type ObjectMeta interface {
+type Annotatable interface {
 	GetAnnotations() map[string]string
 	SetAnnotations(annotations map[string]string)
 }
@@ -24,11 +24,28 @@ type ObjectMeta interface {
 // SetAnnotation updates the object's annotations, setting the annotation given
 // by key to be value. The Annotations map is updated in-place, if needed please
 // DeepCopy before calling this function.
-func SetAnnotation(object ObjectMeta, key, value string) {
+func SetAnnotation(object Annotatable, key, value string) {
 	annotations := object.GetAnnotations()
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
 	annotations[key] = value
 	object.SetAnnotations(annotations)
+}
+
+type Labelable interface {
+	GetLabels() map[string]string
+	SetLabels(annotations map[string]string)
+}
+
+// SetLabel updates the object's labels, setting the label given by key to be
+// value. The Labels map is updated in-place, if needed please DeepCopy before
+// calling this function.
+func SetLabel(object Labelable, key, value string) {
+	labels := object.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[key] = value
+	object.SetLabels(labels)
 }

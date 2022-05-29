@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+// nolint: dupl
 package job_test
 
 import (
@@ -166,10 +167,10 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					FinishedAt: metav1.NewTime(timeNow),
-					Result:     execution.JobResultAdmissionError,
-					Reason:     "AdmissionError",
-					Message:    "admission error message",
+					FinishTimestamp: metav1.NewTime(timeNow),
+					Result:          execution.JobResultAdmissionError,
+					Reason:          "AdmissionError",
+					Message:         "admission error message",
 				},
 			},
 		},
@@ -180,7 +181,10 @@ func TestGetCondition(t *testing.T) {
 				tasks: []tasks.Task{},
 			},
 			want: execution.JobCondition{
-				Waiting: &execution.JobConditionWaiting{},
+				Waiting: &execution.JobConditionWaiting{
+					Reason:  "PendingCreation",
+					Message: "Waiting for 1 out of 1 task(s) to be created",
+				},
 			},
 		},
 		{
@@ -195,8 +199,8 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					FinishedAt: killTime,
-					Result:     execution.JobResultKilled,
+					FinishTimestamp: killTime,
+					Result:          execution.JobResultKilled,
 				},
 			},
 		},
@@ -217,34 +221,8 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Waiting: &execution.JobConditionWaiting{
-					CreatedAt: &createTime,
-				},
-			},
-		},
-		{
-			name: "Task has pending reason",
-			args: args{
-				rj: &execution.Job{
-					Status: createTaskRefsStatus("task1"),
-				},
-				tasks: []tasks.Task{
-					&stubTask{
-						taskRef: execution.TaskRef{
-							Name:              "task1",
-							CreationTimestamp: createTime,
-							Status: execution.TaskStatus{
-								Reason:  "ImagePullBackOff",
-								Message: "Back-off pulling image \"hello-world\"",
-							},
-						},
-					},
-				},
-			},
-			want: execution.JobCondition{
-				Waiting: &execution.JobConditionWaiting{
-					CreatedAt: &createTime,
-					Reason:    "ImagePullBackOff",
-					Message:   "Back-off pulling image \"hello-world\"",
+					Reason:  "WaitingForTasks",
+					Message: "Waiting for 1 task(s) to start running",
 				},
 			},
 		},
@@ -269,8 +247,8 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Running: &execution.JobConditionRunning{
-					CreatedAt: createTime,
-					StartedAt: startTime,
+					LatestCreationTimestamp: createTime,
+					LatestRunningTimestamp:  startTime,
 				},
 			},
 		},
@@ -288,8 +266,8 @@ func TestGetCondition(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								State:  execution.TaskSuccess,
-								Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+								State:  execution.TaskTerminated,
+								Result: execution.TaskSucceeded,
 							},
 						},
 					},
@@ -297,10 +275,10 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					StartedAt:  &startTime,
-					FinishedAt: finishTime,
-					Result:     execution.JobResultSuccess,
+					LatestCreationTimestamp: &createTime,
+					LatestRunningTimestamp:  &startTime,
+					FinishTimestamp:         finishTime,
+					Result:                  execution.JobResultSuccess,
 				},
 			},
 		},
@@ -323,8 +301,8 @@ func TestGetCondition(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								State:  execution.TaskSuccess,
-								Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+								State:  execution.TaskTerminated,
+								Result: execution.TaskSucceeded,
 							},
 						},
 					},
@@ -332,10 +310,10 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					StartedAt:  &startTime,
-					FinishedAt: finishTime,
-					Result:     execution.JobResultSuccess,
+					LatestCreationTimestamp: &createTime,
+					LatestRunningTimestamp:  &startTime,
+					FinishTimestamp:         finishTime,
+					Result:                  execution.JobResultSuccess,
 				},
 			},
 		},
@@ -353,8 +331,8 @@ func TestGetCondition(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								State:  execution.TaskFailed,
-								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
+								State:  execution.TaskTerminated,
+								Result: execution.TaskFailed,
 							},
 						},
 					},
@@ -362,10 +340,10 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					StartedAt:  &startTime,
-					FinishedAt: finishTime,
-					Result:     execution.JobResultTaskFailed,
+					LatestCreationTimestamp: &createTime,
+					LatestRunningTimestamp:  &startTime,
+					FinishTimestamp:         finishTime,
+					Result:                  execution.JobResultFailed,
 				},
 			},
 		},
@@ -388,8 +366,8 @@ func TestGetCondition(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
-								State:  execution.TaskFailed,
+								Result: execution.TaskFailed,
+								State:  execution.TaskTerminated,
 							},
 						},
 					},
@@ -397,14 +375,13 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Waiting: &execution.JobConditionWaiting{
-					CreatedAt: &createTime,
-					Reason:    "RetryBackoff",
-					Message:   "Waiting to create new task (retrying 2 out of 2)",
+					Reason:  "RetryBackoff",
+					Message: "Waiting to retry creating 1 task(s)",
 				},
 			},
 		},
 		{
-			name: "Task unschedulable without retry",
+			name: "Task pending timeout without retry",
 			args: args{
 				rj: &execution.Job{
 					Status: createTaskRefsStatus("task1"),
@@ -417,8 +394,8 @@ func TestGetCondition(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								State:   execution.TaskPendingTimeout,
-								Result:  jobutil.GetResultPtr(execution.JobResultPendingTimeout),
+								State:   execution.TaskTerminated,
+								Result:  execution.TaskPendingTimeout,
 								Reason:  "ImagePullBackOff",
 								Message: "Back-off pulling image \"hello-world\"",
 							},
@@ -428,12 +405,10 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					StartedAt:  &startTime,
-					FinishedAt: finishTime,
-					Result:     execution.JobResultPendingTimeout,
-					Reason:     "ImagePullBackOff",
-					Message:    "Back-off pulling image \"hello-world\"",
+					LatestCreationTimestamp: &createTime,
+					LatestRunningTimestamp:  &startTime,
+					FinishTimestamp:         finishTime,
+					Result:                  execution.JobResultFailed,
 				},
 			},
 		},
@@ -456,8 +431,8 @@ func TestGetCondition(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								State:   execution.TaskFailed,
-								Result:  jobutil.GetResultPtr(execution.JobResultTaskFailed),
+								State:   execution.TaskTerminated,
+								Result:  execution.TaskFailed,
 								Reason:  "ImagePullBackOff",
 								Message: "Back-off pulling image \"hello-world\"",
 							},
@@ -473,7 +448,8 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Waiting: &execution.JobConditionWaiting{
-					CreatedAt: &createTime2,
+					Reason:  "WaitingForTasks",
+					Message: "Waiting for 1 task(s) to start running",
 				},
 			},
 		},
@@ -496,8 +472,8 @@ func TestGetCondition(t *testing.T) {
 							RunningTimestamp:  &startTime,
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
-								State:   execution.TaskFailed,
-								Result:  jobutil.GetResultPtr(execution.JobResultTaskFailed),
+								State:   execution.TaskTerminated,
+								Result:  execution.TaskFailed,
 								Reason:  "ImagePullBackOff",
 								Message: "Back-off pulling image \"hello-world\"",
 							},
@@ -514,8 +490,8 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Running: &execution.JobConditionRunning{
-					CreatedAt: createTime2,
-					StartedAt: startTime,
+					LatestCreationTimestamp: createTime2,
+					LatestRunningTimestamp:  startTime,
 				},
 			},
 		},
@@ -529,9 +505,9 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					FinishedAt: metav1.NewTime(timeNow),
-					Result:     execution.JobResultFinalStateUnknown,
+					LatestCreationTimestamp: &createTime,
+					FinishTimestamp:         metav1.NewTime(timeNow),
+					Result:                  execution.JobResultFailed,
 				},
 			},
 		},
@@ -558,8 +534,8 @@ func TestGetCondition(t *testing.T) {
 									Message: "...",
 								},
 								DeletedStatus: &execution.TaskStatus{
-									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+									State:   execution.TaskTerminated,
+									Result:  execution.TaskKilled,
 									Reason:  "DeadlineExceeded",
 									Message: "...",
 								},
@@ -571,11 +547,9 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					FinishedAt: finishTime,
-					Result:     execution.JobResultKilled,
-					Reason:     "DeadlineExceeded",
-					Message:    "...",
+					LatestCreationTimestamp: &createTime,
+					FinishTimestamp:         finishTime,
+					Result:                  execution.JobResultKilled,
 				},
 			},
 		},
@@ -597,8 +571,8 @@ func TestGetCondition(t *testing.T) {
 								CreationTimestamp: createTime,
 								FinishTimestamp:   &finishTime,
 								Status: execution.TaskStatus{
-									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+									State:   execution.TaskTerminated,
+									Result:  execution.TaskKilled,
 									Reason:  "DeadlineExceeded",
 									Message: "...",
 								},
@@ -610,50 +584,9 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					FinishedAt: finishTime,
-					Result:     execution.JobResultKilled,
-					Reason:     "DeadlineExceeded",
-					Message:    "...",
-				},
-			},
-		},
-		{
-			name: "Deleted task, but updated task ref when unschedulable",
-			args: args{
-				rj: &execution.Job{
-					Status: execution.JobStatus{
-						CreatedTasks: 1,
-						Tasks: []execution.TaskRef{
-							{
-								Name:              "task1",
-								CreationTimestamp: createTime,
-								FinishTimestamp:   &finishTime,
-								Status: execution.TaskStatus{
-									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultPendingTimeout),
-									Reason:  "DeadlineExceeded",
-									Message: "...",
-								},
-								DeletedStatus: &execution.TaskStatus{
-									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultPendingTimeout),
-									Reason:  "DeadlineExceeded",
-									Message: "...",
-								},
-							},
-						},
-					},
-				},
-				tasks: []tasks.Task{},
-			},
-			want: execution.JobCondition{
-				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					FinishedAt: finishTime,
-					Result:     execution.JobResultPendingTimeout,
-					Reason:     "DeadlineExceeded",
-					Message:    "...",
+					LatestCreationTimestamp: &createTime,
+					FinishTimestamp:         finishTime,
+					Result:                  execution.JobResultKilled,
 				},
 			},
 		},
@@ -672,9 +605,8 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Waiting: &execution.JobConditionWaiting{
-					CreatedAt: &createTime,
-					Reason:    "RetryBackoff",
-					Message:   "Waiting to create new task (retrying 2 out of 2)",
+					Reason:  "RetryBackoff",
+					Message: "Waiting to retry creating 1 task(s)",
 				},
 			},
 		},
@@ -695,8 +627,8 @@ func TestGetCondition(t *testing.T) {
 								CreationTimestamp: createTime,
 								FinishTimestamp:   &finishTime,
 								Status: execution.TaskStatus{
-									State:   execution.TaskKilled,
-									Result:  jobutil.GetResultPtr(execution.JobResultKilled),
+									State:   execution.TaskTerminated,
+									Result:  execution.TaskKilled,
 									Reason:  "DeadlineExceeded",
 									Message: "...",
 								},
@@ -708,9 +640,8 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Waiting: &execution.JobConditionWaiting{
-					CreatedAt: &createTime,
-					Reason:    "RetryBackoff",
-					Message:   "Waiting to create new task (retrying 2 out of 2)",
+					Reason:  "RetryBackoff",
+					Message: "Waiting to retry creating 1 task(s)",
 				},
 			},
 		},
@@ -730,14 +661,14 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					CreatedAt:  &createTime,
-					FinishedAt: metav1.NewTime(timeNow),
-					Result:     execution.JobResultFinalStateUnknown,
+					LatestCreationTimestamp: &createTime,
+					FinishTimestamp:         metav1.NewTime(timeNow),
+					Result:                  execution.JobResultKilled,
 				},
 			},
 		},
 		{
-			name: "Finished with CannotCreateTaskError",
+			name: "Finished with AdmissionError",
 			args: args{
 				rj: &execution.Job{
 					ObjectMeta: metav1.ObjectMeta{
@@ -745,21 +676,20 @@ func TestGetCondition(t *testing.T) {
 							jobutil.LabelKeyAdmissionErrorMessage: "this is a message",
 						},
 					},
-					Spec: execution.JobSpec{},
 				},
 				tasks: []tasks.Task{},
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					FinishedAt: metav1.NewTime(timeNow),
-					Result:     execution.JobResultAdmissionError,
-					Reason:     "AdmissionError",
-					Message:    "this is a message",
+					FinishTimestamp: metav1.NewTime(timeNow),
+					Result:          execution.JobResultAdmissionError,
+					Reason:          "AdmissionError",
+					Message:         "this is a message",
 				},
 			},
 		},
 		{
-			name: "Finished with CannotCreateTaskError with prior status",
+			name: "Finished with AdmissionError with prior status",
 			args: args{
 				rj: &execution.Job{
 					ObjectMeta: metav1.ObjectMeta{
@@ -767,14 +697,13 @@ func TestGetCondition(t *testing.T) {
 							jobutil.LabelKeyAdmissionErrorMessage: "this is a message",
 						},
 					},
-					Spec: execution.JobSpec{},
 					Status: execution.JobStatus{
 						Condition: execution.JobCondition{
 							Finished: &execution.JobConditionFinished{
-								FinishedAt: finishTime,
-								Result:     execution.JobResultAdmissionError,
-								Reason:     "AdmissionError",
-								Message:    "this is an old message",
+								FinishTimestamp: finishTime,
+								Result:          execution.JobResultAdmissionError,
+								Reason:          "AdmissionError",
+								Message:         "this is an old message",
 							},
 						},
 					},
@@ -783,10 +712,404 @@ func TestGetCondition(t *testing.T) {
 			},
 			want: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
-					FinishedAt: finishTime,
-					Result:     execution.JobResultAdmissionError,
-					Reason:     "AdmissionError",
-					Message:    "this is a message",
+					FinishTimestamp: finishTime,
+					Result:          execution.JobResultAdmissionError,
+					Reason:          "AdmissionError",
+					Message:         "this is a message",
+				},
+			},
+		},
+		{
+			name: "Parallel job with no tasks created",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Waiting: &execution.JobConditionWaiting{
+					Reason:  "PendingCreation",
+					Message: "Waiting for 3 out of 3 task(s) to be created",
+				},
+			},
+		},
+		{
+			name: "Parallel job with 1 remaining task to be created",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Waiting: &execution.JobConditionWaiting{
+					Reason:  "PendingCreation",
+					Message: "Waiting for 1 out of 3 task(s) to be created",
+				},
+			},
+		},
+		{
+			name: "Parallel job with 1 running task but 1 remaining to be created",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Waiting: &execution.JobConditionWaiting{
+					Reason:  "PendingCreation",
+					Message: "Waiting for 1 out of 3 task(s) to be created",
+				},
+			},
+		},
+		{
+			name: "Parallel job with 1 running task and 2 waiting to start running",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-2-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(2)},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Waiting: &execution.JobConditionWaiting{
+					Reason:  "WaitingForTasks",
+					Message: "Waiting for 2 task(s) to start running",
+				},
+			},
+		},
+		{
+			name: "Parallel job with 3 running tasks",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-2-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(2)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Running: &execution.JobConditionRunning{
+					LatestCreationTimestamp: createTime,
+					LatestRunningTimestamp:  startTime,
+				},
+			},
+		},
+		{
+			name: "Parallel job with 1 successful task and 2 waiting to start running",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskSucceeded,
+							},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-2-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(2)},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Waiting: &execution.JobConditionWaiting{
+					Reason:  "WaitingForTasks",
+					Message: "Waiting for 2 task(s) to start running",
+				},
+			},
+		},
+		{
+			name: "Parallel job with 1 successful task and 2 waiting to start running using AnySuccessful",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AnySuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskSucceeded,
+							},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-2-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(2)},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Running: &execution.JobConditionRunning{
+					LatestCreationTimestamp: createTime,
+					LatestRunningTimestamp:  startTime,
+					TerminatingTasks:        2,
+				},
+			},
+		},
+		{
+			name: "Parallel job with 1 successful task and 2 running tasks",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskSucceeded,
+							},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-2-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(2)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Running: &execution.JobConditionRunning{
+					LatestCreationTimestamp: createTime,
+					LatestRunningTimestamp:  startTime,
+				},
+			},
+		},
+		{
+			name: "Parallel job with 1 successful task and 2 running tasks with AnySuccessful",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AnySuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskSucceeded,
+							},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-2-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(2)},
+							RunningTimestamp:  &startTime,
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Running: &execution.JobConditionRunning{
+					LatestCreationTimestamp: createTime,
+					LatestRunningTimestamp:  startTime,
+					TerminatingTasks:        2,
 				},
 			},
 		},
@@ -808,7 +1131,12 @@ func TestGetCondition(t *testing.T) {
 			}
 
 			// Compute condition from TaskRefs.
-			if got := jobutil.GetCondition(newRj); !cmp.Equal(got, tt.want) {
+			got, err := jobutil.GetCondition(newRj)
+			if err != nil {
+				t.Errorf("GetCondition() returned error: %v", err)
+				return
+			}
+			if !cmp.Equal(got, tt.want) {
 				t.Errorf("GetCondition() not equal:\ndiff: %v", cmp.Diff(tt.want, got))
 			}
 		})

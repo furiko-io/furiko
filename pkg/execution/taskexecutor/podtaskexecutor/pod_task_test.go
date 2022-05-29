@@ -24,7 +24,6 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
-	"github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 func TestPodTask_GetState(t *testing.T) {
@@ -36,12 +35,12 @@ func TestPodTask_GetState(t *testing.T) {
 		{
 			name: "pod created",
 			Pod:  podCreated,
-			want: execution.TaskStaging,
+			want: execution.TaskStarting,
 		},
 		{
 			name: "pod pending",
 			Pod:  podPending,
-			want: execution.TaskStaging,
+			want: execution.TaskStarting,
 		},
 		{
 			name: "pod container creating",
@@ -56,17 +55,17 @@ func TestPodTask_GetState(t *testing.T) {
 		{
 			name: "pod completed",
 			Pod:  podCompleted,
-			want: execution.TaskSuccess,
+			want: execution.TaskTerminated,
 		},
 		{
 			name: "pod error",
 			Pod:  podError,
-			want: execution.TaskFailed,
+			want: execution.TaskTerminated,
 		},
 		{
 			name: "pod OOMKilled",
 			Pod:  podOOMKilled,
-			want: execution.TaskFailed,
+			want: execution.TaskTerminated,
 		},
 		{
 			name: "pod killing",
@@ -76,28 +75,29 @@ func TestPodTask_GetState(t *testing.T) {
 		{
 			name: "pod killed",
 			Pod:  podKilled,
-			want: execution.TaskKilled,
+			want: execution.TaskTerminated,
 		},
 		{
 			name: "pod killed from pending timeout",
 			Pod:  podKilledByPendingTimeout,
-			want: execution.TaskKilled,
+			want: execution.TaskTerminated,
 		},
 		{
 			name: "pod DeadlineExceeded",
 			Pod:  podDeadlineExceeded,
-			want: execution.TaskDeadlineExceeded,
+			want: execution.TaskTerminated,
 		},
-		{
-			name: "pod had PodPending and DeadlineExceeded",
-			Pod:  podPendingDeadlineExceeded,
-			want: execution.TaskDeadlineExceeded,
-		},
-		{
-			name: "pod had DeadlineExceeded with kill timestamp",
-			Pod:  podDeadlineExceededWithKillTimestamp,
-			want: execution.TaskKilled,
-		},
+		// TODO(irvinlim): Disable these test cases until we make a decision for https://github.com/furiko-io/furiko/issues/64
+		// {
+		// 	name: "pod had PodPending and DeadlineExceeded",
+		// 	Pod:  podPendingDeadlineExceeded,
+		// 	want: execution.TaskTerminated,
+		// },
+		// {
+		// 	name: "pod had DeadlineExceeded with kill timestamp",
+		// 	Pod:  podDeadlineExceededWithKillTimestamp,
+		// 	want: execution.TaskTerminated,
+		// },
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -114,62 +114,60 @@ func TestPodTask_GetResult(t *testing.T) {
 	tests := []struct {
 		name string
 		Pod  corev1.Pod
-		want *execution.JobResult
+		want execution.TaskResult
 	}{
 		{
-			name: "nil",
+			name: "no result",
 			Pod:  podPending,
-			want: nil,
 		},
 		{
 			name: "Success",
 			Pod:  podCompleted,
-			want: job.GetResultPtr(execution.JobResultSuccess),
+			want: execution.TaskSucceeded,
 		},
 		{
 			name: "Error",
 			Pod:  podError,
-			want: job.GetResultPtr(execution.JobResultTaskFailed),
+			want: execution.TaskFailed,
 		},
 		{
 			name: "OOMKilled - Container exited with status 0",
 			Pod:  podOOMKilledWithExitCode0,
-			want: job.GetResultPtr(execution.JobResultTaskFailed),
+			want: execution.TaskFailed,
 		},
 		{
 			name: "OOMKilled - Container exited with status 137",
 			Pod:  podOOMKilled,
-			want: job.GetResultPtr(execution.JobResultTaskFailed),
+			want: execution.TaskFailed,
 		},
 		{
 			name: "DeadlineExceeded",
 			Pod:  podDeadlineExceeded,
-			want: job.GetResultPtr(execution.JobResultDeadlineExceeded),
+			want: execution.TaskDeadlineExceeded,
 		},
 		{
 			name: "Killed",
 			Pod:  podDeadlineExceededWithKillTimestamp,
-			want: job.GetResultPtr(execution.JobResultKilled),
+			want: execution.TaskKilled,
 		},
 		{
 			name: "PodPending with DeadlineExceeded",
 			Pod:  podPendingDeadlineExceeded,
-			want: job.GetResultPtr(execution.JobResultDeadlineExceeded),
+			want: execution.TaskDeadlineExceeded,
 		},
 		{
 			name: "PendingTimeout",
 			Pod:  podKilledByPendingTimeout,
-			want: job.GetResultPtr(execution.JobResultPendingTimeout),
+			want: execution.TaskPendingTimeout,
 		},
 		{
 			name: "Killed by pending timeout, still running",
 			Pod:  podKillingByPendingTimeout,
-			want: nil,
 		},
 		{
 			name: "Killed by pending timeout, but succeeded",
 			Pod:  podSucceededButKillByPendingTimeout,
-			want: job.GetResultPtr(execution.JobResultSuccess),
+			want: execution.TaskSucceeded,
 		},
 	}
 	for _, tt := range tests {
@@ -177,14 +175,7 @@ func TestPodTask_GetResult(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := podtaskexecutor.NewPodTask(&tt.Pod, nil)
 			got := p.GetResult()
-			if tt.want == nil {
-				if got != nil {
-					t.Errorf("GetResult() = %v, want %v", got, tt.want)
-				}
-				return
-			}
-
-			if got == nil || *got != *tt.want {
+			if got != tt.want {
 				t.Errorf("GetResult() = %v, want %v", got, tt.want)
 			}
 		})

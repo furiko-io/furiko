@@ -73,8 +73,8 @@ func TestGenerateTaskRefs(t *testing.T) {
 						CreationTimestamp: createTime,
 						FinishTimestamp:   &finishTime,
 						Status: execution.TaskStatus{
-							State:  execution.TaskSuccess,
-							Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+							State:  execution.TaskTerminated,
+							Result: execution.TaskSucceeded,
 						},
 					},
 				},
@@ -85,12 +85,12 @@ func TestGenerateTaskRefs(t *testing.T) {
 					CreationTimestamp: createTime,
 					FinishTimestamp:   &finishTime,
 					Status: execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					},
 					DeletedStatus: &execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					},
 				},
 			},
@@ -103,12 +103,12 @@ func TestGenerateTaskRefs(t *testing.T) {
 					CreationTimestamp: createTime,
 					FinishTimestamp:   &finishTime,
 					Status: execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					},
 					DeletedStatus: &execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					},
 				},
 			},
@@ -126,12 +126,12 @@ func TestGenerateTaskRefs(t *testing.T) {
 					CreationTimestamp: createTime,
 					FinishTimestamp:   &finishTime,
 					Status: execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					},
 					DeletedStatus: &execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					},
 				},
 				{
@@ -149,12 +149,12 @@ func TestGenerateTaskRefs(t *testing.T) {
 					RunningTimestamp:  &startTime,
 					FinishTimestamp:   &finishTime,
 					Status: execution.TaskStatus{
-						State:  execution.TaskFailed,
-						Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskFailed,
 					},
 					DeletedStatus: &execution.TaskStatus{
-						State:  execution.TaskFailed,
-						Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskFailed,
 					},
 				},
 			},
@@ -165,7 +165,7 @@ func TestGenerateTaskRefs(t *testing.T) {
 						CreationTimestamp: createTime,
 						RunningTimestamp:  &startTime,
 						Status: execution.TaskStatus{
-							State: execution.TaskStaging,
+							State: execution.TaskStarting,
 						},
 					},
 				},
@@ -177,11 +177,11 @@ func TestGenerateTaskRefs(t *testing.T) {
 					RunningTimestamp:  &startTime,
 					FinishTimestamp:   &finishTime,
 					Status: execution.TaskStatus{
-						State: execution.TaskStaging,
+						State: execution.TaskStarting,
 					},
 					DeletedStatus: &execution.TaskStatus{
-						State:  execution.TaskFailed,
-						Result: jobutil.GetResultPtr(execution.JobResultTaskFailed),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskFailed,
 					},
 				},
 			},
@@ -196,7 +196,7 @@ func TestGenerateTaskRefs(t *testing.T) {
 						CreationTimestamp: createTime,
 						RunningTimestamp:  &startTime,
 						Status: execution.TaskStatus{
-							State: execution.TaskStaging,
+							State: execution.TaskStarting,
 						},
 					},
 				},
@@ -206,7 +206,7 @@ func TestGenerateTaskRefs(t *testing.T) {
 						CreationTimestamp: createTime,
 						RunningTimestamp:  &startTime,
 						Status: execution.TaskStatus{
-							State: execution.TaskStaging,
+							State: execution.TaskStarting,
 						},
 					},
 				},
@@ -217,7 +217,7 @@ func TestGenerateTaskRefs(t *testing.T) {
 					CreationTimestamp: createTime,
 					RunningTimestamp:  &startTime,
 					Status: execution.TaskStatus{
-						State: execution.TaskStaging,
+						State: execution.TaskStarting,
 					},
 				},
 				{
@@ -225,7 +225,7 @@ func TestGenerateTaskRefs(t *testing.T) {
 					CreationTimestamp: createTime,
 					RunningTimestamp:  &startTime,
 					Status: execution.TaskStatus{
-						State: execution.TaskStaging,
+						State: execution.TaskStarting,
 					},
 				},
 			},
@@ -253,8 +253,8 @@ func TestUpdateTaskRefDeletedStatusIfNotSet(t *testing.T) {
 					Name:              "task1",
 					CreationTimestamp: createTime,
 					Status: execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					},
 					DeletedStatus: deletedStatus,
 				},
@@ -277,20 +277,20 @@ func TestUpdateTaskRefDeletedStatusIfNotSet(t *testing.T) {
 			args: args{
 				rj: &execution.Job{
 					Status: createStatus(&execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					}),
 				},
 				taskName: "task2",
 				status: execution.TaskStatus{
-					State:  execution.TaskKilled,
-					Result: jobutil.GetResultPtr(execution.JobResultKilled),
+					State:  execution.TaskTerminated,
+					Result: execution.TaskKilled,
 				},
 			},
 			want: &execution.Job{
 				Status: createStatus(&execution.TaskStatus{
-					State:  execution.TaskSuccess,
-					Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+					State:  execution.TaskTerminated,
+					Result: execution.TaskSucceeded,
 				}),
 			},
 		},
@@ -299,20 +299,20 @@ func TestUpdateTaskRefDeletedStatusIfNotSet(t *testing.T) {
 			args: args{
 				rj: &execution.Job{
 					Status: createStatus(&execution.TaskStatus{
-						State:  execution.TaskSuccess,
-						Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+						State:  execution.TaskTerminated,
+						Result: execution.TaskSucceeded,
 					}),
 				},
 				taskName: "task1",
 				status: execution.TaskStatus{
-					State:  execution.TaskKilled,
-					Result: jobutil.GetResultPtr(execution.JobResultKilled),
+					State:  execution.TaskTerminated,
+					Result: execution.TaskKilled,
 				},
 			},
 			want: &execution.Job{
 				Status: createStatus(&execution.TaskStatus{
-					State:  execution.TaskSuccess,
-					Result: jobutil.GetResultPtr(execution.JobResultSuccess),
+					State:  execution.TaskTerminated,
+					Result: execution.TaskSucceeded,
 				}),
 			},
 		},
@@ -324,14 +324,14 @@ func TestUpdateTaskRefDeletedStatusIfNotSet(t *testing.T) {
 				},
 				taskName: "task1",
 				status: execution.TaskStatus{
-					State:  execution.TaskKilled,
-					Result: jobutil.GetResultPtr(execution.JobResultKilled),
+					State:  execution.TaskTerminated,
+					Result: execution.TaskKilled,
 				},
 			},
 			want: &execution.Job{
 				Status: createStatus(&execution.TaskStatus{
-					State:  execution.TaskKilled,
-					Result: jobutil.GetResultPtr(execution.JobResultKilled),
+					State:  execution.TaskTerminated,
+					Result: execution.TaskKilled,
 				}),
 			},
 		},

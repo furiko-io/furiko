@@ -128,9 +128,6 @@ func GenerateTaskRefs(existing []execution.TaskRef, tasks []tasks.Task) []execut
 				newRef.Status = *existingRef.DeletedStatus
 			} else {
 				newRef.Status.State = execution.TaskDeletedFinalStateUnknown
-				if newRef.Status.Result == nil {
-					newRef.Status.Result = GetResultPtr(execution.JobResultFinalStateUnknown)
-				}
 			}
 
 			newRefs = append(newRefs, *newRef)

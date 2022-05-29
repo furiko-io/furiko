@@ -175,10 +175,10 @@ func (c *GetJobCommand) prettyPrintJobStatus(job *execution.Job) [][]string {
 		result = append(result, []string{"Created Tasks", strconv.Itoa(int(job.Status.CreatedTasks))})
 	}
 	if status := job.Status.Condition.Finished; status != nil {
-		if !status.StartedAt.IsZero() {
+		if !status.LatestRunningTimestamp.IsZero() {
 			result = append(result, []string{
 				"Run Duration",
-				stringsutils.Capitalize(formatter.FormatDuration(status.FinishedAt.Sub(status.StartedAt.Time))),
+				stringsutils.Capitalize(formatter.FormatDuration(status.FinishTimestamp.Sub(status.LatestRunningTimestamp.Time))),
 			})
 		}
 		result = append(result, []string{"Result", string(status.Result)})

@@ -51,11 +51,15 @@ func (p *PodTaskClient) Get(ctx context.Context, name string) (tasks.Task, error
 	return p.new(pod), nil
 }
 
-func (p *PodTaskClient) Index(ctx context.Context, index int64) (tasks.Task, error) {
-	return p.Get(ctx, GetPodIndexedName(p.rj.GetName(), index))
+func (p *PodTaskClient) Index(ctx context.Context, index tasks.TaskIndex) (tasks.Task, error) {
+	name, err := GetPodIndexedName(p.rj.GetName(), index)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot generate pod name")
+	}
+	return p.Get(ctx, name)
 }
 
-func (p *PodTaskClient) CreateIndex(ctx context.Context, index int64) (tasks.Task, error) {
+func (p *PodTaskClient) CreateIndex(ctx context.Context, index tasks.TaskIndex) (tasks.Task, error) {
 	var template *corev1.PodTemplateSpec
 
 	// Get pod template

@@ -41,7 +41,6 @@ var (
 	createTime2      = metav1.NewTime(createTime.Add(time.Minute))
 	startTime        = metav1.NewTime(stdStartTime)
 	finishTime       = metav1.NewTime(stdFinishTime)
-	finishTime2      = metav1.NewTime(stdFinishTime.Add(time.Minute))
 	killTime         = metav1.NewTime(stdKillTime)
 )
 
@@ -76,7 +75,14 @@ func (t *stubTask) GetKind() string {
 }
 
 func (t *stubTask) GetRetryIndex() (int64, bool) {
-	return t.retryIndex, true
+	return t.taskRef.RetryIndex, true
+}
+
+func (t *stubTask) GetParallelIndex() (*v1alpha1.ParallelIndex, bool) {
+	if t.taskRef.ParallelIndex != nil {
+		return t.taskRef.ParallelIndex, true
+	}
+	return nil, false
 }
 
 func (t *stubTask) RequiresKillWithDeletion() bool {

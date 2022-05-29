@@ -52,8 +52,12 @@ func (p *PodTaskLister) Get(name string) (jobtasks.Task, error) {
 	return p.new(pod), nil
 }
 
-func (p *PodTaskLister) Index(index int64) (jobtasks.Task, error) {
-	return p.Get(GetPodIndexedName(p.rj.GetName(), index))
+func (p *PodTaskLister) Index(index jobtasks.TaskIndex) (jobtasks.Task, error) {
+	name, err := GetPodIndexedName(p.rj.GetName(), index)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot generate pod name")
+	}
+	return p.Get(name)
 }
 
 func (p *PodTaskLister) List() ([]jobtasks.Task, error) {

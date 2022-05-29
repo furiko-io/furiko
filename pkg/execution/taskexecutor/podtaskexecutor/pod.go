@@ -17,74 +17,83 @@
 package podtaskexecutor
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
+	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
 // NewPod returns a new Pod object for the given Job.
-func NewPod(rj *execution.Job, template *corev1.PodTemplateSpec, index int64) (*corev1.Pod, error) {
+func NewPod(
+	rj *execution.Job,
+	template *corev1.PodTemplateSpec,
+	index tasks.TaskIndex,
+) (*corev1.Pod, error) {
 	// Generate name for pod.
-	podName := GetPodIndexedName(rj.Name, index)
+	podName, err := GetPodIndexedName(rj.Name, index)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot generate pod name")
+	}
 
 	// Generate PodSpec after substitutions.
 	podSpec := SubstitutePodSpec(rj, template.Spec, variablecontext.TaskSpec{
-		Name:       podName,
-		Namespace:  rj.GetNamespace(),
-		RetryIndex: index,
+		Name:          podName,
+		Namespace:     rj.GetNamespace(),
+		RetryIndex:    index.Retry,
+		ParallelIndex: index.Parallel,
 	})
+
+	hash, err := parallel.HashIndex(index.Parallel)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot hash parallel index")
+	}
+
+	// Make copy for mutation.
+	templateMeta := template.ObjectMeta.DeepCopy()
+
+	// Compute labels.
+	meta.SetLabel(templateMeta, LabelKeyJobUID, string(rj.GetUID()))
+	meta.SetLabel(templateMeta, LabelKeyTaskRetryIndex, strconv.Itoa(int(index.Retry)))
+	meta.SetLabel(templateMeta, LabelKeyTaskParallelIndexHash, hash)
+
+	// Compute annotations.
+	parallelIndexMarshaled, err := json.Marshal(index.Parallel)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot marshal parallel index")
+	}
+	meta.SetAnnotation(templateMeta, AnnotationKeyTaskParallelIndex, string(parallelIndexMarshaled))
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   rj.GetNamespace(),
 			Name:        podName,
-			Labels:      makeLabels(rj, index, template),
-			Annotations: makeAnnotations(rj, index, template),
-			Finalizers:  makeFinalizers(rj, index, template),
+			Labels:      templateMeta.Labels,
+			Annotations: templateMeta.Annotations,
+			Finalizers:  templateMeta.Finalizers,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(rj, execution.GVKJob),
+			},
 		},
 		Spec: podSpec,
 	}
 
-	// Add OwnerReference back to Job
-	controllerRef := metav1.NewControllerRef(rj, execution.GVKJob)
-	pod.OwnerReferences = append(pod.OwnerReferences, *controllerRef)
-
 	return pod, nil
 }
 
-func makeLabels(rj *execution.Job, index int64, template *corev1.PodTemplateSpec) labels.Set {
-	desiredLabels := make(labels.Set, len(template.Labels)+2)
-	for k, v := range template.Labels {
-		desiredLabels[k] = v
+// GetPodIndexedName returns a name for the pod with the TaskIndex.
+func GetPodIndexedName(name string, index tasks.TaskIndex) (string, error) {
+	hash, err := parallel.HashIndex(index.Parallel)
+	if err != nil {
+		return "", errors.Wrapf(err, "cannot hash parallel index")
 	}
-
-	// Append additional labels.
-	additionalLabels := map[string]string{
-		LabelKeyJobUID:         string(rj.GetUID()),
-		LabelKeyTaskRetryIndex: strconv.Itoa(int(index)),
-	}
-	for k, v := range additionalLabels {
-		desiredLabels[k] = v
-	}
-
-	return desiredLabels
-}
-
-func makeAnnotations(_ *execution.Job, _ int64, template *corev1.PodTemplateSpec) labels.Set {
-	desiredAnnotations := make(labels.Set, len(template.Annotations))
-	for k, v := range template.Annotations {
-		desiredAnnotations[k] = v
-	}
-	return desiredAnnotations
-}
-
-func makeFinalizers(_ *execution.Job, _ int64, template *corev1.PodTemplateSpec) []string {
-	desiredFinalizers := make([]string, 0, len(template.Finalizers))
-	desiredFinalizers = append(desiredFinalizers, template.Finalizers...)
-	return desiredFinalizers
+	return fmt.Sprintf("%v-%v-%v", name, hash, index.Retry), nil
 }
