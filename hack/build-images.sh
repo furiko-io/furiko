@@ -19,27 +19,21 @@
 set -euo pipefail
 
 ## Builds all Docker images to a specified image tag, but does not push them.
-## Uses GoReleaser to build artifacts.
+## Uses Dockerfile.dev which will build all entrypoints in the same image.
 
 if [ $# -ne 1 ]
 then
   echo 'Usage:'
   echo '  ./build-images.sh IMAGE_TAG'
-  echo
-  echo 'Optional environment variables:'
-  echo '  GORELEASER: Path to goreleaser executable. Default: ./bin/goreleaser'
   exit 1
 fi
 
 # Positional arguments.
 IMAGE_TAG="$1"
 
-# Optional environment variables.
-GORELEASER="${GORELEASER:-$(pwd)/bin/goreleaser}"
-
-# Pass the IMAGE_TAG environment variable to GoReleaser.
-export IMAGE_TAG
-
-# Run GoReleaser to build all images in parallel. Pass IMAGE_TAG to specify the target image tag.
-# TODO(irvinlim): This will also build all other artifacts, which is not needed here.
-"${GORELEASER}" release --snapshot --rm-dist
+# Build all images.
+# Note that in the development build, all entrypoints are bundled in the same image.
+while IFS= read -r IMAGE; do
+  TARGET_IMAGE="${IMAGE}:${IMAGE_TAG}"
+  docker build --file=Dockerfile.dev -t "${TARGET_IMAGE}" .
+done < ./hack/docker-images.txt
