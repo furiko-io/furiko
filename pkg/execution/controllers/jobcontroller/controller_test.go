@@ -46,6 +46,7 @@ const (
 	startTime  = "2021-02-09T04:06:01Z"
 	killTime   = "2021-02-09T04:06:10Z"
 	finishTime = "2021-02-09T04:06:18Z"
+	retryTime  = "2021-02-09T04:07:18Z"
 	now        = "2021-02-09T04:06:05Z"
 	later15m   = "2021-02-09T04:21:00Z"
 	later60m   = "2021-02-09T05:06:00Z"
@@ -220,27 +221,13 @@ var (
 	}()
 
 	// Pod that is to be created.
-	fakePod0, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
-		Retry: 0,
-		Parallel: execution.ParallelIndex{
-			IndexNumber: pointer.Int64(0),
-		},
-	})
-	fakePod1, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
-		Retry: 0,
-		Parallel: execution.ParallelIndex{
-			IndexNumber: pointer.Int64(1),
-		},
-	})
-	fakePod2, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
-		Retry: 0,
-		Parallel: execution.ParallelIndex{
-			IndexNumber: pointer.Int64(2),
-		},
-	})
+	fakePod0  = newPod(0, 0)
+	fakePod1  = newPod(1, 0)
+	fakePod2  = newPod(2, 0)
+	fakePod21 = newPod(2, 1)
 
 	// Pod that adds CreationTimestamp to mimic mutation on apiserver.
-	fakePodResult = podResult(fakePod0)
+	fakePodResult = podCreated(fakePod0)
 
 	// Pod that is in Pending state.
 	fakePodPending = func() *corev1.Pod {
@@ -320,6 +307,7 @@ var (
 				TaskTemplate: execution.TaskTemplate{
 					Pod: podTemplate,
 				},
+				MaxAttempts: pointer.Int64(3),
 				Parallelism: &execution.ParallelismSpec{
 					WithCount:          pointer.Int64(3),
 					CompletionStrategy: execution.AllSuccessful,
@@ -334,14 +322,30 @@ var (
 	// Job that was created with a fully populated status.
 	fakeJobParallelResult = generateJobStatusFromPod(
 		fakeJobParallel,
-		podResult(fakePod0),
-		podResult(fakePod1),
-		podResult(fakePod2),
+		podCreated(fakePod0),
+		podCreated(fakePod1),
+		podCreated(fakePod2),
+	)
+
+	fakeJobParallelDelayingRetry = generateJobStatusFromPod(
+		withRetryDelay(withMaxAttempts(fakeJobParallel, 2), time.Minute),
+		podFinished(fakePod0),
+		podFinished(fakePod1),
+		podFailed(fakePod2),
+	)
+
+	fakeJobParallelRetried = generateJobStatusFromPod(
+		fakeJobParallelDelayingRetry,
+		podCreatedWithTime(fakePod21, testutils.Mkmtime(retryTime)),
 	)
 )
 
 var (
-	podCreateReactor = &ktesting.SimpleReactor{
+	podCreateReactor = newPodCreateReactor(testutils.Mkmtime(createTime))
+)
+
+func newPodCreateReactor(createTime metav1.Time) *ktesting.SimpleReactor {
+	return &ktesting.SimpleReactor{
 		Verb:     "create",
 		Resource: "pods",
 		Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
@@ -353,15 +357,67 @@ var (
 			if !ok {
 				return false, nil, fmt.Errorf("not a Pod: %T", createAction.GetObject())
 			}
-			return true, podResult(pod), nil
+			return true, podCreatedWithTime(pod, createTime), nil
 		},
 	}
-)
+}
 
-func podResult(pod *corev1.Pod) *corev1.Pod {
+func newPod(parallelIndex int64, retryIndex int64) *corev1.Pod {
+	pod, _ := podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
+		Retry: retryIndex,
+		Parallel: execution.ParallelIndex{
+			IndexNumber: pointer.Int64(parallelIndex),
+		},
+	})
+	return pod
+}
+
+func podCreated(pod *corev1.Pod) *corev1.Pod {
+	return podCreatedWithTime(pod, testutils.Mkmtime(createTime))
+}
+
+func podCreatedWithTime(pod *corev1.Pod, createTime metav1.Time) *corev1.Pod {
 	newPod := pod.DeepCopy()
-	newPod.CreationTimestamp = testutils.Mkmtime(createTime)
+	newPod.CreationTimestamp = createTime
 	return newPod
+}
+
+func podFinished(pod *corev1.Pod) *corev1.Pod {
+	newPod := podCreated(pod)
+	newPod.Status = corev1.PodStatus{
+		Phase:     corev1.PodSucceeded,
+		StartTime: testutils.Mkmtimep(startTime),
+		ContainerStatuses: []corev1.ContainerStatus{
+			{
+				Name: "container",
+				State: corev1.ContainerState{
+					Terminated: &corev1.ContainerStateTerminated{
+						StartedAt:  testutils.Mkmtime(startTime),
+						FinishedAt: testutils.Mkmtime(finishTime),
+					},
+				},
+			},
+		},
+	}
+	return newPod
+}
+
+func podFailed(pod *corev1.Pod) *corev1.Pod {
+	newPod := podFinished(pod)
+	newPod.Status.Phase = corev1.PodFailed
+	return newPod
+}
+
+func withMaxAttempts(job *execution.Job, maxAttempts int64) *execution.Job {
+	newJob := job.DeepCopy()
+	newJob.Spec.Template.MaxAttempts = pointer.Int64(maxAttempts)
+	return newJob
+}
+
+func withRetryDelay(job *execution.Job, delay time.Duration) *execution.Job {
+	newJob := job.DeepCopy()
+	newJob.Spec.Template.RetryDelaySeconds = pointer.Int64(int64(delay.Seconds()))
+	return newJob
 }
 
 // generateJobStatusFromPod returns a new Job whose status is reconciled from

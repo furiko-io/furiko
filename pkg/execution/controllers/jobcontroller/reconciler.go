@@ -366,7 +366,7 @@ func (w *Reconciler) syncCreateTasks(
 	var minEarliest time.Time
 	for _, request := range indexRequests {
 		minEarliest = timeutil.MinNonZero(request.Earliest, minEarliest)
-		if !request.Earliest.IsZero() && !request.Earliest.After(now) {
+		if !request.Earliest.IsZero() && request.Earliest.After(now) {
 			continue
 		}
 		newRj, newTasks, err := w.syncCreateTask(ctx, rj, tasks, jobtasks.TaskIndex{
