@@ -83,10 +83,18 @@ func FormatDuration(d time.Duration) string {
 	return standardDurationFormatter.FormatRelativeDuration(d)
 }
 
+// FormatTime formats a time using a human-readable format.
+func FormatTime(t *metav1.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(timeFormat)
+}
+
 // FormatTimeWithTimeAgo formats a time together with a relative time ago as a string.
 func FormatTimeWithTimeAgo(t *metav1.Time) string {
 	if t.IsZero() {
 		return ""
 	}
-	return fmt.Sprintf("%v (%v)", t.Format(timeFormat), standardTimeAgoFormatter.Format(t.Time))
+	return fmt.Sprintf("%v (%v)", FormatTime(t), standardTimeAgoFormatter.Format(t.Time))
 }

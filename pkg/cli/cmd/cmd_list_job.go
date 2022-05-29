@@ -25,7 +25,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
-	streams2 "github.com/furiko-io/furiko/pkg/cli/streams"
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 )
 
@@ -42,11 +42,11 @@ var (
 )
 
 type ListJobCommand struct {
-	streams   *streams2.Streams
+	streams   *streams.Streams
 	jobConfig string
 }
 
-func NewListJobCommand(streams *streams2.Streams) *cobra.Command {
+func NewListJobCommand(streams *streams.Streams) *cobra.Command {
 	c := &ListJobCommand{
 		streams: streams,
 	}

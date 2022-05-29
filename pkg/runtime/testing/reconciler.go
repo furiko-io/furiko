@@ -188,7 +188,10 @@ func (r *ReconcilerTest) setupContext(
 	c.MockStores().RegisterFromFactoriesOrDie(r.Stores...)
 
 	// Set up clock.
-	now := r.Now
+	now := time.Now()
+	if !r.Now.IsZero() {
+		now = r.Now
+	}
 	if !tt.Now.IsZero() {
 		now = tt.Now
 	}
