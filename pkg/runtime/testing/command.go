@@ -27,12 +27,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	"github.com/furiko-io/furiko/pkg/cli/console"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 // RunCommandTests executes all CommandTest cases.
@@ -54,6 +56,9 @@ type CommandTest struct {
 
 	// Fixtures to be created prior to calling the command.
 	Fixtures []runtime.Object
+
+	// Sets the current time.
+	Now time.Time
 
 	// Input rules for standard input.
 	Stdin Input
@@ -102,6 +107,13 @@ func (c *CommandTest) Run(t *testing.T) {
 	client := ctrlContext.MockClientsets()
 	assert.NoError(t, InitFixtures(ctx, client, c.Fixtures))
 	client.ClearActions()
+
+	// Set up clock.
+	now := time.Now()
+	if !c.Now.IsZero() {
+		now = c.Now
+	}
+	ktime.Clock = clock.NewFakeClock(now)
 
 	// Run command with I/O.
 	iostreams, _, stdout, stderr := genericclioptions.NewTestIOStreams()
