@@ -301,7 +301,7 @@ func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplate, fldPath *fie
 	}
 
 	if spec.Parallelism != nil {
-		result.Merge(m.MutateParallelismSpec(spec.Parallelism, fldPath.Child("")))
+		result.Merge(m.MutateParallelismSpec(spec.Parallelism, fldPath.Child("parallelism")))
 	}
 	if spec.TaskTemplate.Pod != nil {
 		result.Merge(m.MutatePodTemplateSpec(spec.TaskTemplate.Pod, fldPath.Child("taskTemplate", "pod")))
