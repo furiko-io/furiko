@@ -169,13 +169,17 @@ func (w *Reconciler) syncJobTasks(
 ) (*execution.Job, error) {
 	taskMgr, err := w.tasks.ForJob(rj)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot create task manager")
+		return rj, errors.Wrapf(err, "cannot create task manager")
 	}
 
-	// Get all tasks for job from cache.
-	tasks, err := taskMgr.Lister().List()
-	if err != nil {
-		return rj, errors.Wrapf(err, "could not list tasks")
+	// Get all tasks in the job's status from the cache. Any tasks that are not in
+	// the status will be attempted to be adopted in the creation step.
+	// NOTE(irvinlim): Avoid using List() which performs a complete linear search.
+	tasks := make([]jobtasks.Task, 0, len(rj.Status.Tasks))
+	for _, ref := range rj.Status.Tasks {
+		if task, err := taskMgr.Lister().Get(ref.Name); err == nil {
+			tasks = append(tasks, task)
+		}
 	}
 	trace.Step("List tasks from cache done")
 
@@ -397,8 +401,50 @@ func (w *Reconciler) syncCreateTask(
 	tasks []jobtasks.Task,
 	index jobtasks.TaskIndex,
 ) (*execution.Job, []jobtasks.Task, error) {
+	// Generate desired task name.
+	name, err := jobutil.GenerateTaskName(rj.Name, index)
+	if err != nil {
+		return rj, tasks, errors.Wrapf(err, "cannot generate task name")
+	}
+
 	// Create new task.
 	task, err := w.createTask(ctx, rj, index)
+
+	// Handle case when task already exists by name, and safely adopt into the Job's status.
+	if kerrors.IsAlreadyExists(err) {
+		task, err := w.getTaskForAdoption(rj, name)
+		if err != nil {
+			return rj, tasks, errors.Wrapf(err, "cannot check if should adopt task")
+		}
+
+		// Cannot adopt task, mark it as an admission error.
+		if task == nil {
+			newRj := rj.DeepCopy()
+			jobutil.MarkAdmissionError(newRj, fmt.Sprintf("task already exists: %v", name))
+			klog.InfoS("jobcontroller: cannot adopt non-controllee task",
+				"worker", w.Name(),
+				"namespace", rj.GetNamespace(),
+				"name", rj.GetName(),
+				"task", name,
+			)
+			w.recorder.Eventf(rj, corev1.EventTypeWarning, "AdmissionError",
+				"Task already exists and cannot be adopted: %v", name)
+
+			return rj, tasks, nil
+		}
+
+		// Otherwise, simply add it to our list of tasks and move on.
+		tasks = append(tasks, task)
+		klog.InfoS("jobcontroller: adopted task",
+			"worker", w.Name(),
+			"namespace", rj.GetNamespace(),
+			"name", rj.GetName(),
+			"task", name,
+		)
+
+		return rj, tasks, nil
+	}
+
 	if err != nil {
 		// Handle this as a normal error.
 		rerr := coreerrors.Error(nil)
@@ -435,6 +481,31 @@ func (w *Reconciler) syncCreateTask(
 	}
 
 	return rj, tasks, nil
+}
+
+func (w *Reconciler) getTaskForAdoption(rj *execution.Job, name string) (jobtasks.Task, error) {
+	taskMgr, err := w.tasks.ForJob(rj)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot get task manager")
+	}
+
+	// Assumes that the task exists.
+	task, err := taskMgr.Lister().Get(name)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot get existing task")
+	}
+
+	// Check the task's controllerRef.
+	for _, ref := range task.GetOwnerReferences() {
+		if ref.Controller != nil && *ref.Controller {
+			// Check that the controller matches.
+			if ref.Kind == execution.KindJob && rj.UID == ref.UID {
+				return task, nil
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 // createTask will create a new task for the Job.

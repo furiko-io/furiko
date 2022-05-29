@@ -28,6 +28,7 @@ import (
 
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 func TestNewPodTaskClient(t *testing.T) {
@@ -98,7 +99,7 @@ func TestNewPodTaskClient(t *testing.T) {
 }
 
 func getPodIndexedName(name string, index int64) string {
-	name, err := podtaskexecutor.GetPodIndexedName(fakeJob.Name, tasks.TaskIndex{
+	name, err := jobutil.GenerateTaskName(fakeJob.Name, tasks.TaskIndex{
 		Retry: index,
 	})
 	if err != nil {

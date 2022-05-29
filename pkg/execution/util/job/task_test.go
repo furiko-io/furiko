@@ -45,9 +45,9 @@ var (
 )
 
 type stubTask struct {
+	metav1.ObjectMeta
 	taskRef                        v1alpha1.TaskRef
 	killTimestamp                  *metav1.Time
-	deletionTimestamp              *metav1.Time
 	retryIndex                     int64
 	killedFromPendingTimeoutMarker bool
 	killable                       bool
@@ -87,10 +87,6 @@ func (t *stubTask) GetParallelIndex() (*v1alpha1.ParallelIndex, bool) {
 
 func (t *stubTask) RequiresKillWithDeletion() bool {
 	return t.killable
-}
-
-func (t *stubTask) GetDeletionTimestamp() *metav1.Time {
-	return t.deletionTimestamp
 }
 
 func (t *stubTask) GetKillTimestamp() *metav1.Time {

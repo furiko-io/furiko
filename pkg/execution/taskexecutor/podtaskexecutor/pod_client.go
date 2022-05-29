@@ -28,6 +28,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 )
 
 // PodTaskClient operates on Pod tasks.
@@ -52,7 +53,7 @@ func (p *PodTaskClient) Get(ctx context.Context, name string) (tasks.Task, error
 }
 
 func (p *PodTaskClient) Index(ctx context.Context, index tasks.TaskIndex) (tasks.Task, error) {
-	name, err := GetPodIndexedName(p.rj.GetName(), index)
+	name, err := jobutil.GenerateTaskName(p.rj.GetName(), index)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot generate pod name")
 	}

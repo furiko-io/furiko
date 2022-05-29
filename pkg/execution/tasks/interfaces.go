@@ -28,6 +28,9 @@ import (
 // Task is implemented by Kubernetes resource definitions that encapsulate a
 // single Job task on the cluster. This could be backed by a Pod, etc.
 type Task interface {
+	// GetOwnerReferences returns the list of
+	GetOwnerReferences() []metav1.OwnerReference
+
 	// GetName returns the Task's name.
 	GetName() string
 
@@ -67,8 +70,14 @@ type Task interface {
 
 // TaskLister implements methods to list Tasks from informer cache.
 type TaskLister interface {
+	// Get a single task by name.
 	Get(name string) (Task, error)
+
+	// Index will return the task given the TaskIndex for a single Job.
 	Index(index TaskIndex) (Task, error)
+
+	// List will return all tasks for a single Job. Note that this may be
+	// prohibitively expensive since it may require an exhaustive linear search.
 	List() ([]Task, error)
 }
 

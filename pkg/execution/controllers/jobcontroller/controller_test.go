@@ -17,11 +17,14 @@
 package jobcontroller_test
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	ktesting "k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
 
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
@@ -217,19 +220,27 @@ var (
 	}()
 
 	// Pod that is to be created.
-	fakePod, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
+	fakePod0, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
 		Retry: 0,
 		Parallel: execution.ParallelIndex{
 			IndexNumber: pointer.Int64(0),
 		},
 	})
+	fakePod1, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
+		Retry: 0,
+		Parallel: execution.ParallelIndex{
+			IndexNumber: pointer.Int64(1),
+		},
+	})
+	fakePod2, _ = podtaskexecutor.NewPod(fakeJob, podTemplate.ConvertToCoreSpec(), tasks.TaskIndex{
+		Retry: 0,
+		Parallel: execution.ParallelIndex{
+			IndexNumber: pointer.Int64(2),
+		},
+	})
 
 	// Pod that adds CreationTimestamp to mimic mutation on apiserver.
-	fakePodResult = func() *corev1.Pod {
-		newPod := fakePod.DeepCopy()
-		newPod.CreationTimestamp = testutils.Mkmtime(createTime)
-		return newPod
-	}()
+	fakePodResult = podResult(fakePod0)
 
 	// Pod that is in Pending state.
 	fakePodPending = func() *corev1.Pod {
@@ -292,7 +303,66 @@ var (
 		}
 		return newPod
 	}()
+
+	// Job with parallelism.
+	fakeJobParallel = &execution.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              jobName,
+			Namespace:         jobNamespace,
+			CreationTimestamp: testutils.Mkmtime(createTime),
+			Finalizers: []string{
+				executiongroup.DeleteDependentsFinalizer,
+			},
+		},
+		Spec: execution.JobSpec{
+			Type: execution.JobTypeAdhoc,
+			Template: &execution.JobTemplate{
+				TaskTemplate: execution.TaskTemplate{
+					Pod: podTemplate,
+				},
+				Parallelism: &execution.ParallelismSpec{
+					WithCount:          pointer.Int64(3),
+					CompletionStrategy: execution.AllSuccessful,
+				},
+			},
+		},
+		Status: execution.JobStatus{
+			StartTime: testutils.Mkmtimep(startTime),
+		},
+	}
+
+	// Job that was created with a fully populated status.
+	fakeJobParallelResult = generateJobStatusFromPod(
+		fakeJobParallel,
+		podResult(fakePod0),
+		podResult(fakePod1),
+		podResult(fakePod2),
+	)
 )
+
+var (
+	podCreateReactor = &ktesting.SimpleReactor{
+		Verb:     "create",
+		Resource: "pods",
+		Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
+			createAction, ok := action.(ktesting.CreateAction)
+			if !ok {
+				return false, nil, fmt.Errorf("not a CreateAction: %v", action)
+			}
+			pod, ok := createAction.GetObject().(*corev1.Pod)
+			if !ok {
+				return false, nil, fmt.Errorf("not a Pod: %T", createAction.GetObject())
+			}
+			return true, podResult(pod), nil
+		},
+	}
+)
+
+func podResult(pod *corev1.Pod) *corev1.Pod {
+	newPod := pod.DeepCopy()
+	newPod.CreationTimestamp = testutils.Mkmtime(createTime)
+	return newPod
+}
 
 // generateJobStatusFromPod returns a new Job whose status is reconciled from
 // the Pod.
@@ -300,8 +370,12 @@ var (
 // This method is basically identical to what is used in the controller, and is
 // meant to reduce flaky tests by coupling any changes to internal logic to the
 // fixtures themselves, thus making it suitable for integration tests.
-func generateJobStatusFromPod(rj *execution.Job, pod *corev1.Pod) *execution.Job {
-	newJob := job.UpdateJobTaskRefs(rj, []tasks.Task{podtaskexecutor.NewPodTask(pod, nil)})
+func generateJobStatusFromPod(rj *execution.Job, pods ...*corev1.Pod) *execution.Job {
+	podTasks := make([]tasks.Task, 0, len(pods))
+	for _, pod := range pods {
+		podTasks = append(podTasks, podtaskexecutor.NewPodTask(pod, nil))
+	}
+	newJob := job.UpdateJobTaskRefs(rj, podTasks)
 	newRj, err := jobcontroller.UpdateJobStatusFromTaskRefs(newJob)
 	if err != nil {
 		panic(err) // panic ok for tests

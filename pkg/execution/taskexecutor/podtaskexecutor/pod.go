@@ -18,7 +18,6 @@ package podtaskexecutor
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -27,6 +26,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 	"github.com/furiko-io/furiko/pkg/utils/meta"
@@ -39,7 +39,7 @@ func NewPod(
 	index tasks.TaskIndex,
 ) (*corev1.Pod, error) {
 	// Generate name for pod.
-	podName, err := GetPodIndexedName(rj.Name, index)
+	podName, err := job.GenerateTaskName(rj.Name, index)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot generate pod name")
 	}
@@ -87,13 +87,4 @@ func NewPod(
 	}
 
 	return pod, nil
-}
-
-// GetPodIndexedName returns a name for the pod with the TaskIndex.
-func GetPodIndexedName(name string, index tasks.TaskIndex) (string, error) {
-	hash, err := parallel.HashIndex(index.Parallel)
-	if err != nil {
-		return "", errors.Wrapf(err, "cannot hash parallel index")
-	}
-	return fmt.Sprintf("%v-%v-%v", name, hash, index.Retry), nil
 }
