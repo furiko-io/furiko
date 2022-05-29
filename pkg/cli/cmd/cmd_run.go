@@ -32,7 +32,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/prompt"
-	streams2 "github.com/furiko-io/furiko/pkg/cli/streams"
+	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/core/options"
 )
 
@@ -51,7 +51,7 @@ var (
 )
 
 type RunCommand struct {
-	streams           *streams2.Streams
+	streams           *streams.Streams
 	name              string
 	noInteractive     bool
 	useDefaultOptions bool
@@ -60,7 +60,7 @@ type RunCommand struct {
 	displayIntro      sync.Once
 }
 
-func NewRunCommand(streams *streams2.Streams) *cobra.Command {
+func NewRunCommand(streams *streams.Streams) *cobra.Command {
 	c := &RunCommand{
 		streams: streams,
 	}

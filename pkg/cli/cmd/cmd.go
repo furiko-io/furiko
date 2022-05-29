@@ -72,6 +72,7 @@ func NewRootCommand(streams *streams.Streams) *cobra.Command {
 	cmd.AddCommand(NewGetCommand(streams))
 	cmd.AddCommand(NewListCommand(streams))
 	cmd.AddCommand(NewRunCommand(streams))
+	cmd.AddCommand(NewKillCommand(streams))
 
 	return cmd
 }
