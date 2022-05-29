@@ -26,6 +26,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
+	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
@@ -130,7 +131,8 @@ func TestKillCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s\\]+ killed`),
+				Matches:  regexp.MustCompile(`^Requested for job [^\s]+ to be killed`),
+				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime)),
 			},
 		},
 		{
@@ -153,7 +155,42 @@ func TestKillCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s\\]+ killed`),
+				Matches:  regexp.MustCompile(`^Requested for job [^\s]+ to be killed`),
+				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime2)),
+			},
+		},
+		{
+			Name:     "kill running job at specific time",
+			Now:      testutils.Mktime(killTime),
+			Args:     []string{"kill", "running-job", "--at", killTime2},
+			Fixtures: []runtime.Object{runningJob},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobAction(DefaultNamespace, runningJobKilledNewTimestamp),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches:  regexp.MustCompile(`^Requested for job [^\s]+ to be killed`),
+				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime2)),
+			},
+		},
+		{
+			Name:     "kill running job after certain duration",
+			Now:      testutils.Mktime(killTime),
+			Args:     []string{"kill", "running-job", "--after", "40s"},
+			Fixtures: []runtime.Object{runningJob},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobAction(DefaultNamespace, runningJobKilledNewTimestamp),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches:  regexp.MustCompile(`^Requested for job [^\s]+ to be killed`),
+				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime2)),
 			},
 		},
 	})
