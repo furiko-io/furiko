@@ -331,7 +331,6 @@ var (
 				TaskTemplate: execution.TaskTemplate{
 					Pod: podTemplate,
 				},
-				MaxAttempts: pointer.Int64(3),
 				Parallelism: &execution.ParallelismSpec{
 					WithCount:          pointer.Int64(3),
 					CompletionStrategy: execution.AllSuccessful,
@@ -362,6 +361,21 @@ var (
 		fakeJobParallelDelayingRetry,
 		podCreatedWithTime(fakePod21, testutils.Mkmtime(retryTime)),
 	)
+
+	fakeJobParallelWithDeletedFailures = func() *execution.Job {
+		newJob := generateJobStatusFromPod(fakeJobParallelResult,
+			podCreated(fakePod0),
+			podCreated(fakePod1),
+			podFailed(fakePod2),
+		)
+		for i := 1; i < 3; i++ {
+			newJob.Status.Tasks[i].DeletedStatus = &execution.TaskStatus{
+				State:  execution.TaskTerminated,
+				Result: execution.TaskKilled,
+			}
+		}
+		return newJob
+	}()
 )
 
 var (
@@ -441,6 +455,12 @@ func withMaxAttempts(job *execution.Job, maxAttempts int64) *execution.Job {
 func withRetryDelay(job *execution.Job, delay time.Duration) *execution.Job {
 	newJob := job.DeepCopy()
 	newJob.Spec.Template.RetryDelaySeconds = pointer.Int64(int64(delay.Seconds()))
+	return newJob
+}
+
+func withCompletionStrategy(job *execution.Job, strategy execution.ParallelCompletionStrategy) *execution.Job {
+	newJob := job.DeepCopy()
+	newJob.Spec.Template.Parallelism.CompletionStrategy = strategy
 	return newJob
 }
 

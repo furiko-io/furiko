@@ -26,6 +26,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
+	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -510,6 +511,49 @@ func TestReconciler(t *testing.T) {
 					Actions: []runtimetesting.Action{
 						runtimetesting.NewUpdateJobStatusAction(jobNamespace,
 							generateJobStatusFromPod(fakeJobParallelRetried, podFinished(fakePod21))),
+					},
+				},
+			},
+		},
+		{
+			Name:   "parallel: delete all remaining pods on single index failure with AllSuccessful",
+			Target: fakeJobParallelResult,
+			Fixtures: []runtime.Object{
+				podCreated(fakePod0),
+				podCreated(fakePod1),
+				podFailed(fakePod2),
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Kubernetes: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewDeletePodAction(jobNamespace, fakePod1.Name),
+						runtimetesting.NewDeletePodAction(jobNamespace, fakePod0.Name),
+					},
+				},
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobParallelWithDeletedFailures),
+					},
+				},
+			},
+		},
+		{
+			Name:   "parallel: do not delete pods on single index failure with AnySuccessful",
+			Target: withCompletionStrategy(fakeJobParallelResult, execution.AnySuccessful),
+			Fixtures: []runtime.Object{
+				podCreated(fakePod0),
+				podCreated(fakePod1),
+				podFailed(fakePod2),
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, generateJobStatusFromPod(
+							withCompletionStrategy(fakeJobParallelResult, execution.AnySuccessful),
+							podCreated(fakePod0),
+							podCreated(fakePod1),
+							podFailed(fakePod2),
+						)),
 					},
 				},
 			},
