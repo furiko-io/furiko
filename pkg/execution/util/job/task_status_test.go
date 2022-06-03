@@ -429,6 +429,82 @@ func TestUpdateJobTaskRefs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "single killing task",
+			rj:   &execution.Job{},
+			tasks: []tasks.Task{
+				&stubTask{
+					taskRef: execution.TaskRef{
+						Name:              "task1",
+						CreationTimestamp: createTime,
+						RunningTimestamp:  &startTime,
+						RetryIndex:        0,
+						Status: execution.TaskStatus{
+							State: execution.TaskKilling,
+						},
+					},
+				},
+			},
+			want: &execution.Job{
+				Status: execution.JobStatus{
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							RetryIndex:        0,
+							Status: execution.TaskStatus{
+								State: execution.TaskKilling,
+							},
+						},
+					},
+					CreatedTasks: 1,
+					RunningTasks: 1,
+				},
+			},
+		},
+		{
+			name: "single finished task",
+			rj:   &execution.Job{},
+			tasks: []tasks.Task{
+				&stubTask{
+					taskRef: execution.TaskRef{
+						Name:              "task1",
+						CreationTimestamp: createTime,
+						RunningTimestamp:  &startTime,
+						FinishTimestamp:   &finishTime,
+						RetryIndex:        0,
+						Status: execution.TaskStatus{
+							State:  execution.TaskTerminated,
+							Result: execution.TaskKilled,
+						},
+					},
+				},
+			},
+			want: &execution.Job{
+				Status: execution.JobStatus{
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							RetryIndex:        0,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskKilled,
+							},
+							DeletedStatus: &execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskKilled,
+							},
+						},
+					},
+					CreatedTasks: 1,
+					RunningTasks: 0,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt

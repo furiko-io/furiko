@@ -70,7 +70,7 @@ func UpdateJobTaskRefs(rj *execution.Job, tasks []tasks.Task) *execution.Job {
 	newRj.Status.Tasks = newRefs
 	newRj.Status.CreatedTasks = int64(len(newRefs))
 	newRj.Status.RunningTasks = int64(len(FilterTaskRefs(newRefs, func(ref execution.TaskRef) bool {
-		return ref.Status.State == execution.TaskRunning
+		return !ref.RunningTimestamp.IsZero() && ref.FinishTimestamp.IsZero()
 	})))
 	return newRj
 }
