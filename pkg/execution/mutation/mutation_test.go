@@ -163,6 +163,15 @@ var (
 		},
 	}
 
+	jobConfigJobTemplateSpecBasic = v1alpha1.JobTemplateSpec{
+		Spec: v1alpha1.JobTemplate{
+			TaskTemplate: v1alpha1.TaskTemplate{
+				Pod: &podTemplateSpecBasic,
+			},
+			MaxAttempts: pointer.Int64(1),
+		},
+	}
+
 	jobTemplateSpecBasic2 = v1alpha1.JobTemplateSpec{
 		Spec: v1alpha1.JobTemplate{
 			TaskTemplate: v1alpha1.TaskTemplate{
@@ -223,7 +232,7 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 			rjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
 				Spec: v1alpha1.JobConfigSpec{
-					Template: jobTemplateSpecBasic,
+					Template: jobConfigJobTemplateSpecBasic,
 				},
 			},
 		},
@@ -237,6 +246,42 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 							TaskTemplate: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecBare,
 							},
+							MaxAttempts: pointer.Int64(1),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "add default JobTemplate values",
+			rjc: &v1alpha1.JobConfig{
+				ObjectMeta: objectMetaJobConfig,
+				Spec: v1alpha1.JobConfigSpec{
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
+							TaskTemplate: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecBare,
+							},
+							Parallelism: &v1alpha1.ParallelismSpec{
+								WithCount: pointer.Int64(3),
+							},
+						},
+					},
+				},
+			},
+			want: &v1alpha1.JobConfig{
+				ObjectMeta: objectMetaJobConfig,
+				Spec: v1alpha1.JobConfigSpec{
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
+							TaskTemplate: v1alpha1.TaskTemplate{
+								Pod: &podTemplateSpecBare,
+							},
+							MaxAttempts: pointer.Int64(1),
+							Parallelism: &v1alpha1.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: v1alpha1.AllSuccessful,
+							},
 						},
 					},
 				},
@@ -247,7 +292,7 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 			rjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
 				Spec: v1alpha1.JobConfigSpec{
-					Template: jobTemplateSpecBasic,
+					Template: jobConfigJobTemplateSpecBasic,
 					Option: &v1alpha1.OptionSpec{
 						Options: []v1alpha1.Option{
 							{
@@ -261,7 +306,7 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 			want: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
 				Spec: v1alpha1.JobConfigSpec{
-					Template: jobTemplateSpecBasic,
+					Template: jobConfigJobTemplateSpecBasic,
 					Option: &v1alpha1.OptionSpec{
 						Options: []v1alpha1.Option{
 							{

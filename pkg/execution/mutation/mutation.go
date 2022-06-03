@@ -67,6 +67,11 @@ func (m *Mutator) MutateJobConfig(rjc *v1alpha1.JobConfig) *webhook.Result {
 		rjc.Spec.Option = options.MutateDefaultingOptionSpec(spec)
 	}
 
+	// Mutate JobTemplate, but don't add taskTemplate fields, because they should be
+	// added only when the Job is created.
+	result.Merge(m.MutateJobTemplateSpec(&rjc.Spec.Template.Spec, false,
+		field.NewPath("spec", "template", "spec")))
+
 	return result
 }
 
@@ -129,7 +134,7 @@ func (m *Mutator) MutateJob(rj *v1alpha1.Job) *webhook.Result {
 	if rj.Spec.Template == nil {
 		rj.Spec.Template = &v1alpha1.JobTemplate{}
 	}
-	result.Merge(m.MutateJobTemplateSpec(rj.Spec.Template, field.NewPath("spec", "template")))
+	result.Merge(m.MutateJobTemplateSpec(rj.Spec.Template, true, field.NewPath("spec", "template")))
 
 	return result
 }
@@ -292,21 +297,32 @@ func (m *Mutator) evaluateOptionValues(rj *v1alpha1.Job, rjc *v1alpha1.JobConfig
 }
 
 // MutateJobTemplateSpec mutates a JobTemplate in-place.
-func (m *Mutator) MutateJobTemplateSpec(spec *v1alpha1.JobTemplate, fldPath *field.Path) *webhook.Result {
+func (m *Mutator) MutateJobTemplateSpec(
+	spec *v1alpha1.JobTemplate,
+	taskTemplate bool,
+	fldPath *field.Path,
+) *webhook.Result {
 	result := webhook.NewResult()
 
-	// Add MaxAttempts if not specified.
 	if spec.MaxAttempts == nil {
 		spec.MaxAttempts = pointer.Int64(1)
 	}
-
 	if spec.Parallelism != nil {
 		result.Merge(m.MutateParallelismSpec(spec.Parallelism, fldPath.Child("parallelism")))
 	}
-	if spec.TaskTemplate.Pod != nil {
-		result.Merge(m.MutatePodTemplateSpec(spec.TaskTemplate.Pod, fldPath.Child("taskTemplate", "pod")))
+	if taskTemplate {
+		result.Merge(m.MutateTaskTemplate(&spec.TaskTemplate, fldPath.Child("taskTemplate")))
 	}
 
+	return result
+}
+
+// MutateTaskTemplate mutates a TaskTemplate in-place.
+func (m *Mutator) MutateTaskTemplate(spec *v1alpha1.TaskTemplate, fldPath *field.Path) *webhook.Result {
+	result := webhook.NewResult()
+	if spec.Pod != nil {
+		result.Merge(m.MutatePodTemplateSpec(spec.Pod, fldPath.Child("pod")))
+	}
 	return result
 }
 
