@@ -352,3 +352,166 @@ func TestUpdateTaskRefDeletedStatusIfNotSet(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateJobTaskRefs(t *testing.T) {
+	tests := []struct {
+		name  string
+		rj    *execution.Job
+		tasks []tasks.Task
+		want  *execution.Job
+	}{
+		{
+			name: "no tasks",
+			rj:   &execution.Job{},
+			want: &execution.Job{
+				Status: execution.JobStatus{
+					Tasks: []execution.TaskRef{},
+				},
+			},
+		},
+		{
+			name: "single created task",
+			rj:   &execution.Job{},
+			tasks: []tasks.Task{
+				&stubTask{
+					taskRef: execution.TaskRef{
+						Name:              "task1",
+						CreationTimestamp: createTime,
+						RetryIndex:        0,
+					},
+				},
+			},
+			want: &execution.Job{
+				Status: execution.JobStatus{
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RetryIndex:        0,
+							Status:            execution.TaskStatus{},
+						},
+					},
+					CreatedTasks: 1,
+				},
+			},
+		},
+		{
+			name: "single running task",
+			rj:   &execution.Job{},
+			tasks: []tasks.Task{
+				&stubTask{
+					taskRef: execution.TaskRef{
+						Name:              "task1",
+						CreationTimestamp: createTime,
+						RunningTimestamp:  &startTime,
+						RetryIndex:        0,
+						Status: execution.TaskStatus{
+							State: execution.TaskRunning,
+						},
+					},
+				},
+			},
+			want: &execution.Job{
+				Status: execution.JobStatus{
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							RetryIndex:        0,
+							Status: execution.TaskStatus{
+								State: execution.TaskRunning,
+							},
+						},
+					},
+					CreatedTasks: 1,
+					RunningTasks: 1,
+				},
+			},
+		},
+		{
+			name: "single killing task",
+			rj:   &execution.Job{},
+			tasks: []tasks.Task{
+				&stubTask{
+					taskRef: execution.TaskRef{
+						Name:              "task1",
+						CreationTimestamp: createTime,
+						RunningTimestamp:  &startTime,
+						RetryIndex:        0,
+						Status: execution.TaskStatus{
+							State: execution.TaskKilling,
+						},
+					},
+				},
+			},
+			want: &execution.Job{
+				Status: execution.JobStatus{
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							RetryIndex:        0,
+							Status: execution.TaskStatus{
+								State: execution.TaskKilling,
+							},
+						},
+					},
+					CreatedTasks: 1,
+					RunningTasks: 1,
+				},
+			},
+		},
+		{
+			name: "single finished task",
+			rj:   &execution.Job{},
+			tasks: []tasks.Task{
+				&stubTask{
+					taskRef: execution.TaskRef{
+						Name:              "task1",
+						CreationTimestamp: createTime,
+						RunningTimestamp:  &startTime,
+						FinishTimestamp:   &finishTime,
+						RetryIndex:        0,
+						Status: execution.TaskStatus{
+							State:  execution.TaskTerminated,
+							Result: execution.TaskKilled,
+						},
+					},
+				},
+			},
+			want: &execution.Job{
+				Status: execution.JobStatus{
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							RetryIndex:        0,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskKilled,
+							},
+							DeletedStatus: &execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskKilled,
+							},
+						},
+					},
+					CreatedTasks: 1,
+					RunningTasks: 0,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if got := jobutil.UpdateJobTaskRefs(tt.rj, tt.tasks); !cmp.Equal(tt.want, got) {
+				t.Errorf("UpdateJobTaskRefs() not equal\ndiff = %v", cmp.Diff(tt.want, got))
+			}
+		})
+	}
+}

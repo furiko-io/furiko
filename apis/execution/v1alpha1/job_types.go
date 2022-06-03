@@ -301,6 +301,9 @@ type JobStatus struct {
 	// CreatedTasks describes how many tasks were created in total for this Job.
 	CreatedTasks int64 `json:"createdTasks"`
 
+	// RunningTasks describes how many tasks are currently running for this Job.
+	RunningTasks int64 `json:"runningTasks"`
+
 	// Tasks contains a list of tasks created by the controller. The controller
 	// updates this field when it creates a task, which helps to guard against
 	// recreating tasks after they were deleted, and also stores necessary task data
@@ -739,7 +742,8 @@ type ParallelStatus struct {
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Created Tasks",type=string,JSONPath=`.status.createdTasks`
-// +kubebuilder:printcolumn:name="Run Time",type=date,JSONPath=`.status.condition.running.startTime`
+// +kubebuilder:printcolumn:name="Running Tasks",type=string,JSONPath=`.status.runningTasks`
+// +kubebuilder:printcolumn:name="Run Time",type=date,JSONPath=`.status.condition.running.latestRunningTimestamp`
 // +kubebuilder:printcolumn:name="Finish Time",type=date,JSONPath=`.status.condition.finished.finishTime`
 // +kubebuilder:webhook:path=/mutating/jobs.execution.furiko.io,mutating=true,failurePolicy=fail,sideEffects=None,groups=execution.furiko.io,resources=jobs,verbs=create;update,versions=*,name=mutating.webhook.jobs.execution.furiko.io,admissionReviewVersions=v1
 // +kubebuilder:webhook:path=/validating/jobs.execution.furiko.io,mutating=false,failurePolicy=fail,sideEffects=None,groups=execution.furiko.io,resources=jobs,verbs=create;update,versions=*,name=validation.webhook.jobs.execution.furiko.io,admissionReviewVersions=v1

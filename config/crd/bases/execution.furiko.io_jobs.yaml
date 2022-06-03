@@ -28,7 +28,10 @@ spec:
         - jsonPath: .status.createdTasks
           name: Created Tasks
           type: string
-        - jsonPath: .status.condition.running.startTime
+        - jsonPath: .status.runningTasks
+          name: Running Tasks
+          type: string
+        - jsonPath: .status.condition.running.latestRunningTimestamp
           name: Run Time
           type: date
         - jsonPath: .status.condition.finished.finishTime
@@ -277,6 +280,10 @@ spec:
                 phase:
                   description: Phase stores the high-level description of a Job's state.
                   type: string
+                runningTasks:
+                  description: RunningTasks describes how many tasks are currently running for this Job.
+                  format: int64
+                  type: integer
                 startTime:
                   description: StartTime specifies the time that the Job was started by the controller. If nil, it means that the Job is Queued. Cannot be changed once set.
                   format: date-time
@@ -399,6 +406,7 @@ spec:
                 - condition
                 - createdTasks
                 - phase
+                - runningTasks
               type: object
           type: object
       served: true

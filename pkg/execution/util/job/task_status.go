@@ -69,6 +69,9 @@ func UpdateJobTaskRefs(rj *execution.Job, tasks []tasks.Task) *execution.Job {
 	newRefs := GenerateTaskRefs(rj.Status.Tasks, tasks)
 	newRj.Status.Tasks = newRefs
 	newRj.Status.CreatedTasks = int64(len(newRefs))
+	newRj.Status.RunningTasks = int64(len(FilterTaskRefs(newRefs, func(ref execution.TaskRef) bool {
+		return !ref.RunningTimestamp.IsZero() && ref.FinishTimestamp.IsZero()
+	})))
 	return newRj
 }
 
@@ -149,6 +152,19 @@ func SortTaskRefs(taskRefs []execution.TaskRef) {
 		}
 		return ti.Name < tj.Name
 	})
+}
+
+type TaskRefFilter func(ref execution.TaskRef) bool
+
+// FilterTaskRefs will filter the given TaskRefs according to the TaskRefFilter.
+func FilterTaskRefs(taskRefs []execution.TaskRef, filter TaskRefFilter) []execution.TaskRef {
+	newRefs := make([]execution.TaskRef, 0, len(taskRefs))
+	for _, ref := range taskRefs {
+		if filter(ref) {
+			newRefs = append(newRefs, ref)
+		}
+	}
+	return newRefs
 }
 
 // FindTaskRef returns the Task that matches the given Task's name.
