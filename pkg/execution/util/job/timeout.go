@@ -35,19 +35,10 @@ func GetPendingTimeout(rj *execution.Job, cfg *configv1alpha1.JobExecutionConfig
 	return time.Duration(sec) * time.Second
 }
 
-// GetDeleteKillingTimeout returns the timeout before the controller starts killing tasks with deletion.
-func GetDeleteKillingTimeout(cfg *configv1alpha1.JobExecutionConfig) time.Duration {
+// GetForceDeleteTimeout returns the timeout before the controller starts force deletion.
+func GetForceDeleteTimeout(cfg *configv1alpha1.JobExecutionConfig) time.Duration {
 	var sec int64
-	if spec := cfg.DeleteKillingTasksTimeoutSeconds; spec != nil {
-		sec = *spec
-	}
-	return time.Duration(sec) * time.Second
-}
-
-// GetForceDeleteKillingTimeout returns the timeout before the controller starts force deletion.
-func GetForceDeleteKillingTimeout(cfg *configv1alpha1.JobExecutionConfig) time.Duration {
-	var sec int64
-	if spec := cfg.ForceDeleteKillingTasksTimeoutSeconds; spec != nil {
+	if spec := cfg.ForceDeleteTaskTimeoutSeconds; spec != nil {
 		sec = *spec
 	}
 	return time.Duration(sec) * time.Second

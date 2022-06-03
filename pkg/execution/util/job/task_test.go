@@ -17,7 +17,6 @@
 package job_test
 
 import (
-	"context"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,11 +45,9 @@ var (
 
 type stubTask struct {
 	metav1.ObjectMeta
-	taskRef                        v1alpha1.TaskRef
-	killTimestamp                  *metav1.Time
-	retryIndex                     int64
-	killedFromPendingTimeoutMarker bool
-	killable                       bool
+	taskRef    v1alpha1.TaskRef
+	retryIndex int64
+	killable   bool
 }
 
 func (t *stubTask) GetName() string {
@@ -59,15 +56,6 @@ func (t *stubTask) GetName() string {
 
 func (t *stubTask) GetTaskRef() v1alpha1.TaskRef {
 	return t.taskRef
-}
-
-func (t *stubTask) GetKilledFromPendingTimeoutMarker() bool {
-	return t.killedFromPendingTimeoutMarker
-}
-
-func (t *stubTask) SetKilledFromPendingTimeoutMarker(ctx context.Context) error {
-	t.killedFromPendingTimeoutMarker = true
-	return nil
 }
 
 func (t *stubTask) GetKind() string {
@@ -87,14 +75,4 @@ func (t *stubTask) GetParallelIndex() (*v1alpha1.ParallelIndex, bool) {
 
 func (t *stubTask) RequiresKillWithDeletion() bool {
 	return t.killable
-}
-
-func (t *stubTask) GetKillTimestamp() *metav1.Time {
-	return t.killTimestamp
-}
-
-func (t *stubTask) SetKillTimestamp(ctx context.Context, ts time.Time) error {
-	mts := metav1.NewTime(ts)
-	t.killTimestamp = &mts
-	return nil
 }

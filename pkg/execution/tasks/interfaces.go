@@ -18,7 +18,6 @@ package tasks
 
 import (
 	"context"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -46,23 +45,6 @@ type Task interface {
 
 	// GetParallelIndex returns the parallel index for the task.
 	GetParallelIndex() (*execution.ParallelIndex, bool)
-
-	// RequiresKillWithDeletion returns true if the task cannot be killed via kill
-	// timestamp and needs deletion instead. If the task is already finished, this
-	// should always return false (i.e. cannot/should not kill finished tasks).
-	RequiresKillWithDeletion() bool
-
-	// GetKillTimestamp returns the timestamp that we previously set to kill the task.
-	GetKillTimestamp() *metav1.Time
-
-	// SetKillTimestamp will set the time which we want to kill the task.
-	SetKillTimestamp(ctx context.Context, ts time.Time) error
-
-	// GetKilledFromPendingTimeoutMarker returns true if the task was marked as killed from a pending timeout.
-	GetKilledFromPendingTimeoutMarker() bool
-
-	// SetKilledFromPendingTimeoutMarker marks the task as killed from a pending timeout.
-	SetKilledFromPendingTimeoutMarker(ctx context.Context) error
 
 	// GetDeletionTimestamp returns the timestamp that the task was requested to be deleted.
 	GetDeletionTimestamp() *metav1.Time

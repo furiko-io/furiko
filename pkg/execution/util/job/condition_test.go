@@ -1113,6 +1113,113 @@ func TestGetCondition(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Parallel job being killed with no tasks created",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						KillTimestamp: &killTime,
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Finished: &execution.JobConditionFinished{
+					FinishTimestamp: killTime,
+					Result:          execution.JobResultKilled,
+				},
+			},
+		},
+		{
+			name: "Parallel job being killed with 2 created tasks",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						KillTimestamp: &killTime,
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Waiting: &execution.JobConditionWaiting{
+					Reason:  "DeletingTasks",
+					Message: "Waiting for 2 out of 3 task(s) to be deleted",
+				},
+			},
+		},
+		{
+			name: "Parallel job being killed with 1 created task already deleted",
+			args: args{
+				rj: &execution.Job{
+					Spec: execution.JobSpec{
+						KillTimestamp: &killTime,
+						Template: &execution.JobTemplate{
+							Parallelism: &execution.ParallelismSpec{
+								WithCount:          pointer.Int64(3),
+								CompletionStrategy: execution.AllSuccessful,
+							},
+						},
+					},
+				},
+				tasks: []tasks.Task{
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-0-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(0)},
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskKilled,
+							},
+							DeletedStatus: &execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskKilled,
+							},
+						},
+					},
+					&stubTask{
+						taskRef: execution.TaskRef{
+							Name:              "task-1-1",
+							CreationTimestamp: createTime,
+							ParallelIndex:     &execution.ParallelIndex{IndexNumber: pointer.Int64(1)},
+						},
+					},
+				},
+			},
+			want: execution.JobCondition{
+				Waiting: &execution.JobConditionWaiting{
+					Reason:  "DeletingTasks",
+					Message: "Waiting for 1 out of 3 task(s) to be deleted",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt

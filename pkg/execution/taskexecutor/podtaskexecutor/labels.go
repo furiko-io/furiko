@@ -38,14 +38,6 @@ var (
 	// AnnotationKeyTaskParallelIndex annotations is added on Pods to indicate the parallel
 	// index of the task in JSON format.
 	AnnotationKeyTaskParallelIndex = executiongroup.AddGroupToLabel("task-parallel-index")
-
-	// LabelKeyTaskKillTimestamp annotation will be added on Pods as the
-	// authoritative time we requested to kill the Task.
-	LabelKeyTaskKillTimestamp = executiongroup.AddGroupToLabel("task-kill-timestamp")
-
-	// LabelKeyKilledFromPendingTimeout annotation will be added on Pods that they
-	// are killed from pending timeout.
-	LabelKeyKilledFromPendingTimeout = executiongroup.AddGroupToLabel("task-killed-from-pending-timeout")
 )
 
 // LabelPodsForJob returns a labels.Set that labels all Pods for a Job.

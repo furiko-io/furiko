@@ -52,8 +52,7 @@ func TestDefaultsLoader(t *testing.T) {
 	assert.Equal(t, pointer.Int64(234), cfg.DefaultPendingTimeoutSeconds)
 
 	// Unset fields should be 0
-	assert.Zero(t, cfg.DeleteKillingTasksTimeoutSeconds)
-	assert.Zero(t, cfg.ForceDeleteKillingTasksTimeoutSeconds)
+	assert.Zero(t, cfg.ForceDeleteTaskTimeoutSeconds)
 
 	// Empty configuration.
 	cronCfg, err := loadCronControllerConfig(mgr)

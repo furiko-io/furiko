@@ -18,7 +18,6 @@ package jobcontroller_test
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +28,6 @@ import (
 
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
@@ -98,6 +96,49 @@ var (
 	// Job with pod pending.
 	fakeJobPending = generateJobStatusFromPod(fakeJob, fakePodPending)
 
+	// Job with pod in killing.
+	fakeJobWithPodInKilling = func() *execution.Job {
+		newJob := fakeJobWithKillTimestamp.DeepCopy()
+		// NOTE(irvinlim): The State is not yet updated here because the Pod is not yet reconciled
+		newJob.Status.Phase = execution.JobKilling
+		newJob.Status.Condition.Waiting = &execution.JobConditionWaiting{
+			Reason:  "DeletingTasks",
+			Message: "Waiting for 1 out of 1 task(s) to be deleted",
+		}
+		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
+			State:  execution.TaskTerminated,
+			Result: execution.TaskKilled,
+		}
+		return newJob
+	}()
+
+	// Job with pod in killing after update.
+	fakeJobWithPodInKillingAfterUpdate = func() *execution.Job {
+		newJob := fakeJobWithPodInKilling.DeepCopy()
+		newJob.Status.Tasks[0].Status.State = execution.TaskKilling
+		return newJob
+	}()
+
+	// Job with pod reaching pending timeout.
+	fakeJobWithPodInPendingTimeout = func() *execution.Job {
+		newJob := fakeJobPending.DeepCopy()
+		// NOTE(irvinlim): The State is not yet updated here because the Pod is not yet reconciled
+		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
+			State:   execution.TaskTerminated,
+			Result:  execution.TaskPendingTimeout,
+			Reason:  "PendingTimeout",
+			Message: "Task exceeded pending timeout of 15m0s",
+		}
+		return newJob
+	}()
+
+	// Job with pod reaching pending timeout after update.
+	fakeJobWithPodInPendingTimeoutAfterUpdate = func() *execution.Job {
+		newJob := fakeJobWithPodInPendingTimeout.DeepCopy()
+		newJob.Status.Tasks[0].Status.State = execution.TaskKilling
+		return newJob
+	}()
+
 	// Job with kill timestamp.
 	fakeJobWithKillTimestamp = func() *execution.Job {
 		newJob := fakeJobPending.DeepCopy()
@@ -165,7 +206,7 @@ var (
 
 	// Job with pod being deleted.
 	fakeJobPodDeleting = func() *execution.Job {
-		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
+		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodPendingDeleting)
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
 			State:   execution.TaskTerminated,
 			Result:  execution.TaskKilled,
@@ -184,7 +225,7 @@ var (
 
 	// Job with pod being force deleted.
 	fakeJobPodForceDeleting = func() *execution.Job {
-		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodTerminating)
+		newJob := generateJobStatusFromPod(fakeJobWithKillTimestamp, fakePodPendingDeleting)
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
 			State:   execution.TaskTerminated,
 			Result:  execution.TaskKilled,
@@ -250,25 +291,8 @@ var (
 		return newPod
 	}()
 
-	// Pod that is in Pending state and is in the process of being killed.
-	fakePodTerminating = killPod(fakePodPending, testutils.Mktime(killTime))
-
-	// Pod that is terminating and has deletion timestamp.
-	fakePodDeleting = func() *corev1.Pod {
-		newPod := fakePodTerminating.DeepCopy()
-		deleteTime := metav1.NewTime(testutils.Mkmtimep(killTime).
-			Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second))
-		newPod.DeletionTimestamp = &deleteTime
-		return newPod
-	}()
-
-	// Pod that is in Pending state and is in the process of being killed by pending
-	// timeout.
-	fakePodPendingTimeoutTerminating = func() *corev1.Pod {
-		newPod := killPod(fakePodPending, testutils.Mktime(later15m))
-		meta.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
-		return newPod
-	}()
+	// Pod that is in Pending state and is in the process of being deleted.
+	fakePodPendingDeleting = deletePod(fakePodPending, testutils.Mkmtime(killTime))
 
 	// Pod that is Succeeded.
 	fakePodFinished = func() *corev1.Pod {
@@ -439,10 +463,9 @@ func generateJobStatusFromPod(rj *execution.Job, pods ...*corev1.Pod) *execution
 	return newRj
 }
 
-// killPod returns a new Pod after setting the kill timestamp.
-func killPod(pod *corev1.Pod, ts time.Time) *corev1.Pod {
+// deletePod returns a new Pod after setting the deletion timestamp.
+func deletePod(pod *corev1.Pod, ts metav1.Time) *corev1.Pod {
 	newPod := pod.DeepCopy()
-	meta.SetAnnotation(newPod, podtaskexecutor.LabelKeyTaskKillTimestamp, strconv.Itoa(int(ts.Unix())))
-	newPod.Spec.ActiveDeadlineSeconds = pointer.Int64(int64(ts.Sub(newPod.Status.StartTime.Time).Seconds()))
+	newPod.DeletionTimestamp = &ts
 	return newPod
 }

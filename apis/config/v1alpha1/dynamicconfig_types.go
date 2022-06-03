@@ -43,22 +43,14 @@ type JobExecutionConfig struct {
 	// +optional
 	DefaultPendingTimeoutSeconds *int64 `json:"defaultPendingTimeoutSeconds,omitempty"`
 
-	// DeleteKillingTasksTimeoutSeconds is the duration we delete the task to kill
-	// it instead of using active deadline, if previous efforts were ineffective.
-	// Set this value to 0 to immediately use deletion.
-	//
-	// Default: 180
-	// +optional
-	DeleteKillingTasksTimeoutSeconds *int64 `json:"deleteKillingTasksTimeoutSeconds,omitempty"`
-
-	// ForceDeleteKillingTasksTimeoutSeconds is the duration before we use force
-	// deletion instead of normal deletion. This timeout is computed from the
+	// ForceDeleteTaskTimeoutSeconds is the duration before we use force deletion
+	// instead of normal deletion. This timeout is computed from the
 	// deletionTimestamp of the object, which may also include an additional delay
 	// of deletionGracePeriodSeconds. Set this value to 0 to disable force deletion.
 	//
-	// Default: 120
+	// Default: 900
 	// +optional
-	ForceDeleteKillingTasksTimeoutSeconds *int64 `json:"forceDeleteKillingTasksTimeoutSeconds,omitempty"`
+	ForceDeleteTaskTimeoutSeconds *int64 `json:"forceDeleteTaskTimeoutSeconds,omitempty"`
 }
 
 // +kubebuilder:object:root=true

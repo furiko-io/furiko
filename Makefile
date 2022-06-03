@@ -186,7 +186,7 @@ dev: dev-build dev-push dev-deploy ## Builds local Docker images of all componen
 
 .PHONY: dev-build
 dev-build: goreleaser ## Builds local Docker images of all components. Use the DEV_IMAGE_TAG environment variable to override the image tag that is built.
-	./hack/build-images.sh "$(DEV_IMAGE_TAG)"
+	./hack/build-images.sh "$(IMAGE_NAME_PREFIX)" "$(DEV_IMAGE_TAG)"
 
 .PHONY: dev-push
 dev-push: ## Pushes all Docker images to the specified registry. Use the DEV_IMAGE_TAG environment variable to override the image tag, and DEV_IMAGE_REGISTRY to override the image registry to use (usually a local one).

@@ -69,35 +69,9 @@ func TestPodTask_GetState(t *testing.T) {
 		},
 		{
 			name: "pod killing",
-			Pod:  podKilling,
+			Pod:  podDeleting,
 			want: execution.TaskKilling,
 		},
-		{
-			name: "pod killed",
-			Pod:  podKilled,
-			want: execution.TaskTerminated,
-		},
-		{
-			name: "pod killed from pending timeout",
-			Pod:  podKilledByPendingTimeout,
-			want: execution.TaskTerminated,
-		},
-		{
-			name: "pod DeadlineExceeded",
-			Pod:  podDeadlineExceeded,
-			want: execution.TaskTerminated,
-		},
-		// TODO(irvinlim): Disable these test cases until we make a decision for https://github.com/furiko-io/furiko/issues/64
-		// {
-		// 	name: "pod had PodPending and DeadlineExceeded",
-		// 	Pod:  podPendingDeadlineExceeded,
-		// 	want: execution.TaskTerminated,
-		// },
-		// {
-		// 	name: "pod had DeadlineExceeded with kill timestamp",
-		// 	Pod:  podDeadlineExceededWithKillTimestamp,
-		// 	want: execution.TaskTerminated,
-		// },
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -141,33 +115,8 @@ func TestPodTask_GetResult(t *testing.T) {
 			want: execution.TaskFailed,
 		},
 		{
-			name: "DeadlineExceeded",
-			Pod:  podDeadlineExceeded,
-			want: execution.TaskDeadlineExceeded,
-		},
-		{
-			name: "Killed",
-			Pod:  podDeadlineExceededWithKillTimestamp,
-			want: execution.TaskKilled,
-		},
-		{
-			name: "PodPending with DeadlineExceeded",
-			Pod:  podPendingDeadlineExceeded,
-			want: execution.TaskDeadlineExceeded,
-		},
-		{
-			name: "PendingTimeout",
-			Pod:  podKilledByPendingTimeout,
-			want: execution.TaskPendingTimeout,
-		},
-		{
-			name: "Killed by pending timeout, still running",
-			Pod:  podKillingByPendingTimeout,
-		},
-		{
-			name: "Killed by pending timeout, but succeeded",
-			Pod:  podSucceededButKillByPendingTimeout,
-			want: execution.TaskSucceeded,
+			name: "pod deleting, no result",
+			Pod:  podDeleting,
 		},
 	}
 	for _, tt := range tests {
@@ -241,11 +190,6 @@ func TestPodTask_GetFinishTimestamp(t *testing.T) {
 			name: "Completed",
 			Pod:  podCompleted,
 			want: containerFinishTime,
-		},
-		{
-			name: "Killed by pending timeout",
-			Pod:  podKilledByPendingTimeout,
-			want: killTime,
 		},
 		{
 			name: "Zero terminated time",
@@ -329,11 +273,6 @@ func TestPodTask_RequiresKillWithDeletion(t *testing.T) {
 		{
 			name: "deadline exceeded",
 			Pod:  podDeadlineExceeded,
-			want: false,
-		},
-		{
-			name: "deadline exceeded",
-			Pod:  podPendingDeadlineExceeded,
 			want: false,
 		},
 	}

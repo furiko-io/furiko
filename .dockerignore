@@ -1,8 +1,19 @@
 # More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
-# Ignore build and test binaries.
+.dockerignore
+.gitignore
+.github/
+.local/
 bin/
 testbin/
 build/
 dist/
 yamls/
-.local
+config/
+docs/
+hack/
+Makefile
+LICENSE
+*.md
+*.yaml
+*.yml
+*.cov

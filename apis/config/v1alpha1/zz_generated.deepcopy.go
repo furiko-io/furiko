@@ -344,13 +344,8 @@ func (in *JobExecutionConfig) DeepCopyInto(out *JobExecutionConfig) {
 		*out = new(int64)
 		**out = **in
 	}
-	if in.DeleteKillingTasksTimeoutSeconds != nil {
-		in, out := &in.DeleteKillingTasksTimeoutSeconds, &out.DeleteKillingTasksTimeoutSeconds
-		*out = new(int64)
-		**out = **in
-	}
-	if in.ForceDeleteKillingTasksTimeoutSeconds != nil {
-		in, out := &in.ForceDeleteKillingTasksTimeoutSeconds, &out.ForceDeleteKillingTasksTimeoutSeconds
+	if in.ForceDeleteTaskTimeoutSeconds != nil {
+		in, out := &in.ForceDeleteTaskTimeoutSeconds, &out.ForceDeleteTaskTimeoutSeconds
 		*out = new(int64)
 		**out = **in
 	}

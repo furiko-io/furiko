@@ -647,10 +647,6 @@ const (
 	// specified pending timeout.
 	TaskPendingTimeout TaskResult = "PendingTimeout"
 
-	// TaskDeadlineExceeded means that the task had failed to terminate within its
-	// active deadline and has now been terminated.
-	TaskDeadlineExceeded TaskResult = "DeadlineExceeded"
-
 	// TaskKilled means that the task is killed externally and now terminated.
 	TaskKilled TaskResult = "Killed"
 )
