@@ -21,6 +21,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/utils/cmp"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
@@ -67,4 +68,47 @@ func canCreateTask(rj *execution.Job) bool {
 func isTaskFinished(task tasks.Task) bool {
 	taskStatus := task.GetTaskRef()
 	return !taskStatus.FinishTimestamp.IsZero()
+}
+
+func shouldKillJob(rj *execution.Job) bool {
+	// Kill job due to kill timestamp.
+	if ktime.IsTimeSetAndEarlierOrEqual(rj.Spec.KillTimestamp) {
+		return true
+	}
+
+	// Kill job due to parallel completion strategy.
+	if shouldKillJobForParallel(rj) {
+		return true
+	}
+
+	return false
+}
+
+func shouldKillJobForParallel(rj *execution.Job) bool {
+	template := rj.Spec.Template
+	if template == nil {
+		return false
+	}
+	spec := template.Parallelism
+	if spec == nil {
+		return false
+	}
+	status := rj.Status.ParallelStatus
+	if status == nil {
+		return false
+	}
+	if !status.Complete || status.Successful == nil {
+		return false
+	}
+
+	// Use status.Successful
+	switch spec.GetCompletionStrategy() {
+	case execution.AllSuccessful:
+		return !*status.Successful
+	case execution.AnySuccessful:
+		return *status.Successful
+	}
+
+	// Unhandled completion strategy
+	return false
 }

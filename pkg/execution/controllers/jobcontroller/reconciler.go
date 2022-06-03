@@ -192,6 +192,14 @@ func (w *Reconciler) syncJobTasks(
 	rj = newRj
 	trace.Step("Create tasks done")
 
+	// Update task refs which will be used subsequently.
+	newRj, err = w.updateTaskRefStatus(rj, tasks)
+	if err != nil {
+		return rj, errors.Wrapf(err, "cannot update status")
+	}
+	rj = newRj
+	trace.Step("Final update status for tasks done")
+
 	// Check if any tasks exceed pending timeout.
 	newRj, err = w.handlePendingTasks(ctx, rj, tasks, cfg)
 	if err != nil {
@@ -614,15 +622,13 @@ func (w *Reconciler) handlePendingTasks(
 	return newRj, nil
 }
 
-// handleKillJob deletes all non-terminated tasks if spec.killTimestamp is set
-// and has already passed.
+// handleKillJob deletes all non-terminated tasks when the job should be killed.
 func (w *Reconciler) handleKillJob(
 	ctx context.Context,
 	rj *execution.Job,
 	tasks []jobtasks.Task,
 ) (*execution.Job, error) {
-	// Skip if not killing.
-	if rj.Spec.KillTimestamp == nil || ktime.Now().Before(rj.Spec.KillTimestamp) {
+	if !shouldKillJob(rj) {
 		return rj, nil
 	}
 
@@ -635,8 +641,8 @@ func (w *Reconciler) handleKillJob(
 			continue
 		}
 
-		// Skip if deletion timestamp exists, and existing one is earlier than the killTimestamp we requested.
-		if ktime.IsTimeSetAndEarlierThanOrEqualTo(task.GetDeletionTimestamp(), rj.Spec.KillTimestamp.Time) {
+		// Skip if deletion timestamp exists.
+		if !task.GetDeletionTimestamp().IsZero() {
 			continue
 		}
 
@@ -689,7 +695,6 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 	// This Job's tasks cannot be force deleted.
 	// Do not continue with the rest of the routine.
 	if rj.Spec.Template.ForbidTaskForceDeletion {
-		// TODO(irvinlim): Check if we need special handling here.
 		return rj, nil
 	}
 
