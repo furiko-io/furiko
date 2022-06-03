@@ -24,10 +24,9 @@ import (
 
 var (
 	DefaultJobExecutionConfig = &configv1alpha1.JobExecutionConfig{
-		DefaultTTLSecondsAfterFinished:        pointer.Int64(3600),
-		DefaultPendingTimeoutSeconds:          pointer.Int64(900),
-		DeleteKillingTasksTimeoutSeconds:      pointer.Int64(180),
-		ForceDeleteKillingTasksTimeoutSeconds: pointer.Int64(120),
+		DefaultTTLSecondsAfterFinished: pointer.Int64(3600),
+		DefaultPendingTimeoutSeconds:   pointer.Int64(900),
+		ForceDeleteTaskTimeoutSeconds:  pointer.Int64(900),
 	}
 
 	DefaultJobConfigExecutionConfig = &configv1alpha1.JobConfigExecutionConfig{

@@ -41,7 +41,7 @@ func GetPhase(rj *v1alpha1.Job) v1alpha1.JobPhase {
 	}
 
 	// Use JobKilling if kill timestamp has passed.
-	if ktime.IsTimeSetAndEarlier(rj.Spec.KillTimestamp) {
+	if ktime.IsTimeSetAndEarlierOrEqual(rj.Spec.KillTimestamp) {
 		return v1alpha1.JobKilling
 	}
 

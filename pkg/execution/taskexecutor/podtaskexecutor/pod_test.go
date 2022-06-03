@@ -17,13 +17,10 @@
 package podtaskexecutor_test
 
 import (
-	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 )
 
 const (
@@ -51,7 +48,6 @@ var (
 	killTime                  = metav1.NewTime(stdKillTime)
 	valTrue                   = true
 	valFalse                  = false
-	activeDeadline            = int64(120)
 )
 
 var (
@@ -382,49 +378,10 @@ var (
 		},
 	}
 
-	// Pod deadline exceeded with a kill timestamp annotation.
-	podDeadlineExceededWithKillTimestamp = corev1.Pod{
+	podDeleting = corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			CreationTimestamp: createTime,
-			Annotations: map[string]string{
-				podtaskexecutor.LabelKeyTaskKillTimestamp: strconv.Itoa(int(startTime.Unix())),
-			},
-		},
-		Status: podDeadlineExceeded.Status,
-	}
-
-	// Pod may have DeadlineExceeded set while in PodPending phase, without any PodConditions.
-	// This may be a bug in kubelet, but handle it here to be safe.
-	podPendingDeadlineExceeded = corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			CreationTimestamp: createTime,
-		},
-		Status: corev1.PodStatus{
-			Phase:     corev1.PodPending,
-			StartTime: &startTime,
-			Reason:    "DeadlineExceeded",
-			Message:   "Pod was active on the node longer than the specified deadline",
-			ContainerStatuses: []corev1.ContainerStatus{
-				{
-					Name:  containerName,
-					Image: image,
-					State: corev1.ContainerState{
-						Waiting: &corev1.ContainerStateWaiting{
-							Reason:  "ImagePullBackOff",
-							Message: "Back-off pulling image \"" + image + "\"",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	podKilling = corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			CreationTimestamp: createTime,
-			Annotations: map[string]string{
-				podtaskexecutor.LabelKeyTaskKillTimestamp: strconv.Itoa(int(startTime.Unix())),
-			},
+			DeletionTimestamp: &killTime,
 		},
 		Status: corev1.PodStatus{
 			Phase:      corev1.PodRunning,
@@ -437,130 +394,6 @@ var (
 					State: corev1.ContainerState{
 						Running: &corev1.ContainerStateRunning{
 							StartedAt: containerStartTime,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	podKilled = corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			CreationTimestamp: createTime,
-			Annotations: map[string]string{
-				podtaskexecutor.LabelKeyTaskKillTimestamp: strconv.Itoa(int(startTime.Unix())),
-			},
-		},
-		Status: corev1.PodStatus{
-			Phase:      corev1.PodFailed,
-			StartTime:  &startTime,
-			Reason:     "DeadlineExceeded",
-			Message:    "Pod was active on the node longer than the specified deadline",
-			Conditions: conditionsPodScheduledAndInit,
-			ContainerStatuses: []corev1.ContainerStatus{
-				{
-					Name:  containerName,
-					Image: image,
-					State: corev1.ContainerState{
-						Terminated: &corev1.ContainerStateTerminated{
-							ContainerID: containerID,
-							FinishedAt:  containerFinishTime,
-							StartedAt:   containerStartTime,
-							Reason:      "Completed",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	podKilledByPendingTimeout = corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			CreationTimestamp: createTime,
-			Annotations: map[string]string{
-				podtaskexecutor.LabelKeyKilledFromPendingTimeout: "1",
-				podtaskexecutor.LabelKeyTaskKillTimestamp:        strconv.Itoa(int(startTime.Unix())),
-			},
-		},
-		Spec: corev1.PodSpec{
-			ActiveDeadlineSeconds: &activeDeadline,
-		},
-		Status: corev1.PodStatus{
-			Phase:      corev1.PodFailed,
-			StartTime:  &startTime,
-			Reason:     "DeadlineExceeded",
-			Message:    "Pod was active on the node longer than the specified deadline",
-			Conditions: conditionsPodScheduledAndInit,
-			ContainerStatuses: []corev1.ContainerStatus{
-				{
-					Name:  containerName,
-					Image: image,
-					State: corev1.ContainerState{
-						Waiting: &corev1.ContainerStateWaiting{
-							Message: "Pod was active on the node longer than the specified deadline",
-							Reason:  "ImagePullBackOff",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	podKillingByPendingTimeout = corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			CreationTimestamp: createTime,
-			Annotations: map[string]string{
-				podtaskexecutor.LabelKeyKilledFromPendingTimeout: "1",
-				podtaskexecutor.LabelKeyTaskKillTimestamp:        strconv.Itoa(int(startTime.Unix())),
-			},
-		},
-		Spec: corev1.PodSpec{
-			ActiveDeadlineSeconds: &activeDeadline,
-		},
-		Status: corev1.PodStatus{
-			Phase:      corev1.PodRunning,
-			StartTime:  &startTime,
-			Conditions: conditionsPodScheduledAndInit,
-			ContainerStatuses: []corev1.ContainerStatus{
-				{
-					Name:  containerName,
-					Image: image,
-					State: corev1.ContainerState{
-						Running: &corev1.ContainerStateRunning{
-							StartedAt: containerStartTime,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	podSucceededButKillByPendingTimeout = corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			CreationTimestamp: createTime,
-			Annotations: map[string]string{
-				podtaskexecutor.LabelKeyKilledFromPendingTimeout: "1",
-				podtaskexecutor.LabelKeyTaskKillTimestamp:        strconv.Itoa(int(startTime.Unix())),
-			},
-		},
-		Spec: corev1.PodSpec{
-			ActiveDeadlineSeconds: &activeDeadline,
-		},
-		Status: corev1.PodStatus{
-			Phase:      corev1.PodSucceeded,
-			StartTime:  &startTime,
-			Reason:     "Completed",
-			Conditions: conditionsPodScheduledAndInit,
-			ContainerStatuses: []corev1.ContainerStatus{
-				{
-					Name:  containerName,
-					Image: image,
-					State: corev1.ContainerState{
-						Terminated: &corev1.ContainerStateTerminated{
-							ContainerID: containerID,
-							FinishedAt:  containerFinishTime,
-							StartedAt:   containerStartTime,
-							Reason:      "Completed",
 						},
 					},
 				},

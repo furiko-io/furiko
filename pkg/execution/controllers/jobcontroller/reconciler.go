@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	utiltrace "k8s.io/utils/trace"
@@ -138,8 +139,8 @@ func (w *Reconciler) sync(
 	}
 
 	// Compute JobStatus.
-	// TODO(irvinlim): This performs duplicate work from syncJobTasks but is
-	//  unfortunately necessary to handle non-started Jobs.
+	// NOTE(irvinlim): This performs duplicate work from syncJobTasks but is
+	// unfortunately necessary to handle non-started Jobs.
 	updatedRj, err := w.syncJobStatusFromTaskRefs(rj)
 	if err != nil {
 		return rj, err
@@ -192,24 +193,20 @@ func (w *Reconciler) syncJobTasks(
 	trace.Step("Create tasks done")
 
 	// Check if any tasks exceed pending timeout.
-	if err := w.handlePendingTasks(ctx, rj, tasks, cfg); err != nil {
+	newRj, err = w.handlePendingTasks(ctx, rj, tasks, cfg)
+	if err != nil {
 		return rj, errors.Wrapf(err, "could not reap pending tasks")
 	}
-	trace.Step("Reap overdue pending tasks done")
+	rj = newRj
+	trace.Step("Kill overdue pending tasks done")
 
-	// Handle propagation of kill timestamp to all unfinished tasks
-	if err := w.handleKillJob(ctx, rj, tasks); err != nil {
+	// Delete tasks if job is being killed.
+	newRj, err = w.handleKillJob(ctx, rj, tasks)
+	if err != nil {
 		return rj, errors.Wrapf(err, "could not kill job")
 	}
-	trace.Step("Set kill timestamp on tasks done")
-
-	// Use deletion of tasks when previous kill is ineffective.
-	newRj, err = w.handleDeleteKillingTasks(ctx, rj, tasks, cfg)
-	if err != nil {
-		return rj, errors.Wrapf(err, "could not delete killing tasks")
-	}
 	rj = newRj
-	trace.Step("Delete unkillable tasks done")
+	trace.Step("Delete tasks for killing job done")
 
 	// Use force deletion of tasks when previous delete is ineffective.
 	newRj, err = w.handleForceDeleteKillingTasks(ctx, rj, tasks, cfg)
@@ -532,21 +529,26 @@ func (w *Reconciler) createTask(
 	return task, nil
 }
 
-// handlePendingTasks looks for pending tasks that have exceeded their pending timeout, and subsequently
-// kill those tasks.
-func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, tasks []jobtasks.Task,
-	cfg *configv1alpha1.JobExecutionConfig) error {
+// handlePendingTasks looks for pending tasks that have exceeded their pending
+// timeout, and subsequently kill those tasks.
+func (w *Reconciler) handlePendingTasks(
+	ctx context.Context,
+	rj *execution.Job,
+	tasks []jobtasks.Task,
+	cfg *configv1alpha1.JobExecutionConfig,
+) (*execution.Job, error) {
 	now := ktime.Now().Time
 
 	pendingTimeout := jobutil.GetPendingTimeout(rj, cfg)
 
 	// Pending timeout is disabled.
 	if pendingTimeout <= 0 {
-		return nil
+		return rj, nil
 	}
 
 	// Find tasks that need to be killed.
-	needKill := make([]jobtasks.Task, 0, len(tasks))
+	needDelete := make([]jobtasks.Task, 0, len(tasks))
+	deletingNames := sets.NewString()
 	for _, task := range tasks {
 		ref := task.GetTaskRef()
 
@@ -566,8 +568,14 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 			continue
 		}
 
+		// Skip if the task is already being deleted.
+		if !task.GetDeletionTimestamp().IsZero() {
+			continue
+		}
+
 		// Found task to kill.
-		needKill = append(needKill, task)
+		needDelete = append(needDelete, task)
+		deletingNames.Insert(task.GetName())
 
 		klog.InfoS("jobcontroller: reaping overdue pending task",
 			"worker", w.Name(),
@@ -577,150 +585,86 @@ func (w *Reconciler) handlePendingTasks(ctx context.Context, rj *execution.Job, 
 		)
 	}
 
-	if len(needKill) == 0 {
-		return nil
+	if len(needDelete) == 0 {
+		return rj, nil
 	}
 
-	// Mark tasks as killed due to pending timeout.
-	if err := jobutil.ConcurrentTasks(needKill, func(task jobtasks.Task) error {
-		if task.GetKilledFromPendingTimeoutMarker() {
-			return nil
+	// Before deleting, use TaskPendingTimeout in DeletedStatus.
+	newRj := rj.DeepCopy()
+	newRefs := make([]execution.TaskRef, 0, len(newRj.Status.Tasks))
+	for _, taskRef := range newRj.Status.Tasks {
+		newRef := taskRef.DeepCopy()
+		if deletingNames.Has(taskRef.Name) {
+			newRef.DeletedStatus = &execution.TaskStatus{
+				State:   execution.TaskTerminated,
+				Result:  execution.TaskPendingTimeout,
+				Reason:  "PendingTimeout",
+				Message: fmt.Sprintf("Task exceeded pending timeout of %v", pendingTimeout),
+			}
 		}
-		if err := task.SetKilledFromPendingTimeoutMarker(ctx); err != nil {
-			return err
-		}
+		newRefs = append(newRefs, *newRef)
+	}
+	newRj.Status.Tasks = newRefs
 
-		klog.InfoS("jobcontroller: set task as killed from pending timeout",
-			"worker", w.Name(),
-			"namespace", rj.GetNamespace(),
-			"name", rj.GetName(),
-			"task", task.GetName(),
-		)
-
-		return nil
-	}); err != nil {
-		return errors.Wrapf(err, "could not set task(s) as killed from pending timeout")
+	// Delete all pending tasks.
+	if err := w.deleteTasks(ctx, rj, needDelete, false); err != nil {
+		return newRj, err
 	}
 
-	// Set kill timestamp on tasks.
-	if err := w.setTasksKillTimestamp(ctx, rj, needKill, *ktime.Now()); err != nil {
-		return err
-	}
-
-	return nil
+	return newRj, nil
 }
 
-// handleKillJob updates kill timestamp of all tasks if spec.killTimestamp is set.
-func (w *Reconciler) handleKillJob(ctx context.Context, rj *execution.Job, tasks []jobtasks.Task) error {
+// handleKillJob deletes all non-terminated tasks if spec.killTimestamp is set
+// and has already passed.
+func (w *Reconciler) handleKillJob(
+	ctx context.Context,
+	rj *execution.Job,
+	tasks []jobtasks.Task,
+) (*execution.Job, error) {
 	// Skip if not killing.
 	if rj.Spec.KillTimestamp == nil || ktime.Now().Before(rj.Spec.KillTimestamp) {
-		return nil
+		return rj, nil
 	}
 
-	// Find all tasks that need update.
-	needUpdate := make([]jobtasks.Task, 0, len(tasks))
+	// Find all tasks that need to be deleted.
+	needDelete := make([]jobtasks.Task, 0, len(tasks))
+	deletingNames := sets.NewString()
 	for _, task := range tasks {
 		// Skip finished tasks
 		if isTaskFinished(task) {
 			continue
 		}
 
-		// Skip if kill timestamp exists, and existing one is earlier than the killTimestamp we requested.
-		if ktime.IsTimeSetAndEarlierThanOrEqualTo(task.GetKillTimestamp(), rj.Spec.KillTimestamp.Time) {
+		// Skip if deletion timestamp exists, and existing one is earlier than the killTimestamp we requested.
+		if ktime.IsTimeSetAndEarlierThanOrEqualTo(task.GetDeletionTimestamp(), rj.Spec.KillTimestamp.Time) {
 			continue
 		}
 
-		needUpdate = append(needUpdate, task)
-	}
-
-	if len(needUpdate) == 0 {
-		return nil
-	}
-
-	// Set the kill timestamp for tasks.
-	if err := w.setTasksKillTimestamp(ctx, rj, needUpdate, *rj.Spec.KillTimestamp); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// handleDeleteKillingTasks uses deletion to kill tasks if prior efforts to set kill timestamp on tasks are ineffective.
-func (w *Reconciler) handleDeleteKillingTasks(
-	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1alpha1.JobExecutionConfig,
-) (*execution.Job, error) {
-	timeout := jobutil.GetDeleteKillingTimeout(cfg)
-	needDelete := make([]jobtasks.Task, 0, len(tasks))
-	needDeleteMap := make(map[string]jobtasks.Task)
-
-	for _, task := range tasks {
-		// Skip finished tasks.
-		if isTaskFinished(task) {
-			continue
-		}
-
-		// Skip if task is not scheduled to be killed.
-		killTS := task.GetKillTimestamp()
-		if killTS == nil || killTS.IsZero() {
-			continue
-		}
-
-		// Don't need to delete if deletionTimestamp already set and earlier.
-		if ts := task.GetDeletionTimestamp(); ktime.IsTimeSetAndEarlier(ts) {
-			continue
-		}
-
-		// If task is not killable with kill timestamp, or is still alive beyond kill timestamp + timeout,
-		// use deletion to kill the task instead.
-		if !killTS.Add(timeout).After(ktime.Now().Time) || task.RequiresKillWithDeletion() {
-			klog.InfoS("jobcontroller: worker deleting killing task",
-				"worker", w.Name(),
-				"namespace", rj.GetNamespace(),
-				"name", rj.GetName(),
-				"task", task.GetName(),
-				"killTimestamp", killTS,
-			)
-
-			needDelete = append(needDelete, task)
-			needDeleteMap[task.GetName()] = task
-		} else {
-			// Otherwise, enqueue sync after timeout.
-			w.enqueueAfter(rj, "delete_killing_task", time.Until(killTS.Add(timeout)))
-		}
+		needDelete = append(needDelete, task)
+		deletingNames.Insert(task.GetName())
 	}
 
 	if len(needDelete) == 0 {
 		return rj, nil
 	}
 
+	// Before deleting, use TaskKilled in DeletedStatus.
 	newRj := rj.DeepCopy()
-
-	// Update DeletedStatus, will be updated to TaskRef's status once actually deleted.
 	newRefs := make([]execution.TaskRef, 0, len(newRj.Status.Tasks))
 	for _, taskRef := range newRj.Status.Tasks {
 		newRef := taskRef.DeepCopy()
-		if task, ok := needDeleteMap[taskRef.Name]; ok {
-			// Assume that task is being killed.
+		if deletingNames.Has(taskRef.Name) {
 			newRef.DeletedStatus = &execution.TaskStatus{
-				State:   execution.TaskTerminated,
-				Result:  execution.TaskKilled,
-				Reason:  "Deleted",
-				Message: "Task was killed via deletion",
-			}
-			if killedFromPending := task.GetKilledFromPendingTimeoutMarker(); killedFromPending {
-				newRef.DeletedStatus.Result = execution.TaskPendingTimeout
+				State:  execution.TaskTerminated,
+				Result: execution.TaskKilled,
 			}
 		}
-
 		newRefs = append(newRefs, *newRef)
 	}
 	newRj.Status.Tasks = newRefs
 
-	// Compute new task status.
-	newRj = jobutil.UpdateJobTaskRefs(newRj, tasks)
-
-	// Delete tasks.
-	if err := w.deleteTasks(ctx, newRj, needDelete, false); err != nil {
+	// Delete all tasks that need to be killed.
+	if err := w.deleteTasks(ctx, rj, needDelete, false); err != nil {
 		return newRj, err
 	}
 
@@ -732,7 +676,7 @@ func (w *Reconciler) handleDeleteKillingTasks(
 func (w *Reconciler) handleForceDeleteKillingTasks(
 	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, cfg *configv1alpha1.JobExecutionConfig,
 ) (*execution.Job, error) {
-	timeout := jobutil.GetForceDeleteKillingTimeout(cfg)
+	timeout := jobutil.GetForceDeleteTimeout(cfg)
 
 	// Force deletion is disabled.
 	if timeout <= 0 {
@@ -740,7 +684,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 	}
 
 	needDelete := make([]jobtasks.Task, 0, len(tasks))
-	needDeleteMap := make(map[string]jobtasks.Task)
+	deletingNames := sets.NewString()
 
 	// This Job's tasks cannot be force deleted.
 	// Do not continue with the rest of the routine.
@@ -765,7 +709,7 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 			)
 
 			needDelete = append(needDelete, task)
-			needDeleteMap[task.GetName()] = task
+			deletingNames.Insert(task.GetName())
 		} else {
 			// Otherwise, enqueue sync after timeout.
 			w.enqueueAfter(rj, "force_delete_killing_task", time.Until(deletionTS.Add(timeout)))
@@ -776,28 +720,22 @@ func (w *Reconciler) handleForceDeleteKillingTasks(
 		return rj, nil
 	}
 
-	// Before deleting, update task message to mention that it was force deleted.
-	// We can do this by storing in DeletedStatus.
+	// Before deleting, use ForceDeleted in DeletedStatus.
 	newRj := rj.DeepCopy()
-
-	// Update DeletedStatus, will be updated to TaskRef's status once actually deleted.
 	newRefs := make([]execution.TaskRef, 0, len(newRj.Status.Tasks))
 	for _, taskRef := range newRj.Status.Tasks {
 		newRef := taskRef.DeepCopy()
-		if task, ok := needDeleteMap[taskRef.Name]; ok {
-			newRef.DeletedStatus = &execution.TaskStatus{
-				State: execution.TaskTerminated,
-				// Use Killed state since we are trying to kill it.
-				Result: execution.TaskKilled,
-				// Explain that this task was forcefully deleted.
-				Reason:  "ForceDeleted",
-				Message: "Forcefully deleted the task, container may still be running",
+		if deletingNames.Has(taskRef.Name) {
+			// Use TaskKilled as default Result, do not override previously set field.
+			if newRef.DeletedStatus == nil {
+				newRef.DeletedStatus = &execution.TaskStatus{
+					State:  execution.TaskTerminated,
+					Result: execution.TaskKilled,
+				}
 			}
-			if killedFromPending := task.GetKilledFromPendingTimeoutMarker(); killedFromPending {
-				newRef.DeletedStatus.Result = execution.TaskPendingTimeout
-			}
+			newRef.DeletedStatus.Reason = "ForceDeleted"
+			newRef.DeletedStatus.Message = "Forcefully deleted the task, container may still be running"
 		}
-
 		newRefs = append(newRefs, *newRef)
 	}
 	newRj.Status.Tasks = newRefs
@@ -941,35 +879,6 @@ func (w *Reconciler) handleFinishFinalizer(
 	)
 
 	return newRj, nil
-}
-
-func (w *Reconciler) setTasksKillTimestamp(
-	ctx context.Context, rj *execution.Job, tasks []jobtasks.Task, killTimestamp metav1.Time,
-) error {
-	if err := jobutil.ConcurrentTasks(tasks, func(task jobtasks.Task) error {
-		if ktime.IsTimeSetAndEarlierThanOrEqualTo(task.GetKillTimestamp(), ktime.Now().Time) {
-			return nil
-		}
-
-		if err := task.SetKillTimestamp(ctx, killTimestamp.Time); err != nil {
-			return err
-		}
-
-		klog.InfoS("jobcontroller: worker set kill timestamp on task",
-			"worker", w.Name(),
-			"namespace", rj.GetNamespace(),
-			"name", rj.GetName(),
-			"task", task.GetName(),
-			"deadline", killTimestamp,
-		)
-
-		w.recorder.Eventf(rj, corev1.EventTypeWarning, "Killing", "Killing task %v", task.GetName())
-		return nil
-	}); err != nil {
-		return errors.Wrapf(err, "could not set active deadline on task")
-	}
-
-	return nil
 }
 
 // deleteTasks will concurrently delete all tasks for the given Job.

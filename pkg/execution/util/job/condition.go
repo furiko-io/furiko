@@ -94,17 +94,28 @@ func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 		latestFinished = ktime.TimeMax(latestFinished, task.FinishTimestamp)
 	}
 
-	// If the job is being killed and all tasks are terminated, we can use Finished.
-	if !rj.Spec.KillTimestamp.IsZero() && parallelStatus.Terminated >= parallelStatus.Created {
-		finishTimestamp := rj.Spec.KillTimestamp
-		if !latestFinished.IsZero() {
-			finishTimestamp = latestFinished
+	// Job is being killed.
+	if ktime.IsTimeSetAndEarlierOrEqual(rj.Spec.KillTimestamp) {
+		// All tasks are already terminated.
+		if parallelStatus.Terminated >= numIndexes {
+			finishTimestamp := rj.Spec.KillTimestamp
+			if !latestFinished.IsZero() {
+				finishTimestamp = latestFinished
+			}
+			state.Finished = &execution.JobConditionFinished{
+				LatestCreationTimestamp: latestCreated,
+				LatestRunningTimestamp:  latestRunning,
+				FinishTimestamp:         *finishTimestamp,
+				Result:                  execution.JobResultKilled,
+			}
+			return state, nil
 		}
-		state.Finished = &execution.JobConditionFinished{
-			LatestCreationTimestamp: latestCreated,
-			LatestRunningTimestamp:  latestRunning,
-			FinishTimestamp:         *finishTimestamp,
-			Result:                  execution.JobResultKilled,
+
+		// Otherwise, use Waiting state and show how many more tasks are not yet terminated.
+		numNotDeleted := numIndexes - parallelStatus.Terminated
+		state.Waiting = &execution.JobConditionWaiting{
+			Reason:  "DeletingTasks",
+			Message: fmt.Sprintf("Waiting for %v out of %v task(s) to be deleted", numNotDeleted, numIndexes),
 		}
 		return state, nil
 	}
@@ -153,7 +164,7 @@ func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 	// The job is complete but currently waiting to be terminated.
 	if parallelStatus.Terminated < numIndexes {
 		state.Running = &execution.JobConditionRunning{
-			TerminatingTasks: parallelStatus.Created - parallelStatus.Terminated,
+			TerminatingTasks: numIndexes - parallelStatus.Terminated,
 		}
 		if !latestCreated.IsZero() {
 			state.Running.LatestCreationTimestamp = *latestCreated

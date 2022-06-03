@@ -14,45 +14,47 @@ data:
     apiVersion: config.furiko.io/v1alpha1
     kind: JobExecutionConfig
 
-    # defaultTTLSecondsAfterFinished is the default time-to-live (TTL) for a Job
-    # after it has finished. Lower this value to reduce the strain on the
-    # cluster/kubelet. Set to 0 to delete immediately after the Job is finished.
+    # The default time-to-live (TTL) for a Job after it has finished. Lower this
+    # value to reduce the strain on the cluster/kubelet. Set to 0 to delete immediately
+    # after the Job is finished.
     defaultTTLSecondsAfterFinished: 3600
 
-    # defaultPendingTimeoutSeconds is default timeout to use if job does not
-    # specify the pending timeout. By default, this is a non-zero value to prevent
-    # permanently stuck jobs. To disable default pending timeout, set this to 0.
+    # The default timeout for a task to remain in a pending state. Defaults to 15 minutes
+    # in order to prevent jobs from retrying indefinitely.
+    #
+    # To prevent setting a default pending timeout globally, set this to 0. Individual jobs
+    # can still specify spec.taskPendingTimeoutSeconds in the JobTemplate to override this
+    # global default value.
     defaultPendingTimeoutSeconds: 900
 
-    # deleteKillingTasksTimeoutSeconds is the duration we delete the task to kill
-    # it instead of using active deadline, if previous efforts were ineffective.
-    # Set this value to 0 to immediately use deletion.
-    deleteKillingTasksTimeoutSeconds: 180
-
-    # forceDeleteKillingTasksTimeoutSeconds is the duration before we use force
-    # deletion instead of normal deletion. This timeout is computed from the
-    # deletionTimestamp of the object, which may also include an additional delay
-    # of deletionGracePeriodSeconds. Set this value to 0 to disable force deletion.
-    forceDeleteKillingTasksTimeoutSeconds: 120
+    # The duration before the controller uses force deletion instead of normal deletion.
+    # This timeout is computed from the deletionTimestamp of the object, which may also include
+    # an additional delay of deletionGracePeriodSeconds.
+    #
+    # Force deletion causes the task to be deleted without confirmation that the task has already
+    # terminated. When pod is used for taskTemplate, this means that
+    #
+    # Set this value to 0 to disable force deletion globally. Individual jobs can also specify
+    # spec.forbidTaskForceDeletion in the JobTemplate to disable force deletion if this
+    # behavior is not desired.
+    forceDeleteTaskTimeoutSeconds: 900
 
   jobConfigs: |
     apiVersion: config.furiko.io/v1alpha1
     kind: JobConfigExecutionConfig
 
-    # maxEnqueuedJobs is the global maximum enqueued jobs that can be enqueued for
-    # a single JobConfig.
+    # The global maximum enqueued jobs that can be enqueued for a single JobConfig.
     maxEnqueuedJobs: 20
 
   cron: |
     apiVersion: config.furiko.io/v1alpha1
     kind: CronExecutionConfig
 
-    # cronFormat specifies the format used to parse cron expressions. Select
-    # between "standard" (default) or "quartz".
+    # Specifies the format used to parse cron expressions. Select between "standard"
+    # (default) or "quartz".
     cronFormat: "standard"
 
-    # cronHashNames specifies if cron expressions should be hashed using the
-    # JobConfig's name.
+    # Specifies if cron expressions should be hashed using the JobConfig's name.
     #
     # This enables "hash cron expressions", which looks like `0 H * * *`. This
     # particular example means to run once a day on the 0th minute of some hour,
@@ -63,9 +65,8 @@ data:
     # If disabled, any JobConfigs that use the `H` syntax will throw a parse error.
     cronHashNames: true
 
-    # cronHashSecondsByDefault specifies if the seconds field of a cron expression
-    # should be a `H` or `0` by default. If enabled, it will be `H`, otherwise it
-    # will default to `0`.
+    # Specifies if the seconds field of a cron expression should be a `H` or `0`
+    # by default. If enabled, it will be `H`, otherwise it will default to `0`.
     #
     # For JobConfigs which use a short cron expression format (i.e. 5 or 6 tokens
     # long), the seconds field is omitted and is typically assumed to be `0` (e.g.
@@ -77,27 +78,26 @@ data:
     # this would be `0 5 10 * * * *`.
     cronHashSecondsByDefault: false
 
-    # cronHashFields specifies if the fields should be hashed along with the
-    # JobConfig's name.
+    # Specifies if the fields should be hashed along with the JobConfig's name.
     #
     # For example, `H H * * * * *` will always hash the seconds and minutes to the
     # same value, for example 00:37:37, 01:37:37, etc. Enabling this option will
     # append additional keys to be hashed to introduce additional non-determinism.
     cronHashFields: true
 
-    # defaultTimezone defines a default timezone to use for JobConfigs that do not
-    # specify a timezone. If left empty, UTC will be used as the default timezone.
+    # Defines a default timezone to use for JobConfigs that do not specify a timezone.
+    # If left empty, UTC will be used as the default timezone.
     defaultTimezone: "UTC"
 
-    # maxMissedSchedules defines a maximum number of jobs that the controller
-    # should back-schedule, or attempt to create after coming back up from
-    # downtime. Having a sane value here would prevent a thundering herd of jobs
-    # being scheduled that would exhaust resources in the cluster. Set this to 0 to
-    # disable back-scheduling.
+    # Defines the maximum number of jobs that the controller should back-schedule,
+    # or attempt to create after coming back up from downtime. Having a sane value
+    # here would prevent a thundering herd of jobs being scheduled that would exhaust
+    # resources in the cluster.
+    #
+    # Set this to 0 to disable back-scheduling.
     maxMissedSchedules: 5
 
-    # maxDowntimeThresholdSeconds defines the maximum downtime that the controller
-    # can tolerate. If the controller was intentionally shut down for an extended
-    # period of time, we should not attempt to back-schedule jobs once it was
-    # started.
+    # Defines the maximum downtime that the controller can tolerate. If the controller
+    # was shut down for an extended period of time, any jobs that should have been created
+    # beyond the maximum downtime threshold would not be back-scheduled once it is started again.
     maxDowntimeThresholdSeconds: 300

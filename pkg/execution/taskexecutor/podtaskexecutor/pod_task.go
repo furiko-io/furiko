@@ -17,21 +17,17 @@
 package podtaskexecutor
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
-	"github.com/furiko-io/furiko/pkg/utils/ktime"
-	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
 const (
@@ -124,85 +120,8 @@ func (p *PodTask) RequiresKillWithDeletion() bool {
 		p.Status.StartTime.IsZero()
 }
 
-func (p *PodTask) GetKillTimestamp() *metav1.Time {
-	if val, ok := p.Pod.Annotations[LabelKeyTaskKillTimestamp]; ok {
-		if unix, err := strconv.Atoi(val); err == nil {
-			t := metav1.Unix(int64(unix), 0)
-			return &t
-		}
-	}
-	return nil
-}
-
-func (p *PodTask) SetKillTimestamp(ctx context.Context, ts time.Time) error {
-	newPod := p.Pod.DeepCopy()
-
-	// Cannot increase kill timestamp further than it was before.
-	if ktime.IsTimeSetAndEarlierThan(p.GetKillTimestamp(), ts) {
-		ts = p.GetKillTimestamp().Time
-	}
-
-	// Add annotation for kill timestamp.
-	// This will be the authoritative source of truth for the time we want to kill the pod.
-	meta.SetAnnotation(newPod, LabelKeyTaskKillTimestamp, strconv.Itoa(int(ts.Unix())))
-
-	// Compute active deadline.
-	var ads int64
-	switch {
-	case p.Status.StartTime == nil:
-		// No start time. We will set active deadline to minimum.
-		// When kubelet acknowledges the pod, it will immediately kill it after 1 second.
-		ads = 1
-	case ts.Before(p.Status.StartTime.Time):
-		// For some reason we want to kill it before it started.
-		ads = 1
-	default:
-		// Compute the duration between killTimestamp and startTime as the ADS.
-		ads = int64(ts.Sub(p.Status.StartTime.Time).Seconds())
-	}
-
-	// Cannot set higher than previous value.
-	if newPod.Spec.ActiveDeadlineSeconds != nil && ads > *newPod.Spec.ActiveDeadlineSeconds {
-		ads = *newPod.Spec.ActiveDeadlineSeconds
-	}
-
-	// If value was set less than 1 for any other reason, round it up to 1 to conform to range.
-	if ads < 1 {
-		ads = 1
-	}
-
-	// Set active deadline.
-	newPod.Spec.ActiveDeadlineSeconds = &ads
-
-	updatedPod, err := p.client.Update(ctx, newPod, metav1.UpdateOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "could not update pod")
-	}
-
-	p.Pod = updatedPod
-	return nil
-}
-
-func (p *PodTask) GetKilledFromPendingTimeoutMarker() bool {
-	_, ok := p.Pod.Annotations[LabelKeyKilledFromPendingTimeout]
-	return ok
-}
-
-func (p *PodTask) SetKilledFromPendingTimeoutMarker(ctx context.Context) error {
-	newPod := p.Pod.DeepCopy()
-	meta.SetAnnotation(newPod, LabelKeyKilledFromPendingTimeout, "1")
-
-	updatedPod, err := p.client.Update(ctx, newPod, metav1.UpdateOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "could not update pod")
-	}
-
-	p.Pod = updatedPod
-	return nil
-}
-
 func (p *PodTask) GetState() execution.TaskState {
-	if ktime.IsTimeSetAndEarlier(p.GetKillTimestamp()) && !p.IsFinished() {
+	if !p.GetDeletionTimestamp().IsZero() && !p.IsFinished() {
 		return execution.TaskKilling
 	}
 
@@ -220,20 +139,6 @@ func (p *PodTask) GetResult() execution.TaskResult {
 	// Pod was OOMKilled, always use task failed.
 	if p.IsOOMKilled() {
 		return execution.TaskFailed
-	}
-
-	// Pod was killed by pending timeout.
-	if p.IsKilledFromPendingTimeout() {
-		return execution.TaskPendingTimeout
-	}
-
-	// Killed pod using active deadline.
-	if p.IsDeadlineExceeded() {
-		// Kill timestamp was set but not from pending timeout.
-		if !p.GetKillTimestamp().IsZero() {
-			return execution.TaskKilled
-		}
-		return execution.TaskDeadlineExceeded
 	}
 
 	// Fallback to Pod phase for normal results.
@@ -287,19 +192,6 @@ func (p *PodTask) GetFinishTimestamp() metav1.Time {
 
 func (p *PodTask) IsFinished() bool {
 	return p.Status.Phase == corev1.PodSucceeded || p.Status.Phase == corev1.PodFailed
-}
-
-func (p *PodTask) IsKilledFromPendingTimeout() bool {
-	// Pod is not yet in failed state. It may be possible for a Pod to race between
-	// succeeding and being killed by pending timeout.
-	if p.Status.Phase != corev1.PodFailed {
-		return false
-	}
-	return p.GetKilledFromPendingTimeoutMarker()
-}
-
-func (p *PodTask) IsDeadlineExceeded() bool {
-	return p.Status.Reason == reasonDeadlineExceeded
 }
 
 func (p *PodTask) IsOOMKilled() bool {

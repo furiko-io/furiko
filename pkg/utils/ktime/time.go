@@ -41,6 +41,13 @@ func IsTimeSetAndEarlier(ts *metav1.Time) bool {
 	return IsTimeSetAndEarlierThan(ts, Clock.Now())
 }
 
+// IsTimeSetAndEarlierOrEqual returns true if the given *metav1.Time is set and
+// earlier than or equal to the current time. Useful to validate timestamp
+// updates which cannot be extended.
+func IsTimeSetAndEarlierOrEqual(ts *metav1.Time) bool {
+	return IsTimeSetAndEarlierThanOrEqualTo(ts, Clock.Now())
+}
+
 // IsTimeSetAndEarlierThan returns true if the given *metav1.Time is set and earlier than the other time.Time.
 // Useful to validate timestamp updates which cannot be extended.
 func IsTimeSetAndEarlierThan(ts *metav1.Time, other time.Time) bool {

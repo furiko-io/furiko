@@ -28,11 +28,9 @@ import (
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
-	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/reconciler"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
-	"github.com/furiko-io/furiko/pkg/utils/meta"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -94,7 +92,7 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			Name:   "kill pod with pending timeout",
+			Name:   "delete pod after pending timeout",
 			Now:    testutils.Mktime(later15m),
 			Target: fakeJobResult,
 			Fixtures: []runtime.Object{
@@ -102,24 +100,28 @@ func TestReconciler(t *testing.T) {
 			},
 			WantActions: runtimetesting.CombinedActions{
 				Kubernetes: runtimetesting.ActionTest{
-					ActionGenerators: []runtimetesting.ActionGenerator{
-						func() (runtimetesting.Action, error) {
-							newPod := fakePodPending.DeepCopy()
-							meta.SetAnnotation(newPod, podtaskexecutor.LabelKeyKilledFromPendingTimeout, "1")
-							return runtimetesting.NewUpdatePodAction(jobNamespace, newPod), nil
-						},
-						func() (runtimetesting.Action, error) {
-							return runtimetesting.NewUpdatePodAction(jobNamespace, fakePodPendingTimeoutTerminating), nil
-						},
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewDeletePodAction(jobNamespace, fakePod0.Name),
 					},
 				},
 				Furiko: runtimetesting.ActionTest{
-					ActionGenerators: []runtimetesting.ActionGenerator{
-						func() (runtimetesting.Action, error) {
-							// NOTE(irvinlim): Can only generate JobStatus after the clock is mocked
-							object := generateJobStatusFromPod(fakeJobResult, fakePodPendingTimeoutTerminating)
-							return runtimetesting.NewUpdateJobStatusAction(jobNamespace, object), nil
-						},
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobWithPodInPendingTimeout),
+					},
+				},
+			},
+		},
+		{
+			Name:   "update with deleting pod after pending timeout",
+			Now:    testutils.Mktime(later15m),
+			Target: fakeJobWithPodInPendingTimeout,
+			Fixtures: []runtime.Object{
+				fakePodPendingDeleting,
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobWithPodInPendingTimeoutAfterUpdate),
 					},
 				},
 			},
@@ -133,7 +135,7 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			Name:   "do nothing with no default pending timeout",
+			Name:   "do nothing with disabled default pending timeout",
 			Now:    testutils.Mktime(later15m),
 			Target: fakeJobPending,
 			Fixtures: []runtime.Object{
@@ -146,14 +148,11 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			Name: "do nothing if already marked with pending timeout",
-			Now:  testutils.Mktime(later15m),
-			TargetGenerator: func() runtime.Object {
-				// NOTE(irvinlim): Can only generate JobStatus after the clock is mocked
-				return generateJobStatusFromPod(fakeJobResult, fakePodPendingTimeoutTerminating)
-			},
+			Name:   "do nothing if already deleting",
+			Now:    testutils.Mktime(later15m),
+			Target: fakeJobWithPodInPendingTimeoutAfterUpdate,
 			Fixtures: []runtime.Object{
-				fakePodPendingTimeoutTerminating,
+				fakePodPendingDeleting,
 			},
 		},
 		{
@@ -164,7 +163,7 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			Name:   "kill pod with kill timestamp",
+			Name:   "delete pod when job is being killed",
 			Now:    testutils.Mktime(killTime),
 			Target: fakeJobWithKillTimestamp,
 			Fixtures: []runtime.Object{
@@ -173,48 +172,54 @@ func TestReconciler(t *testing.T) {
 			WantActions: runtimetesting.CombinedActions{
 				Kubernetes: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
-						runtimetesting.NewUpdatePodAction(jobNamespace, fakePodTerminating),
+						runtimetesting.NewDeletePodAction(jobNamespace, fakePod0.Name),
+					},
+				},
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobWithPodInKilling),
 					},
 				},
 			},
 		},
 		{
-			Name:   "do nothing with existing kill timestamp",
+			Name:   "update with deleting pod when job is being killed",
 			Now:    testutils.Mktime(killTime),
-			Target: fakeJobWithKillTimestamp,
+			Target: fakeJobWithPodInKilling,
 			Fixtures: []runtime.Object{
-				fakePodTerminating,
-			},
-		},
-		{
-			Name: "delete pod with kill timestamp",
-			Now: testutils.Mktime(killTime).
-				Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second),
-			Target: fakeJobWithKillTimestamp,
-			Fixtures: []runtime.Object{
-				fakePodTerminating,
+				fakePodPendingDeleting,
 			},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
-						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobPodDeleting),
-					},
-				},
-				Kubernetes: runtimetesting.ActionTest{
-					Actions: []runtimetesting.Action{
-						runtimetesting.NewDeletePodAction(jobNamespace, fakePod0.Name),
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobWithPodInKillingAfterUpdate),
 					},
 				},
 			},
 		},
 		{
-			Name: "force delete pod with kill timestamp",
+			Name:   "do nothing with already deleting pod when job is being killed",
+			Now:    testutils.Mktime(killTime),
+			Target: fakeJobWithPodInKillingAfterUpdate,
+			Fixtures: []runtime.Object{
+				fakePodPendingDeleting,
+			},
+		},
+		{
+			Name:   "do nothing with already deleting pod when job is being killed after some time passes",
+			Now:    testutils.Mktime(killTime).Add(time.Second),
+			Target: fakeJobWithPodInKillingAfterUpdate,
+			Fixtures: []runtime.Object{
+				fakePodPendingDeleting,
+			},
+		},
+		{
+			Name: "force delete pod when job is being killed",
 			Now: testutils.Mktime(killTime).
-				Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
-				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteTaskTimeoutSeconds) * time.Second),
 			Target: fakeJobPodDeleting,
 			Fixtures: []runtime.Object{
-				fakePodDeleting,
+				fakePodPendingDeleting,
 			},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
@@ -232,26 +237,24 @@ func TestReconciler(t *testing.T) {
 		{
 			Name: "do not force delete pod if disabled via config",
 			Now: testutils.Mktime(killTime).
-				Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
-				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteTaskTimeoutSeconds) * time.Second),
 			Target: fakeJobPodDeleting,
 			Fixtures: []runtime.Object{
-				fakePodDeleting,
+				fakePodPendingDeleting,
 			},
 			Configs: controllercontext.ConfigsMap{
 				configv1alpha1.JobExecutionConfigName: &configv1alpha1.JobExecutionConfig{
-					ForceDeleteKillingTasksTimeoutSeconds: pointer.Int64(0),
+					ForceDeleteTaskTimeoutSeconds: pointer.Int64(0),
 				},
 			},
 		},
 		{
 			Name: "do not force delete pod if disabled via JobSpec",
 			Now: testutils.Mktime(killTime).
-				Add(time.Duration(*config.DefaultJobExecutionConfig.DeleteKillingTasksTimeoutSeconds) * time.Second).
-				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteKillingTasksTimeoutSeconds) * time.Second),
+				Add(time.Duration(*config.DefaultJobExecutionConfig.ForceDeleteTaskTimeoutSeconds) * time.Second),
 			Target: fakeJobPodDeletingForbidForceDeletion,
 			Fixtures: []runtime.Object{
-				fakePodDeleting,
+				fakePodPendingDeleting,
 			},
 		},
 		{
@@ -263,7 +266,7 @@ func TestReconciler(t *testing.T) {
 			Name:   "finalize job",
 			Target: fakeJobWithDeletionTimestamp,
 			Fixtures: []runtime.Object{
-				fakePodTerminating,
+				fakePodPendingDeleting,
 			},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
