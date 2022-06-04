@@ -50,6 +50,28 @@ var (
 		},
 	}
 
+	disabledJobConfig = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "periodic-jobconfig",
+			Namespace: DefaultNamespace,
+		},
+		Spec: execution.JobConfigSpec{
+			Concurrency: execution.ConcurrencySpec{
+				Policy: execution.ConcurrencyPolicyForbid,
+			},
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "H/5 * * * *",
+					Timezone:   "Asia/Singapore",
+				},
+				Disabled: true,
+			},
+		},
+		Status: execution.JobConfigStatus{
+			State: execution.JobConfigReadyEnabled,
+		},
+	}
+
 	adhocJobConfig = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "adhoc-jobconfig",
