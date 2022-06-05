@@ -23,7 +23,7 @@ import (
 
 // GetPhase returns the phase of a Job based on the tasks and Job status so far.
 // It expects that the JobCondition is up-to-date.
-func GetPhase(rj *v1alpha1.Job) v1alpha1.JobPhase {
+func GetPhase(rj *v1alpha1.Job) v1alpha1.JobPhase { // nolint:gocognit
 	// Handle JobConditionFinished, which is only populated after the Job is terminal.
 	if rj.Status.Condition.Finished != nil {
 		switch rj.Status.Condition.Finished.Result {
@@ -82,13 +82,25 @@ func GetPhase(rj *v1alpha1.Job) v1alpha1.JobPhase {
 			return v1alpha1.JobPending
 		}
 
+		var retrying, retryBackoff int64
+		for _, index := range parallelStatus.Indexes {
+			if index.State == v1alpha1.IndexRetryBackoff {
+				retryBackoff++
+			} else if index.State == v1alpha1.IndexStarting && index.CreatedTasks > 1 {
+				retrying++
+			}
+		}
+
 		// Some parallel indexes are in retry backoff.
-		if parallelStatus.RetryBackoff > 0 {
+		if retryBackoff > 0 {
 			return v1alpha1.JobRetryBackoff
 		}
 
-		// TODO(irvinlim): Currently cannot differentiate between JobRetrying and
-		//  JobPending for parallel jobs.
+		// Some parallel indexes are in retrying.
+		if retrying > 0 {
+			return v1alpha1.JobRetrying
+		}
+
 		return v1alpha1.JobPending
 	}
 

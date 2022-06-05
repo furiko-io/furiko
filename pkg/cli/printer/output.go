@@ -21,6 +21,7 @@ type OutputFormat string
 
 const (
 	OutputFormatPretty OutputFormat = "pretty"
+	OutputFormatDetail OutputFormat = "detail"
 	OutputFormatName   OutputFormat = "name"
 	OutputFormatJSON   OutputFormat = "json"
 	OutputFormatYAML   OutputFormat = "yaml"
@@ -29,6 +30,7 @@ const (
 // AllOutputFormats is a list of all possible output formats.
 var AllOutputFormats = []OutputFormat{
 	OutputFormatPretty,
+	OutputFormatDetail,
 	OutputFormatName,
 	OutputFormatJSON,
 	OutputFormatYAML,

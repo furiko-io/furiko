@@ -395,7 +395,7 @@ func TestGetCondition(t *testing.T) {
 							FinishTimestamp:   &finishTime,
 							Status: execution.TaskStatus{
 								State:   execution.TaskTerminated,
-								Result:  execution.TaskPendingTimeout,
+								Result:  execution.TaskKilled,
 								Reason:  "ImagePullBackOff",
 								Message: "Back-off pulling image \"hello-world\"",
 							},

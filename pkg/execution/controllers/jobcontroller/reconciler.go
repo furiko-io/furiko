@@ -350,7 +350,7 @@ func (w *Reconciler) syncCreateTasks(
 
 	// Compute task refs first to get true completion status.
 	currentTasks := jobutil.GenerateTaskRefs(rj.Status.Tasks, tasks)
-	completion, err := parallel.GetParallelStatus(rj, currentTasks)
+	completion, err := parallel.GetParallelTaskSummary(rj, currentTasks)
 	if err != nil {
 		return rj, tasks, errors.Wrapf(err, "cannot compute completion status")
 	}
@@ -597,7 +597,7 @@ func (w *Reconciler) handlePendingTasks(
 		return rj, nil
 	}
 
-	// Before deleting, use TaskPendingTimeout in DeletedStatus.
+	// Before deleting, use TaskKilled in DeletedStatus.
 	newRj := rj.DeepCopy()
 	newRefs := make([]execution.TaskRef, 0, len(newRj.Status.Tasks))
 	for _, taskRef := range newRj.Status.Tasks {
@@ -605,7 +605,7 @@ func (w *Reconciler) handlePendingTasks(
 		if deletingNames.Has(taskRef.Name) {
 			newRef.DeletedStatus = &execution.TaskStatus{
 				State:   execution.TaskTerminated,
-				Result:  execution.TaskPendingTimeout,
+				Result:  execution.TaskKilled,
 				Reason:  "PendingTimeout",
 				Message: fmt.Sprintf("Task exceeded pending timeout of %v", pendingTimeout),
 			}

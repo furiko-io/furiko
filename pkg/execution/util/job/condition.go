@@ -85,6 +85,7 @@ func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 	if err != nil {
 		return state, errors.Wrapf(err, "cannot compute parallel status")
 	}
+	counters := parallel.GetParallelStatusCounters(parallelStatus.Indexes)
 
 	// Compute latest timestamps across all tasks.
 	var latestCreated, latestRunning, latestFinished *metav1.Time
@@ -97,7 +98,7 @@ func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 	// Job is being killed.
 	if ktime.IsTimeSetAndEarlierOrEqual(rj.Spec.KillTimestamp) {
 		// All tasks are already terminated.
-		if parallelStatus.Terminated >= numIndexes {
+		if counters.Terminated >= numIndexes {
 			finishTimestamp := rj.Spec.KillTimestamp
 			if !latestFinished.IsZero() {
 				finishTimestamp = latestFinished
@@ -112,7 +113,7 @@ func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 		}
 
 		// Otherwise, use Waiting state and show how many more tasks are not yet terminated.
-		numNotDeleted := numIndexes - parallelStatus.Terminated
+		numNotDeleted := numIndexes - counters.Terminated
 		state.Waiting = &execution.JobConditionWaiting{
 			Reason:  "DeletingTasks",
 			Message: fmt.Sprintf("Waiting for %v out of %v task(s) to be deleted", numNotDeleted, numIndexes),
@@ -123,29 +124,29 @@ func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 	// If not complete, it must be either waiting or running.
 	if !parallelStatus.Complete {
 		// Not complete and created indexes is less than expected.
-		if parallelStatus.Created < numIndexes {
+		if counters.Created < numIndexes {
 			state.Waiting = &execution.JobConditionWaiting{
 				Reason: "PendingCreation",
 				Message: fmt.Sprintf("Waiting for %v out of %v task(s) to be created",
-					numIndexes-parallelStatus.Created, len(indexes)),
+					numIndexes-counters.Created, len(indexes)),
 			}
 			return state, nil
 		}
 
 		// Some tasks are in retry backoff.
-		if parallelStatus.RetryBackoff > 0 {
+		if counters.RetryBackoff > 0 {
 			state.Waiting = &execution.JobConditionWaiting{
 				Reason:  "RetryBackoff",
-				Message: fmt.Sprintf("Waiting to retry creating %v task(s)", parallelStatus.RetryBackoff),
+				Message: fmt.Sprintf("Waiting to retry creating %v task(s)", counters.RetryBackoff),
 			}
 			return state, nil
 		}
 
 		// Not complete and running indexes is less than expected.
-		if parallelStatus.Starting > 0 {
+		if counters.Starting > 0 {
 			state.Waiting = &execution.JobConditionWaiting{
 				Reason:  "WaitingForTasks",
-				Message: fmt.Sprintf("Waiting for %v task(s) to start running", parallelStatus.Starting),
+				Message: fmt.Sprintf("Waiting for %v task(s) to start running", counters.Starting),
 			}
 			return state, nil
 		}
@@ -162,9 +163,9 @@ func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 	}
 
 	// The job is complete but currently waiting to be terminated.
-	if parallelStatus.Terminated < numIndexes {
+	if counters.Terminated < numIndexes {
 		state.Running = &execution.JobConditionRunning{
-			TerminatingTasks: numIndexes - parallelStatus.Terminated,
+			TerminatingTasks: numIndexes - counters.Terminated,
 		}
 		if !latestCreated.IsZero() {
 			state.Running.LatestCreationTimestamp = *latestCreated

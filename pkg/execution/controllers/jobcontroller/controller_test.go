@@ -125,7 +125,7 @@ var (
 		// NOTE(irvinlim): The State is not yet updated here because the Pod is not yet reconciled
 		newJob.Status.Tasks[0].DeletedStatus = &execution.TaskStatus{
 			State:   execution.TaskTerminated,
-			Result:  execution.TaskPendingTimeout,
+			Result:  execution.TaskKilled,
 			Reason:  "PendingTimeout",
 			Message: "Task exceeded pending timeout of 15m0s",
 		}
