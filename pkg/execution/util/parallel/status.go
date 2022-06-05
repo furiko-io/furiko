@@ -23,9 +23,59 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 )
 
-// GetParallelStatus returns the completion status of a Job according to a list of TaskRef.
+// GetParallelStatus returns the complete ParallelStatus for the Job.
 func GetParallelStatus(job *execution.Job, tasks []execution.TaskRef) (execution.ParallelStatus, error) {
 	var status execution.ParallelStatus
+
+	template := job.Spec.Template
+	if template == nil {
+		template = &execution.JobTemplate{}
+	}
+	spec := template.Parallelism
+	if spec == nil {
+		spec = &execution.ParallelismSpec{}
+	}
+
+	// Compute summary.
+	summary, err := GetParallelTaskSummary(job, tasks)
+	if err != nil {
+		return status, err
+	}
+	status.ParallelStatusSummary = summary
+
+	indexes := GenerateIndexes(spec)
+	hashes, _, err := HashIndexes(indexes)
+	if err != nil {
+		return status, err
+	}
+
+	// Group tasks by index.
+	taskIndexes := make(map[string][]execution.TaskRef, len(indexes))
+	for _, task := range tasks {
+		index := GetDefaultIndex()
+		if task.ParallelIndex != nil {
+			index = *task.ParallelIndex
+		}
+		hash, err := HashIndex(index)
+		if err != nil {
+			return status, errors.Wrapf(err, "cannot hash index")
+		}
+		taskIndexes[hash] = append(taskIndexes[hash], task)
+	}
+
+	// Create status for each index.
+	for i, index := range indexes {
+		tasks := taskIndexes[hashes[i]]
+		status.Indexes = append(status.Indexes, getIndexStatus(index, hashes[i], tasks, job.GetMaxAttempts()))
+	}
+
+	return status, nil
+}
+
+// GetParallelTaskSummary returns the parallel task summary status of a Job
+// according to a list of TaskRef.
+func GetParallelTaskSummary(job *execution.Job, tasks []execution.TaskRef) (execution.ParallelStatusSummary, error) {
+	var status execution.ParallelStatusSummary
 
 	template := job.Spec.Template
 	if template == nil {
@@ -58,40 +108,26 @@ func GetParallelStatus(job *execution.Job, tasks []execution.TaskRef) (execution
 	}
 
 	// Count number of indexes in each state.
+	indexStatuses := make([]execution.ParallelIndexStatus, 0, len(indexes))
 	for i := range indexes {
-		index := getIndexStatus(tasksByParallelIndex[hashes[i]], job.GetMaxAttempts())
-		if index.created {
-			status.Created++
-		}
-		if index.starting {
-			status.Starting++
-		}
-		if index.running {
-			status.Running++
-		}
-		if index.backoff {
-			status.RetryBackoff++
-		}
-		if index.terminated {
-			status.Terminated++
-		}
-		if index.succeeded {
-			status.Succeeded++
-		}
-		if index.failed {
-			status.Failed++
-		}
+		indexStatuses = append(indexStatuses, getIndexStatus(
+			indexes[i],
+			hashes[i],
+			tasksByParallelIndex[hashes[i]],
+			job.GetMaxAttempts(),
+		))
 	}
+	counters := GetParallelStatusCounters(indexStatuses)
 
 	// Compute final success state.
 	var successful, failed bool
 	switch spec.GetCompletionStrategy() {
 	case execution.AllSuccessful:
-		successful = status.Succeeded >= int64(len(indexes))
-		failed = status.Failed > 0
+		successful = counters.Succeeded >= int64(len(indexes))
+		failed = counters.Failed > 0
 	case execution.AnySuccessful:
-		successful = status.Succeeded > 0
-		failed = status.Failed >= int64(len(indexes))
+		successful = counters.Succeeded > 0
+		failed = counters.Failed >= int64(len(indexes))
 	}
 
 	// Compute final successful state.
@@ -103,19 +139,53 @@ func GetParallelStatus(job *execution.Job, tasks []execution.TaskRef) (execution
 	return status, nil
 }
 
-type indexStatus struct {
-	created    bool
-	backoff    bool
-	starting   bool
-	running    bool
-	terminated bool
-	succeeded  bool
-	failed     bool
+// GetParallelStatusCounters returns the parallel task summary status of a Job
+// according to a list of TaskRef.
+func GetParallelStatusCounters(indexes []execution.ParallelIndexStatus) execution.ParallelStatusCounters {
+	var status execution.ParallelStatusCounters
+	for _, index := range indexes {
+		switch index.State {
+		case execution.IndexNotCreated:
+			status.Terminated++
+		case execution.IndexRetryBackoff:
+			status.Created++
+			status.RetryBackoff++
+			status.Terminated++ // Technically all tasks are terminated
+		case execution.IndexStarting:
+			status.Created++
+			status.Starting++
+		case execution.IndexRunning:
+			status.Created++
+			status.Running++
+		case execution.IndexTerminated:
+			status.Created++
+			status.Terminated++
+		}
+
+		switch index.Result {
+		case execution.TaskSucceeded:
+			status.Succeeded++
+		case execution.TaskFailed:
+			status.Failed++
+		}
+	}
+	return status
 }
 
-func getIndexStatus(tasks []execution.TaskRef, maxAttempts int64) indexStatus {
-	var status indexStatus
+func getIndexStatus(
+	index execution.ParallelIndex,
+	hash string,
+	tasks []execution.TaskRef,
+	maxAttempts int64,
+) execution.ParallelIndexStatus {
 	var numStarting, numRunning, numTerminal int64
+	var succeeded, failed bool
+
+	status := execution.ParallelIndexStatus{
+		Index:        index,
+		Hash:         hash,
+		CreatedTasks: int64(len(tasks)),
+	}
 
 	for _, task := range tasks {
 		// Count the number of tasks in each state, at most one can be true.
@@ -128,35 +198,37 @@ func getIndexStatus(tasks []execution.TaskRef, maxAttempts int64) indexStatus {
 			numStarting++
 		}
 
+		// At least one of the tasks succeeded.
 		if task.Status.Result == execution.TaskSucceeded {
-			status.succeeded = true
+			succeeded = true
 		}
 	}
-	if !status.succeeded && numTerminal >= maxAttempts {
-		status.failed = true
+
+	// Max attempts has been exceeded.
+	if !succeeded && numTerminal >= maxAttempts {
+		failed = true
 	}
 
-	// Track if there is at least one created task for this index.
-	if len(tasks) > 0 {
-		status.created = true
+	// Check the current state based on the aggregated sums.
+	switch {
+	case len(tasks) == 0:
+		status.State = execution.IndexNotCreated
+	case numTerminal == int64(len(tasks)) && !succeeded && !failed:
+		status.State = execution.IndexRetryBackoff
+	case numTerminal == int64(len(tasks)):
+		status.State = execution.IndexTerminated
+	case numRunning > 0:
+		status.State = execution.IndexRunning
+	case numStarting > 0:
+		status.State = execution.IndexStarting
 	}
 
-	// Track if all tasks that were created are terminated, including when no tasks
-	// are created.
-	if numTerminal == int64(len(tasks)) {
-		status.terminated = true
-	}
-
-	// Track statuses.
-	if !status.succeeded && !status.failed {
-		switch {
-		case numRunning > 0:
-			status.running = true
-		case numStarting > 0:
-			status.starting = true
-		case len(tasks) > 0:
-			status.backoff = true
-		}
+	// Check the result if it is completed.
+	switch {
+	case succeeded:
+		status.Result = execution.TaskSucceeded
+	case failed:
+		status.Result = execution.TaskFailed
 	}
 
 	return status

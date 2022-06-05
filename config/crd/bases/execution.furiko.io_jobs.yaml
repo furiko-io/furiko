@@ -236,46 +236,54 @@ spec:
                     complete:
                       description: If true, the job is complete and currently in the process of waiting for all remaining tasks to be terminated.
                       type: boolean
-                    created:
-                      description: Total number of task parallel indexes that have created tasks.
-                      format: int64
-                      type: integer
-                    failed:
-                      description: Total number of task parallel indexes that failed (including all retries).
-                      format: int64
-                      type: integer
-                    retryBackoff:
-                      description: Total number of task parallel indexes that are currently in retry backoff.
-                      format: int64
-                      type: integer
-                    running:
-                      description: Total number of task parallel indexes that are currently running.
-                      format: int64
-                      type: integer
-                    starting:
-                      description: Total number of task parallel indexes that are currently starting.
-                      format: int64
-                      type: integer
-                    succeeded:
-                      description: Total number of task parallel indexes that are successful.
-                      format: int64
-                      type: integer
+                    indexes:
+                      description: The status for each parallel index. The size of the list should be exactly equal to the total parallelism factor, even if no tasks are created yet.
+                      items:
+                        description: ParallelIndexStatus stores the status for a single ParallelIndex in the Job. There should be at most one task running at a time for a single parallel index in the Job.
+                        properties:
+                          createdTasks:
+                            description: Total number of tasks created for this parallel index.
+                            format: int64
+                            type: integer
+                          hash:
+                            description: Hash of the index.
+                            type: string
+                          index:
+                            description: The parallel index.
+                            properties:
+                              indexKey:
+                                description: If withKeys is used for parallelism, contains the index key of the job as a string.
+                                type: string
+                              indexNumber:
+                                description: If withCount is used for parallelism, contains the index number of the job numbered from 0 to N-1.
+                                format: int64
+                                type: integer
+                              matrixValues:
+                                additionalProperties:
+                                  type: string
+                                description: If withMatrix is used for parallelism, contains key-value pairs of the job as strings.
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            type: object
+                          result:
+                            description: Result of executing tasks for this parallel index if it is already terminated.
+                            type: string
+                          state:
+                            description: Overall state of the parallel index.
+                            type: string
+                        required:
+                          - createdTasks
+                          - hash
+                          - index
+                          - state
+                        type: object
+                      type: array
                     successful:
                       description: If complete, contains whether the job is successful according to the ParallelCompletionStrategy.
                       type: boolean
-                    terminated:
-                      description: Total number of task parallel indexes where all tasks are completely terminated, including when no tasks are created.
-                      format: int64
-                      type: integer
                   required:
                     - complete
-                    - created
-                    - failed
-                    - retryBackoff
-                    - running
-                    - starting
-                    - succeeded
-                    - terminated
+                    - indexes
                   type: object
                 phase:
                   description: Phase stores the high-level description of a Job's state.

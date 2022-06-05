@@ -19,6 +19,8 @@ package job_test
 import (
 	"testing"
 
+	"k8s.io/utils/pointer"
+
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/util/job"
 )
@@ -293,6 +295,264 @@ func TestGetPhase(t *testing.T) {
 				},
 			},
 			want: execution.JobKilled,
+		},
+		{
+			name: "Parallel Pending",
+			rj: &execution.Job{
+				Status: execution.JobStatus{
+					StartTime: &startTime,
+					Condition: execution.JobCondition{
+						Waiting: &execution.JobConditionWaiting{
+							Reason:  "WaitingForTasks",
+							Message: "Waiting for 2 out of 2 task(s) to start running",
+						},
+					},
+					CreatedTasks: 2,
+					ParallelStatus: &execution.ParallelStatus{
+						Indexes: []execution.ParallelIndexStatus{
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(0),
+								},
+								CreatedTasks: 1,
+								State:        execution.IndexStarting,
+							},
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(1),
+								},
+								CreatedTasks: 1,
+								State:        execution.IndexStarting,
+							},
+						},
+					},
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+						},
+						{
+							Name:              "task2",
+							CreationTimestamp: createTime,
+						},
+					},
+				},
+			},
+			want: execution.JobPending,
+		},
+		{
+			name: "Parallel Running",
+			rj: &execution.Job{
+				Status: execution.JobStatus{
+					StartTime: &startTime,
+					Condition: execution.JobCondition{
+						Running: &execution.JobConditionRunning{
+							LatestCreationTimestamp: createTime,
+							LatestRunningTimestamp:  startTime,
+						},
+					},
+					CreatedTasks: 2,
+					ParallelStatus: &execution.ParallelStatus{
+						Indexes: []execution.ParallelIndexStatus{
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(0),
+								},
+								CreatedTasks: 1,
+								State:        execution.IndexRunning,
+							},
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(1),
+								},
+								CreatedTasks: 1,
+								State:        execution.IndexRunning,
+							},
+						},
+					},
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+						},
+						{
+							Name:              "task2",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+						},
+					},
+				},
+			},
+			want: execution.JobRunning,
+		},
+		{
+			name: "Parallel RetryBackoff",
+			rj: &execution.Job{
+				Status: execution.JobStatus{
+					StartTime: &startTime,
+					Condition: execution.JobCondition{
+						Waiting: &execution.JobConditionWaiting{
+							Reason:  "RetryBackoff",
+							Message: "Waiting to retry creating 1 task(s)",
+						},
+					},
+					CreatedTasks: 2,
+					ParallelStatus: &execution.ParallelStatus{
+						Indexes: []execution.ParallelIndexStatus{
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(0),
+								},
+								CreatedTasks: 1,
+								State:        execution.IndexRetryBackoff,
+							},
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(1),
+								},
+								CreatedTasks: 1,
+								State:        execution.IndexRunning,
+							},
+						},
+					},
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskFailed,
+							},
+						},
+						{
+							Name:              "task2",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+						},
+					},
+				},
+			},
+			want: execution.JobRetryBackoff,
+		},
+		{
+			name: "Parallel Retrying",
+			rj: &execution.Job{
+				Status: execution.JobStatus{
+					StartTime: &startTime,
+					Condition: execution.JobCondition{
+						Waiting: &execution.JobConditionWaiting{
+							Reason:  "WaitingForTasks",
+							Message: "Waiting for 1 out of 2 task(s) to start running",
+						},
+					},
+					CreatedTasks: 2,
+					ParallelStatus: &execution.ParallelStatus{
+						Indexes: []execution.ParallelIndexStatus{
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(0),
+								},
+								CreatedTasks: 2,
+								State:        execution.IndexStarting,
+							},
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(1),
+								},
+								CreatedTasks: 1,
+								State:        execution.IndexRunning,
+							},
+						},
+					},
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskFailed,
+							},
+						},
+						{
+							Name:              "task2",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+						},
+						{
+							Name:              "task12",
+							CreationTimestamp: createTime,
+						},
+					},
+				},
+			},
+			want: execution.JobRetrying,
+		},
+		{
+			name: "Parallel Terminating",
+			rj: &execution.Job{
+				Status: execution.JobStatus{
+					StartTime: &startTime,
+					Condition: execution.JobCondition{
+						Running: &execution.JobConditionRunning{
+							LatestCreationTimestamp: createTime,
+							LatestRunningTimestamp:  startTime,
+							TerminatingTasks:        1,
+						},
+					},
+					CreatedTasks: 2,
+					ParallelStatus: &execution.ParallelStatus{
+						Indexes: []execution.ParallelIndexStatus{
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(0),
+								},
+								CreatedTasks: 2,
+								State:        execution.IndexStarting,
+							},
+							{
+								Index: execution.ParallelIndex{
+									IndexNumber: pointer.Int64(1),
+								},
+								CreatedTasks: 1,
+								State:        execution.IndexTerminated,
+								Result:       execution.TaskSucceeded,
+							},
+						},
+					},
+					Tasks: []execution.TaskRef{
+						{
+							Name:              "task1",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskFailed,
+							},
+						},
+						{
+							Name:              "task2",
+							CreationTimestamp: createTime,
+							RunningTimestamp:  &startTime,
+							FinishTimestamp:   &finishTime,
+							Status: execution.TaskStatus{
+								State:  execution.TaskTerminated,
+								Result: execution.TaskSucceeded,
+							},
+						},
+						{
+							Name:              "task12",
+							CreationTimestamp: createTime,
+						},
+					},
+				},
+			},
+			want: execution.JobTerminating,
 		},
 	}
 	for _, tt := range tests {

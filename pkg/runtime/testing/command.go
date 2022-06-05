@@ -95,6 +95,9 @@ type Output struct {
 
 	// If specified, expects the output to match the specified regexp.
 	Matches *regexp.Regexp
+
+	// If specified, expects the output to match all of the given regular expressions.
+	MatchesAll []*regexp.Regexp
 }
 
 func (c *CommandTest) Run(t *testing.T) {
@@ -189,6 +192,14 @@ func (c *CommandTest) checkOutput(t *testing.T, name, s string, output Output) {
 	if output.Matches != nil {
 		if !output.Matches.MatchString(s) {
 			t.Errorf(`Output in %v did not match regex "%v", got: %v`, name, output.Matches, s)
+		}
+	}
+
+	if len(output.MatchesAll) > 0 {
+		for _, regex := range output.MatchesAll {
+			if !regex.MatchString(s) {
+				t.Errorf(`Output in %v did not match regex "%v", got: %v`, name, regex, s)
+			}
 		}
 	}
 }

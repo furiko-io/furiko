@@ -345,7 +345,7 @@ const (
 
 	// JobTerminating means that the job is completed, but not all tasks are
 	// terminated yet.
-	JobTerminating JobPhase = "Running"
+	JobTerminating JobPhase = "Terminating"
 
 	// JobRetryBackoff means that the job is backing off the next retry due to a
 	// failed task. The job is currently waiting for its retry delay before creating
@@ -646,10 +646,6 @@ const (
 	// application-level error.
 	TaskFailed TaskResult = "Failed"
 
-	// TaskPendingTimeout means that the task had failed to start within the
-	// specified pending timeout.
-	TaskPendingTimeout TaskResult = "PendingTimeout"
-
 	// TaskKilled means that the task is killed externally and now terminated.
 	TaskKilled TaskResult = "Killed"
 )
@@ -700,6 +696,55 @@ type ParallelIndex struct {
 
 // ParallelStatus stores the status of parallel indexes for a Job.
 type ParallelStatus struct {
+	ParallelStatusSummary `json:",inline"`
+
+	// The status for each parallel index. The size of the list should be exactly
+	// equal to the total parallelism factor, even if no tasks are created yet.
+	Indexes []ParallelIndexStatus `json:"indexes"`
+}
+
+// ParallelIndexStatus stores the status for a single ParallelIndex in the Job.
+// There should be at most one task running at a time for a single parallel
+// index in the Job.
+type ParallelIndexStatus struct {
+	// The parallel index.
+	Index ParallelIndex `json:"index"`
+
+	// Hash of the index.
+	Hash string `json:"hash"`
+
+	// Total number of tasks created for this parallel index.
+	CreatedTasks int64 `json:"createdTasks"`
+
+	// Overall state of the parallel index.
+	State IndexState `json:"state"`
+
+	// Result of executing tasks for this parallel index if it is already terminated.
+	// +optional
+	Result TaskResult `json:"result,omitempty"`
+}
+
+type IndexState string
+
+const (
+	// IndexNotCreated means that no tasks have been created for the index.
+	IndexNotCreated IndexState = "NotCreated"
+
+	// IndexRetryBackoff means that the index is currently in retry backoff.
+	IndexRetryBackoff IndexState = "RetryBackoff"
+
+	// IndexStarting means that the current task in the index has not yet started running.
+	IndexStarting IndexState = "Starting"
+
+	// IndexRunning means that the current task in the index is currently running.
+	IndexRunning IndexState = "Running"
+
+	// IndexTerminated means that all tasks in the index is terminated.
+	IndexTerminated IndexState = "Terminated"
+)
+
+// ParallelStatusSummary stores the summary status of parallel indexes for a Job.
+type ParallelStatusSummary struct {
 	// If true, the job is complete and currently in the process of waiting for all
 	// remaining tasks to be terminated.
 	Complete bool `json:"complete"`
@@ -709,7 +754,10 @@ type ParallelStatus struct {
 	//
 	// +optional
 	Successful *bool `json:"successful,omitempty"`
+}
 
+// ParallelStatusCounters stores counts of parallel indexes for a Job.
+type ParallelStatusCounters struct {
 	// Total number of task parallel indexes that have created tasks.
 	Created int64 `json:"created"`
 
