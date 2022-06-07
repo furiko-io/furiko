@@ -308,6 +308,32 @@ func TestValidateJobConfig(t *testing.T) {
 			wantErr: "spec.concurrency.policy: Unsupported value: \"invalid\"",
 		},
 		{
+			name: "invalid concurrency.maxConcurrency",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Template: jobTemplateSpecBasic,
+					Concurrency: v1alpha1.ConcurrencySpec{
+						Policy:         v1alpha1.ConcurrencyPolicyForbid,
+						MaxConcurrency: pointer.Int64(0),
+					},
+				},
+			},
+			wantErr: "spec.concurrency.maxConcurrency: Invalid value: 0",
+		},
+		{
+			name: "cannot use concurrency.maxConcurrency with Allow",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Template: jobTemplateSpecBasic,
+					Concurrency: v1alpha1.ConcurrencySpec{
+						Policy:         v1alpha1.ConcurrencyPolicyAllow,
+						MaxConcurrency: pointer.Int64(3),
+					},
+				},
+			},
+			wantErr: "spec.concurrency.maxConcurrency: Forbidden: cannot specify maxConcurrency with Allow",
+		},
+		{
 			name: "schedule without any schedule types",
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{

@@ -209,6 +209,13 @@ func (v *Validator) ValidateJobTemplate(spec *v1alpha1.JobTemplateSpec, fldPath 
 func (v *Validator) ValidateConcurrencySpec(spec v1alpha1.ConcurrencySpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, v.ValidateConcurrencyPolicy(spec.Policy, fldPath.Child("policy"))...)
+	if spec.MaxConcurrency != nil {
+		fldPath := fldPath.Child("maxConcurrency")
+		allErrs = append(allErrs, validation.ValidateGT(*spec.MaxConcurrency, 0, fldPath)...)
+		if spec.Policy == v1alpha1.ConcurrencyPolicyAllow {
+			allErrs = append(allErrs, field.Forbidden(fldPath, "cannot specify maxConcurrency with Allow"))
+		}
+	}
 	return allErrs
 }
 

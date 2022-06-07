@@ -111,12 +111,14 @@ func NewController(
 		terminate: cancel,
 	}
 
+	jobControl := NewJobControl(ctrlContext.Clientsets().Furiko().ExecutionV1alpha1(), ctrl.Context.recorder)
+
 	// Create multiple reconcilers. For Jobs that are not owned by a JobConfig, we
 	// will simply start them as soon as they are created. Otherwise, we will
 	// sequentially process Jobs on a per-JobConfig basis in each Reconciler
 	// goroutine.
-	perConfigReconciler := NewPerConfigReconciler(ctrl.Context, concurrency)
-	independentReconciler := NewIndependentReconciler(ctrl.Context, concurrency)
+	perConfigReconciler := NewPerConfigReconciler(ctrl.Context, concurrency, jobControl)
+	independentReconciler := NewIndependentReconciler(ctrl.Context, concurrency, jobControl)
 
 	ctrl.informerWorker = NewInformerWorker(ctrl.Context)
 	ctrl.perConfigReconciler = reconciler.NewController(perConfigReconciler, ctrl.jobConfigQueue)

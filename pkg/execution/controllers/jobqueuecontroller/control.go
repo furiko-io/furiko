@@ -47,15 +47,10 @@ type JobControl struct {
 
 var _ JobControlInterface = (*JobControl)(nil)
 
-func NewJobControl(
-	client executionv1alpha1.ExecutionV1alpha1Interface,
-	recorder record.EventRecorder,
-	name string,
-) *JobControl {
+func NewJobControl(client executionv1alpha1.ExecutionV1alpha1Interface, recorder record.EventRecorder) *JobControl {
 	return &JobControl{
 		client:   client,
 		recorder: recorder,
-		name:     name,
 	}
 }
 
@@ -69,7 +64,7 @@ func (c *JobControl) StartJob(ctx context.Context, rj *execution.Job) error {
 	}
 
 	klog.V(3).InfoS("jobqueuecontroller: started job", logvalues.
-		Values("worker", c.name, "namespace", updatedRj.GetNamespace(), "name", updatedRj.GetName()).
+		Values("namespace", updatedRj.GetNamespace(), "name", updatedRj.GetName()).
 		Level(4, "job", updatedRj).
 		Build()...,
 	)
@@ -88,7 +83,7 @@ func (c *JobControl) RejectJob(ctx context.Context, rj *execution.Job, msg strin
 	}
 
 	klog.V(3).InfoS("jobqueuecontroller: rejected job", logvalues.
-		Values("worker", c.name, "namespace", updatedRj.GetNamespace(), "name", updatedRj.GetName()).
+		Values("namespace", updatedRj.GetNamespace(), "name", updatedRj.GetName()).
 		Level(4, "job", updatedRj).
 		Build()...,
 	)

@@ -37,6 +37,7 @@ func TestIndependentReconciler(t *testing.T) {
 			return jobqueuecontroller.NewIndependentReconciler(
 				c.(*jobqueuecontroller.Context),
 				runtimetesting.ReconcilerDefaultConcurrency,
+				newMockJobControl(c.Clientsets().Furiko().ExecutionV1alpha1()),
 			)
 		},
 		Now: testutils.Mktime(now),
