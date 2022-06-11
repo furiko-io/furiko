@@ -109,16 +109,17 @@ func (w *Reconciler) processCronForConfig(ctx context.Context, namespace, name s
 
 	// Check concurrency policy.
 	concurrencyPolicy := jobConfig.Spec.Concurrency.Policy
+	maxConcurrency := jobConfig.Spec.Concurrency.GetMaxConcurrency()
 
 	// Handle Forbid concurrency policy.
-	if concurrencyPolicy == execution.ConcurrencyPolicyForbid && activeJobCount > 0 {
+	if concurrencyPolicy == execution.ConcurrencyPolicyForbid && activeJobCount+1 > maxConcurrency {
 		w.recorder.SkippedJobSchedule(ctx, jobConfig, scheduleTime,
 			"Skipped creating job due to concurrency policy Forbid")
 		return nil
 	}
 
 	// Cannot enqueue beyond max queue length.
-	// TODO(irvinlim): We use the status here, which may not be fully up-to-date.
+	// NOTE(irvinlim): We use the status here, which may not be fully up-to-date.
 	if max := cfg.MaxEnqueuedJobs; max != nil && jobConfig.Status.Queued >= *max {
 		w.recorder.SkippedJobSchedule(ctx, jobConfig, scheduleTime,
 			fmt.Sprintf("Skipped creating job, cannot exceed maximum queue length of %v", *max))

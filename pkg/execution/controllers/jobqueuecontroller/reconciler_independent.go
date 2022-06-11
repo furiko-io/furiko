@@ -42,17 +42,16 @@ type IndependentReconciler struct {
 	client      JobControlInterface
 }
 
-func NewIndependentReconciler(ctrlContext *Context, concurrency *configv1alpha1.Concurrency) *IndependentReconciler {
-	reconciler := &IndependentReconciler{
+func NewIndependentReconciler(
+	ctrlContext *Context,
+	concurrency *configv1alpha1.Concurrency,
+	client JobControlInterface,
+) *IndependentReconciler {
+	return &IndependentReconciler{
 		Context:     ctrlContext,
 		concurrency: concurrency,
+		client:      client,
 	}
-	reconciler.client = NewJobControl(
-		ctrlContext.Clientsets().Furiko().ExecutionV1alpha1(),
-		ctrlContext.recorder,
-		reconciler.Name(),
-	)
-	return reconciler
 }
 
 func (r *IndependentReconciler) Name() string {

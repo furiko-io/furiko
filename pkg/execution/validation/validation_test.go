@@ -308,6 +308,32 @@ func TestValidateJobConfig(t *testing.T) {
 			wantErr: "spec.concurrency.policy: Unsupported value: \"invalid\"",
 		},
 		{
+			name: "invalid concurrency.maxConcurrency",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Template: jobTemplateSpecBasic,
+					Concurrency: v1alpha1.ConcurrencySpec{
+						Policy:         v1alpha1.ConcurrencyPolicyForbid,
+						MaxConcurrency: pointer.Int64(0),
+					},
+				},
+			},
+			wantErr: "spec.concurrency.maxConcurrency: Invalid value: 0",
+		},
+		{
+			name: "cannot use concurrency.maxConcurrency with Allow",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Template: jobTemplateSpecBasic,
+					Concurrency: v1alpha1.ConcurrencySpec{
+						Policy:         v1alpha1.ConcurrencyPolicyAllow,
+						MaxConcurrency: pointer.Int64(3),
+					},
+				},
+			},
+			wantErr: "spec.concurrency.maxConcurrency: Forbidden: cannot specify maxConcurrency with Allow",
+		},
+		{
 			name: "schedule without any schedule types",
 			rjc: &v1alpha1.JobConfig{
 				Spec: v1alpha1.JobConfigSpec{
@@ -1205,7 +1231,7 @@ func TestValidateJobCreate(t *testing.T) {
 					},
 				},
 			},
-			wantErr: "spec.startPolicy.concurrencyPolicy: Forbidden: cannot create new Job for JobConfig jobconfig-sample, concurrencyPolicy is Forbid but there are 5 active jobs",
+			wantErr: "spec.startPolicy.concurrencyPolicy: Forbidden: jobconfig-sample currently has 5 active job(s), but concurrency policy forbids exceeding maximum concurrency of 1",
 		},
 		{
 			name: "can create Job with startPolicy.concurrencyPolicy Forbid with no Active",
@@ -1254,6 +1280,61 @@ func TestValidateJobCreate(t *testing.T) {
 				},
 			},
 			wantErr: "spec.startPolicy: Forbidden: cannot create new Job for JobConfig jobconfig-sample, which would exceed maximum queue length of 5",
+		},
+		{
+			name: "can create Job with concurrencyPolicy Forbid with Active and maxConcurrency",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJobWithAllReferences,
+				Spec: v1alpha1.JobSpec{
+					Type:     v1alpha1.JobTypeAdhoc,
+					Template: &jobTemplateSpecBasic.Spec,
+					StartPolicy: &v1alpha1.StartPolicySpec{
+						ConcurrencyPolicy: v1alpha1.ConcurrencyPolicyForbid,
+					},
+				},
+			},
+			rjcs: []*v1alpha1.JobConfig{
+				{
+					ObjectMeta: objectMetaJobConfig,
+					Spec: v1alpha1.JobConfigSpec{
+						Concurrency: v1alpha1.ConcurrencySpec{
+							Policy:         v1alpha1.ConcurrencyPolicyForbid,
+							MaxConcurrency: pointer.Int64(3),
+						},
+					},
+					Status: v1alpha1.JobConfigStatus{
+						Active: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "cannot create Job with concurrencyPolicy Forbid with Active and exceed maxConcurrency",
+			rj: &v1alpha1.Job{
+				ObjectMeta: objectMetaJobWithAllReferences,
+				Spec: v1alpha1.JobSpec{
+					Type:     v1alpha1.JobTypeAdhoc,
+					Template: &jobTemplateSpecBasic.Spec,
+					StartPolicy: &v1alpha1.StartPolicySpec{
+						ConcurrencyPolicy: v1alpha1.ConcurrencyPolicyForbid,
+					},
+				},
+			},
+			rjcs: []*v1alpha1.JobConfig{
+				{
+					ObjectMeta: objectMetaJobConfig,
+					Spec: v1alpha1.JobConfigSpec{
+						Concurrency: v1alpha1.ConcurrencySpec{
+							Policy:         v1alpha1.ConcurrencyPolicyForbid,
+							MaxConcurrency: pointer.Int64(3),
+						},
+					},
+					Status: v1alpha1.JobConfigStatus{
+						Active: 3,
+					},
+				},
+			},
+			wantErr: "spec.startPolicy.concurrencyPolicy: Forbidden: jobconfig-sample currently has 3 active job(s), but concurrency policy forbids exceeding maximum concurrency of 3",
 		},
 	}
 	for _, tt := range tests {

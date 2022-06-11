@@ -52,6 +52,14 @@ var (
 		},
 	})
 
+	jobConfigForbidMax2 = makeJobConfig("job-config-forbid-max-2", execution.JobConfigSpec{
+		Schedule: scheduleSpecEvery5Min,
+		Concurrency: execution.ConcurrencySpec{
+			Policy:         execution.ConcurrencyPolicyForbid,
+			MaxConcurrency: pointer.Int64(2),
+		},
+	})
+
 	jobConfigAllow = makeJobConfig("job-config-allow", execution.JobConfigSpec{
 		Schedule: scheduleSpecEvery5Min,
 		Concurrency: execution.ConcurrencySpec{
@@ -188,6 +196,34 @@ func TestReconciler(t *testing.T) {
 				name:      croncontroller.JoinJobConfigKeyName(jobConfigForbid.Name, testutils.Mktime(scheduleTime)),
 			},
 			wantNumCreated: 1,
+		},
+		{
+			name: "can create job for Forbid with 1 active and MaxConcurrency set to 2",
+			initialJobConfigs: []*execution.JobConfig{
+				jobConfigForbidMax2,
+			},
+			initialCounts: map[*execution.JobConfig]int64{
+				jobConfigForbidMax2: 1,
+			},
+			syncTarget: syncTarget{
+				namespace: jobConfigForbidMax2.Namespace,
+				name:      croncontroller.JoinJobConfigKeyName(jobConfigForbidMax2.Name, testutils.Mktime(scheduleTime)),
+			},
+			wantNumCreated: 1,
+		},
+		{
+			name: "skip create job for Forbid with 2 active and MaxConcurrency set to 2",
+			initialJobConfigs: []*execution.JobConfig{
+				jobConfigForbidMax2,
+			},
+			initialCounts: map[*execution.JobConfig]int64{
+				jobConfigForbidMax2: 2,
+			},
+			syncTarget: syncTarget{
+				namespace: jobConfigForbidMax2.Namespace,
+				name:      croncontroller.JoinJobConfigKeyName(jobConfigForbidMax2.Name, testutils.Mktime(scheduleTime)),
+			},
+			wantSkipped: 1,
 		},
 		{
 			name: "cannot create more than maxEnqueuedJobs",

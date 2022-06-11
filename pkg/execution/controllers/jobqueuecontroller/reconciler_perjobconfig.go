@@ -48,17 +48,16 @@ type PerConfigReconciler struct {
 	client      JobControlInterface
 }
 
-func NewPerConfigReconciler(ctrlContext *Context, concurrency *configv1alpha1.Concurrency) *PerConfigReconciler {
-	reconciler := &PerConfigReconciler{
+func NewPerConfigReconciler(
+	ctrlContext *Context,
+	concurrency *configv1alpha1.Concurrency,
+	client JobControlInterface,
+) *PerConfigReconciler {
+	return &PerConfigReconciler{
 		Context:     ctrlContext,
 		concurrency: concurrency,
+		client:      client,
 	}
-	reconciler.client = NewJobControl(
-		ctrlContext.Clientsets().Furiko().ExecutionV1alpha1(),
-		ctrlContext.recorder,
-		reconciler.Name(),
-	)
-	return reconciler
 }
 
 func (w *PerConfigReconciler) Name() string {
@@ -175,8 +174,10 @@ func (w *PerConfigReconciler) canStartJob(
 			return false, nil
 		}
 
-		// There are concurrent jobs and we should immediately reject the job.
-		if spec.ConcurrencyPolicy == execution.ConcurrencyPolicyForbid && activeCount > 0 {
+		maxConcurrency := rjc.Spec.Concurrency.GetMaxConcurrency()
+
+		// If it exceeds the max concurrency, Forbid will immediately reject the job.
+		if spec.ConcurrencyPolicy == execution.ConcurrencyPolicyForbid && activeCount+1 > maxConcurrency {
 			msg := fmt.Sprintf("Cannot start new Job, %v has %v active Jobs but concurrency policy is %v",
 				rjc.Name, activeCount, spec.ConcurrencyPolicy)
 			if err := w.client.RejectJob(ctx, rj, msg); err != nil {
@@ -193,8 +194,8 @@ func (w *PerConfigReconciler) canStartJob(
 			return false, nil
 		}
 
-		// There are concurrent jobs and we should wait.
-		if spec.ConcurrencyPolicy == execution.ConcurrencyPolicyEnqueue && activeCount > 0 {
+		// If it exceeds the max concurrency, Enqueue will wait.
+		if spec.ConcurrencyPolicy == execution.ConcurrencyPolicyEnqueue && activeCount+1 > maxConcurrency {
 			return false, nil
 		}
 	}

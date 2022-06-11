@@ -135,15 +135,17 @@ func (v *Validator) validateJobCreateWithJobConfig(
 ) field.ErrorList {
 	allErrs := field.ErrorList{}
 
+	maxConcurrency := rjc.Spec.Concurrency.GetMaxConcurrency()
+
 	// Reject Job if ConcurrencyPolicyForbid and JobConfig has active Jobs.
 	if spec := rj.Spec.StartPolicy; spec != nil && rjc != nil &&
 		spec.ConcurrencyPolicy == v1alpha1.ConcurrencyPolicyForbid &&
-		rjc.Status.Active > 0 {
+		rjc.Status.Active+1 > maxConcurrency {
 		allErrs = append(allErrs, field.Forbidden(
 			field.NewPath("spec.startPolicy.concurrencyPolicy"),
 			fmt.Sprintf(
-				"cannot create new Job for JobConfig %v, concurrencyPolicy is Forbid but there are %v active jobs",
-				rjc.Name, rjc.Status.Active,
+				"%v currently has %v active job(s), but concurrency policy forbids exceeding maximum concurrency of %v",
+				rjc.Name, rjc.Status.Active, maxConcurrency,
 			),
 		))
 	}
@@ -209,6 +211,13 @@ func (v *Validator) ValidateJobTemplate(spec *v1alpha1.JobTemplateSpec, fldPath 
 func (v *Validator) ValidateConcurrencySpec(spec v1alpha1.ConcurrencySpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, v.ValidateConcurrencyPolicy(spec.Policy, fldPath.Child("policy"))...)
+	if spec.MaxConcurrency != nil {
+		fldPath := fldPath.Child("maxConcurrency")
+		allErrs = append(allErrs, validation.ValidateGT(*spec.MaxConcurrency, 0, fldPath)...)
+		if spec.Policy == v1alpha1.ConcurrencyPolicyAllow {
+			allErrs = append(allErrs, field.Forbidden(fldPath, "cannot specify maxConcurrency with Allow"))
+		}
+	}
 	return allErrs
 }
 

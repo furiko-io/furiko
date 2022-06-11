@@ -49,6 +49,22 @@ type JobConfigSpec struct {
 type ConcurrencySpec struct {
 	// Policy describes how to treat concurrent executions of the same JobConfig.
 	Policy ConcurrencyPolicy `json:"policy"`
+
+	// Maximum number of Jobs that can be running concurrently for the same
+	// JobConfig. Cannot be specified if Policy is set to Allow.
+	//
+	// Defaults to 1.
+	//
+	// +optional
+	MaxConcurrency *int64 `json:"maxConcurrency,omitempty"`
+}
+
+// GetMaxConcurrency returns the MaxConcurrency value if specified, otherwise defaults to 1.
+func (c ConcurrencySpec) GetMaxConcurrency() int64 {
+	if c.MaxConcurrency != nil {
+		return *c.MaxConcurrency
+	}
+	return 1
 }
 
 // ScheduleSpec defines how a JobConfig should be automatically scheduled.

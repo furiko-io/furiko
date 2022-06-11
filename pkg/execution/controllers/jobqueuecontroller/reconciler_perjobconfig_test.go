@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 
+	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobqueuecontroller"
 	"github.com/furiko-io/furiko/pkg/execution/stores/activejobstore"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -40,6 +41,7 @@ func TestPerJobConfigReconciler(t *testing.T) {
 			return jobqueuecontroller.NewPerConfigReconciler(
 				c.(*jobqueuecontroller.Context),
 				runtimetesting.ReconcilerDefaultConcurrency,
+				newMockJobControl(c.Clientsets().Furiko().ExecutionV1alpha1()),
 			)
 		},
 		Now: testutils.Mktime(now),
@@ -108,6 +110,88 @@ func TestPerJobConfigReconciler(t *testing.T) {
 					Actions: []runtimetesting.Action{
 						runtimetesting.NewUpdateJobStatusAction(jobNamespace,
 							startJob(jobForConfig1WithStartAfter, testutils.Mkmtimep(startAfter))),
+					},
+				},
+			},
+		},
+		{
+			Name: "reject second job with Forbid",
+			Fixtures: []runtime.Object{
+				jobForForbid1,
+				jobForForbid2,
+			},
+			Target: jobConfigForbid,
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, startJob(jobForForbid1, timeNow)),
+						runtimetesting.NewUpdateJobAction(jobNamespace, rejectJob(jobForForbid2)),
+					},
+				},
+			},
+		},
+		{
+			Name: "wait for second job with Enqueue",
+			Fixtures: []runtime.Object{
+				jobForForbid1,
+				makeJob("job2", 1, jobConfigForbid, execution.ConcurrencyPolicyEnqueue, nil),
+			},
+			Target: jobConfigForbid,
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, startJob(jobForForbid1, timeNow)),
+					},
+				},
+			},
+		},
+		{
+			Name: "will skip first job with StartAfter",
+			Fixtures: []runtime.Object{
+				makeJob("job1", 0, jobConfigForbid, execution.ConcurrencyPolicyForbid, testutils.Mkmtimep(startAfter)),
+				jobForForbid2,
+			},
+			Target: jobConfigForbid,
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, startJob(jobForForbid2, timeNow)),
+					},
+				},
+			},
+		},
+		{
+			Name: "can start both jobs with MaxConcurrency set to 2",
+			Fixtures: []runtime.Object{
+				jobForForbid1,
+				jobForForbid2,
+			},
+			Target: jobConfigForbidMax2,
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, startJob(jobForForbid1, timeNow)),
+						runtimetesting.NewUpdateJobAction(jobNamespace, startJob(jobForForbid2, timeNow)),
+					},
+				},
+			},
+		},
+		{
+			Name: "reject 3rd job with MaxConcurrency set to 2",
+			Fixtures: []runtime.Object{
+				jobForForbid1,
+				jobForForbid2,
+				makeJob("job3", 2, jobConfigForbid, execution.ConcurrencyPolicyForbid, nil),
+			},
+			Target: jobConfigForbidMax2,
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewUpdateJobStatusAction(jobNamespace, startJob(jobForForbid1, timeNow)),
+						runtimetesting.NewUpdateJobAction(jobNamespace, startJob(jobForForbid2, timeNow)),
+						runtimetesting.NewUpdateJobAction(jobNamespace, rejectJob(
+							makeJob("job3", 2, jobConfigForbid, execution.ConcurrencyPolicyForbid, nil),
+						)),
 					},
 				},
 			},

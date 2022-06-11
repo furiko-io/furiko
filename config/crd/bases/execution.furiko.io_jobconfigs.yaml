@@ -59,6 +59,10 @@ spec:
                 concurrency:
                   description: Concurrency defines the behaviour of multiple concurrent Jobs.
                   properties:
+                    maxConcurrency:
+                      description: "Maximum number of Jobs that can be running concurrently for the same JobConfig. Cannot be specified if Policy is set to Allow. \n Defaults to 1."
+                      format: int64
+                      type: integer
                     policy:
                       description: Policy describes how to treat concurrent executions of the same JobConfig.
                       type: string
