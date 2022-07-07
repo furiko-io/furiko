@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-package croncontroller_test
+package schedule_test
 
 import (
-	"context"
-	"fmt"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/client-go/tools/cache"
 
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
-	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
-	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
-	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
+	"github.com/furiko-io/furiko/pkg/execution/util/schedule"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -44,6 +45,13 @@ var (
 	notAfterTime         = testutils.Mkmtime("2021-02-09T04:08:00Z")
 	futureTime           = testutils.Mkmtime("2021-02-10T04:02:00Z")
 
+	jobConfigNotScheduled = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-not-scheduled",
+		},
+		Spec: execution.JobConfigSpec{},
+	}
+
 	jobConfigEveryMinute = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "job-config-every-minute",
@@ -52,6 +60,19 @@ var (
 			Schedule: &execution.ScheduleSpec{
 				Cron: &execution.CronSchedule{
 					Expression: "* * * * *",
+				},
+			},
+		},
+	}
+
+	jobConfigEveryFiveMinutes = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "job-config-every-five-minutes",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "*/5 * * * *",
 				},
 			},
 		},
@@ -297,13 +318,226 @@ var (
 	}
 )
 
+type JobConfigSchedule struct {
+	Time      time.Time
+	JobConfig *execution.JobConfig
+}
+
+type KeySchedule struct {
+	Time time.Time
+	Key  string
+}
+
+type PopSchedule struct {
+	Name string
+	At   time.Time
+	Want []JobConfigSchedule
+}
+
 func TestSchedule(t *testing.T) {
+	opts := cmp.Options{
+		cmpopts.EquateEmpty(),
+		cmpopts.SortSlices(func(i, j KeySchedule) bool {
+			if !i.Time.Equal(j.Time) {
+				return i.Time.Before(j.Time)
+			}
+			return i.Key < j.Key
+		}),
+	}
+
+	tests := []struct {
+		name       string
+		jobConfigs []*execution.JobConfig
+		cfg        *configv1alpha1.CronExecutionConfig
+		initTime   time.Time
+		cases      []PopSchedule
+	}{
+		{
+			name: "Example scheduling with multiple JobConfigs",
+			jobConfigs: []*execution.JobConfig{
+				jobConfigNotScheduled,
+				jobConfigEveryMinute,
+			},
+			initTime: testutils.Mktime(now),
+			cases: []PopSchedule{
+				{
+					Name: "No schedules yet immediately after initialization",
+					At:   testutils.Mktime(now),
+				},
+				{
+					Name: "Start scheduling after 04:07",
+					At:   testutils.Mktime("2021-02-09T04:07:13.234Z"),
+					Want: []JobConfigSchedule{
+						{Time: testutils.Mktime("2021-02-09T04:07:00Z"), JobConfig: jobConfigEveryMinute},
+					},
+				},
+				{
+					Name: "No schedules until 04:08",
+					At:   testutils.Mktime("2021-02-09T04:07:25Z"),
+				},
+				{
+					Name: "Missed scheduling at 04:08",
+					At:   testutils.Mktime("2021-02-09T04:10:01Z"),
+					Want: []JobConfigSchedule{
+						{Time: testutils.Mktime("2021-02-09T04:08:00Z"), JobConfig: jobConfigEveryMinute},
+					},
+				},
+				{
+					Name: "No schedules until 04:11",
+					At:   testutils.Mktime("2021-02-09T04:10:54Z"),
+				},
+			},
+		},
+		{
+			name: "JobConfig with LastScheduled",
+			jobConfigs: []*execution.JobConfig{
+				jobConfigWithLastScheduleTime,
+			},
+			initTime: testutils.Mktime(now),
+			cases: []PopSchedule{
+				{
+					Name: "Pop from LastScheduled",
+					At:   testutils.Mktime(now),
+					Want: []JobConfigSchedule{
+						{Time: testutils.Mktime("2021-02-09T04:03:00Z"), JobConfig: jobConfigWithLastScheduleTime},
+					},
+				},
+				{
+					Name: "Bump to next minute",
+					At:   testutils.Mktime(now).Add(time.Minute),
+					Want: []JobConfigSchedule{
+						{Time: testutils.Mktime("2021-02-09T04:07:00Z"), JobConfig: jobConfigWithLastScheduleTime},
+					},
+				},
+			},
+		},
+		{
+			name: "JobConfig with LastScheduled and LastUpdated",
+			jobConfigs: []*execution.JobConfig{
+				jobConfigWithLastScheduledAndUpdated,
+			},
+			initTime: testutils.Mktime(now),
+			cases: []PopSchedule{
+				{
+					Name: "No Pop due to LastUpdated",
+					At:   testutils.Mktime(now),
+				},
+				{
+					Name: "Bump to next minute",
+					At:   testutils.Mktime(now).Add(time.Minute),
+					Want: []JobConfigSchedule{
+						{Time: testutils.Mktime("2021-02-09T04:07:00Z"), JobConfig: jobConfigWithLastScheduledAndUpdated},
+					},
+				},
+			},
+		},
+		{
+			name: "Multiple JobConfigs",
+			jobConfigs: []*execution.JobConfig{
+				jobConfigEveryMinute,
+				jobConfigEveryFiveMinutes,
+			},
+			initTime: testutils.Mktime("2021-02-09T04:08:36Z"),
+			cases: []PopSchedule{
+				{
+					Name: "Only schedule jobConfigEveryMinute",
+					At:   testutils.Mktime("2021-02-09T04:09:00Z"),
+					Want: []JobConfigSchedule{
+						{Time: testutils.Mktime("2021-02-09T04:09:00Z"), JobConfig: jobConfigEveryMinute},
+					},
+				},
+				{
+					Name: "Schedule both JobConfigs",
+					At:   testutils.Mktime("2021-02-09T04:10:00Z"),
+					Want: []JobConfigSchedule{
+						{Time: testutils.Mktime("2021-02-09T04:10:00Z"), JobConfig: jobConfigEveryMinute},
+						{Time: testutils.Mktime("2021-02-09T04:10:00Z"), JobConfig: jobConfigEveryFiveMinutes},
+					},
+				},
+				{
+					Name: "Only schedule jobConfigEveryMinute",
+					At:   testutils.Mktime("2021-02-09T04:11:00Z"),
+					Want: []JobConfigSchedule{
+						{Time: testutils.Mktime("2021-02-09T04:11:00Z"), JobConfig: jobConfigEveryMinute},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			initTime := testutils.Mktime(now)
+			if !tt.initTime.IsZero() {
+				initTime = tt.initTime
+			}
+
+			// Initialize the Schedule from initTime.
+			fakeClock := clock.NewFakeClock(initTime)
+			sched, err := schedule.New(
+				tt.jobConfigs,
+				schedule.WithClock(fakeClock),
+				schedule.WithConfigLoader(&configLoader{cfg: tt.cfg}),
+			)
+			if err != nil {
+				t.Errorf("cannot initialize schedule: %v", err)
+				return
+			}
+
+			for _, pop := range tt.cases {
+				// Pop all schedules until exhausted.
+				var popped []KeySchedule
+				for {
+					key, ts, ok := sched.Pop(pop.At)
+					if !ok {
+						break
+					}
+					popped = append(popped, KeySchedule{
+						Time: ts,
+						Key:  key,
+					})
+				}
+
+				want := make([]KeySchedule, 0, len(pop.Want))
+				for _, s := range pop.Want {
+					want = append(want, KeySchedule{
+						Time: s.Time,
+						Key:  makeKey(s.JobConfig),
+					})
+				}
+
+				// Ensure that the schedules are equal.
+				// We sort the schedules by time and key in order to keep test results deterministic.
+				if !cmp.Equal(want, popped, opts...) {
+					t.Errorf("output not equal\ndiff = %v", cmp.Diff(want, popped, opts...))
+				}
+
+				// Bump the schedules to add them back into the heap.
+				for _, s := range pop.Want {
+					if _, err := sched.Bump(s.JobConfig, pop.At); err != nil {
+						t.Errorf("cannot bump job config %v at %v: %v", makeKey(s.JobConfig), pop.At, err)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestSchedule_Sequence(t *testing.T) {
 	tests := []struct {
 		name      string
 		jobConfig *execution.JobConfig
 		cases     []time.Time
 		fromTime  time.Time
+		cfg       *configv1alpha1.CronExecutionConfig
 	}{
+		{
+			name:      "No schedules",
+			jobConfig: jobConfigNotScheduled,
+			cases: []time.Time{
+				{},
+			},
+		},
 		{
 			name:      "Schedule every minute",
 			jobConfig: jobConfigEveryMinute,
@@ -448,14 +682,14 @@ func TestSchedule(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			// Change fromTime if specified.
+			// Change popTime if specified.
 			now := testutils.Mktime(now)
 			if !tt.fromTime.IsZero() {
 				now = tt.fromTime
 			}
 
-			// Update fromTime timezone if specified.
-			if tt.jobConfig.Spec.Schedule.Cron.Timezone != "" {
+			// Update popTime timezone if specified.
+			if tt.jobConfig.Spec.Schedule != nil && tt.jobConfig.Spec.Schedule.Cron.Timezone != "" {
 				tz, err := tzutils.ParseTimezone(tt.jobConfig.Spec.Schedule.Cron.Timezone)
 				if err != nil {
 					t.Errorf(`failed to parse timezone "%v": %v`, tt.jobConfig.Spec.Schedule.Cron.Timezone, err)
@@ -464,32 +698,49 @@ func TestSchedule(t *testing.T) {
 				now = now.In(tz)
 			}
 
-			// Reset the timezone to the local timezone to avoid false positives.
-			croncontroller.Clock = clock.NewFakeClock(now.In(time.Local))
+			// Use UTC time for the fake clock.
+			fakeClock := clock.NewFakeClock(now.In(time.UTC))
 
-			ctrlContext := mock.NewContext()
-			if err := ctrlContext.Start(context.Background()); err != nil {
-				t.Fatalf("cannot start context: %v", err)
-			}
-
-			cfg, err := ctrlContext.Configs().Cron()
+			sched, err := schedule.New(
+				[]*execution.JobConfig{tt.jobConfig},
+				schedule.WithClock(fakeClock),
+				schedule.WithConfigLoader(&configLoader{cfg: tt.cfg}),
+			)
 			if err != nil {
-				t.Fatalf("cannot get controller configuration: %v", err)
-			}
-			schedule := croncontroller.NewSchedule(ctrlContext)
-			parser := cronparser.NewParser(cfg)
-			expr, err := parser.Parse(tt.jobConfig.Spec.Schedule.Cron.Expression, "")
-			if err != nil {
-				t.Errorf("cannot parse cron %v: %v", tt.jobConfig.Spec.Schedule.Cron.Expression, err)
+				t.Errorf("cannot initialize schedule: %v", err)
 				return
 			}
 
-			for _, want := range tt.cases {
-				next := schedule.GetNextScheduleTime(tt.jobConfig, now, expr)
-				if !next.Equal(want) {
-					t.Errorf("expected next to be %v, got %v", want, next)
+			wantName, err := cache.MetaNamespaceKeyFunc(tt.jobConfig)
+			if err != nil {
+				t.Errorf("cannot get namespaced name: %v", err)
+				return
+			}
+
+			for _, wantNext := range tt.cases {
+				// NOTE(irvinlim): Use wantNext for popTime, because we want to ensure that it
+				// would pop the schedule.
+				name, next, ok := sched.Pop(wantNext)
+
+				// Should not have next schedule time.
+				if wantNext.IsZero() {
+					if ok {
+						t.Errorf("wanted zero time, got next time: %v", next)
+					}
+					continue
 				}
-				schedule.BumpNextScheduleTime(tt.jobConfig, next, expr)
+
+				if !ok {
+					t.Errorf("Pop() returned false, wanted %v, %v", wantName, wantNext)
+				} else if name != wantName || !wantNext.Equal(next) {
+					t.Errorf("Pop() = %v %v, wanted %v %v", name, next, wantName, wantNext)
+				}
+
+				_, err = sched.Bump(tt.jobConfig, next)
+				if err != nil {
+					t.Errorf("error bumping next schedule time: %v", err)
+					return
+				}
 			}
 		})
 	}
@@ -497,7 +748,7 @@ func TestSchedule(t *testing.T) {
 
 func TestSchedule_FlushNextScheduleTime(t *testing.T) {
 	now := testutils.Mktime(now)
-	croncontroller.Clock = clock.NewFakeClock(now)
+	fakeClock := clock.NewFakeClock(now)
 	jobConfig := &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "job-config-to-be-updated",
@@ -511,66 +762,63 @@ func TestSchedule_FlushNextScheduleTime(t *testing.T) {
 		},
 	}
 
-	ctrlContext := mock.NewContext()
-	if err := ctrlContext.Start(context.Background()); err != nil {
-		t.Fatalf("cannot start context: %v", err)
-	}
-
-	cfg, err := ctrlContext.Configs().Cron()
+	sched, err := schedule.New([]*execution.JobConfig{jobConfig}, schedule.WithClock(fakeClock))
 	if err != nil {
-		t.Fatalf("cannot get controller configuration: %v", err)
-	}
-	schedule := croncontroller.NewSchedule(ctrlContext)
-	parser := cronparser.NewParser(cfg)
-
-	expr, err := parser.Parse(jobConfig.Spec.Schedule.Cron.Expression, "")
-	if err != nil {
-		t.Fatalf("cannot parse cron %v: %v", jobConfig.Spec.Schedule.Cron.Expression, err)
+		t.Fatalf("cannot initialize schedule: %v", err)
 	}
 
-	// Bump next schedule time
-	next := schedule.GetNextScheduleTime(jobConfig, now, expr)
-	want := testutils.Mktime("2021-02-09T04:10:00Z")
-	if !next.Equal(want) {
-		t.Errorf("expected next to be %v, got %v", want, next)
-		return
-	}
-	schedule.BumpNextScheduleTime(jobConfig, next, expr)
+	// No next schedule yet
+	_, _, ok := sched.Pop(testutils.Mktime("2021-02-09T04:07:00Z"))
+	assert.False(t, ok)
+
+	// Pop and bump once time has passed
+	key, ts, ok := sched.Pop(testutils.Mktime("2021-02-09T04:10:01Z"))
+	assert.True(t, ok)
+	assert.True(t, ts.Equal(testutils.Mktime("2021-02-09T04:10:00Z")))
+	assert.Equal(t, jobConfig.Name, key)
+	_, err = sched.Bump(jobConfig, testutils.Mktime("2021-02-09T04:10:00Z"))
+	assert.NoError(t, err)
 
 	// Update job config cron schedule
-	jobConfig.Spec.Schedule.Cron.Expression = "0 0/1 * * * ? *"
-	expr, err = parser.Parse(jobConfig.Spec.Schedule.Cron.Expression, "")
+	newJobConfig := jobConfig.DeepCopy()
+	newJobConfig.Spec.Schedule.Cron.Expression = "0 0/1 * * * ? *"
+
+	// No next schedule yet without flushing (it should use 04:15:00)
+	_, _, ok = sched.Pop(testutils.Mktime("2021-02-09T04:11:00Z"))
+	assert.False(t, ok)
+
+	// Delete the JobConfig from the schedule
+	assert.NoError(t, sched.Delete(jobConfig))
+
+	// Add it back
+	_, err = sched.Bump(newJobConfig, testutils.Mktime("2021-02-09T04:10:01Z"))
+	assert.NoError(t, err)
+
+	// Now it should schedule at the next minute
+	key, ts, ok = sched.Pop(testutils.Mktime("2021-02-09T04:11:00Z"))
+	assert.True(t, ok)
+	assert.True(t, ts.Equal(testutils.Mktime("2021-02-09T04:11:00Z")))
+	assert.Equal(t, jobConfig.Name, key)
+}
+
+type configLoader struct {
+	cfg *configv1alpha1.CronExecutionConfig
+}
+
+var _ schedule.Config = (*configLoader)(nil)
+
+func (c *configLoader) Cron() (*configv1alpha1.CronExecutionConfig, error) {
+	cfg := c.cfg
+	if cfg == nil {
+		cfg = &configv1alpha1.CronExecutionConfig{}
+	}
+	return cfg, nil
+}
+
+func makeKey(jobConfig *execution.JobConfig) string {
+	key, err := cache.MetaNamespaceKeyFunc(jobConfig)
 	if err != nil {
-		t.Fatalf("cannot parse cron %v: %v", jobConfig.Spec.Schedule.Cron.Expression, err)
+		panic(err)
 	}
-
-	// Should still use old schedule because it's cached
-	next2 := schedule.GetNextScheduleTime(jobConfig, next, expr)
-	want2 := testutils.Mktime("2021-02-09T04:15:00Z")
-	if !next2.Equal(want2) {
-		t.Errorf("expected next to be %v, got %v", want2, next2)
-		return
-	}
-
-	// Flush the time, should use new schedule now
-	flushAndCheck := func(want time.Time) error {
-		// Flush
-		schedule.FlushNextScheduleTime(jobConfig)
-
-		// Check next
-		next = schedule.GetNextScheduleTime(jobConfig, next, expr)
-		if !next.Equal(want) {
-			return fmt.Errorf("expected next to be %v, got %v", want, next)
-		}
-		schedule.BumpNextScheduleTime(jobConfig, next, expr)
-		return nil
-	}
-	if err := flushAndCheck(testutils.Mktime("2021-02-09T04:11:00Z")); err != nil {
-		t.Error(err)
-		return
-	}
-	if err := flushAndCheck(testutils.Mktime("2021-02-09T04:12:00Z")); err != nil { // idempotent
-		t.Error(err)
-		return
-	}
+	return key
 }

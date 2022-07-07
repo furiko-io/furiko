@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -32,14 +33,18 @@ import (
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/core/tzutils"
-	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
+	"github.com/furiko-io/furiko/pkg/config"
+	"github.com/furiko-io/furiko/pkg/execution/util/schedule"
 )
 
 const (
-	// CronWorkerInterval is the interval between checking if JobConfigs should be
+	// cronWorkerInterval is the interval between checking if JobConfigs should be
 	// enqueued. We only really need this as small as once per second.
-	CronWorkerInterval = time.Second
+	cronWorkerInterval = time.Second
+)
+
+var (
+	Clock clock.Clock = &clock.RealClock{}
 )
 
 // CronWorker enqueues Job names to be scheduled, based on the cron schedule of the config.
@@ -47,7 +52,7 @@ const (
 // to be created.
 type CronWorker struct {
 	*Context
-	schedule *Schedule
+	schedule *schedule.Schedule
 	handler  EnqueueHandler
 	mu       sync.Mutex
 }
@@ -59,9 +64,8 @@ type EnqueueHandler interface {
 
 func NewCronWorker(ctrlContext *Context, handler EnqueueHandler) *CronWorker {
 	return &CronWorker{
-		Context:  ctrlContext,
-		handler:  handler,
-		schedule: NewSchedule(ctrlContext),
+		Context: ctrlContext,
+		handler: handler,
 	}
 }
 
@@ -69,8 +73,29 @@ func (w *CronWorker) WorkerName() string {
 	return fmt.Sprintf("%v.CronWorker", controllerName)
 }
 
+// Init is called before we start the worker. We will initialize all JobConfigs
+// into the Schedule.
+func (w *CronWorker) Init() error {
+	jobConfigs, err := w.jobconfigInformer.Lister().JobConfigs(metav1.NamespaceAll).List(labels.Everything())
+	if err != nil {
+		return errors.Wrapf(err, "cannot list all jobconfigs")
+	}
+
+	sched, err := schedule.New(
+		jobConfigs,
+		schedule.WithClock(Clock),
+		schedule.WithConfigLoader(w.Configs()),
+	)
+	if err != nil {
+		return err
+	}
+
+	w.schedule = sched
+	return nil
+}
+
 func (w *CronWorker) Start(ctx context.Context) {
-	go ClockTickUntil(instrumentWorkerMetrics(w.WorkerName(), w.Work), CronWorkerInterval, ctx.Done())
+	go ClockTickUntil(instrumentWorkerMetrics(w.WorkerName(), w.Work), cronWorkerInterval, ctx.Done())
 }
 
 // Work runs a single iteration of synchronizing all JobConfigs.
@@ -81,7 +106,10 @@ func (w *CronWorker) Work() {
 	trace := utiltrace.New(
 		"cron_schedule_all",
 	)
-	defer trace.LogIfLong(CronWorkerInterval / 2)
+
+	// NOTE(irvinlim): Log if it takes longer than the worker interval to run the
+	// entire work routine.
+	defer trace.LogIfLong(cronWorkerInterval)
 
 	// Load dynamic configuration.
 	cfg, err := w.Configs().Cron()
@@ -90,42 +118,56 @@ func (w *CronWorker) Work() {
 		return
 	}
 
-	// Get all keys to be flushed.
-	w.flushKeys()
+	now := Clock.Now()
+	maxMissedSchedules := config.DefaultCronMaxMissedSchedules
+	if spec := cfg.MaxMissedSchedules; spec != nil {
+		maxMissedSchedules = int(*spec)
+	}
+	scheduledCount := make(map[string]int)
+
+	// Flush all JobConfigs that had been updated.
+	w.refreshUpdatedJobConfigs(now)
 	trace.Step("Flushing of JobConfig updates done")
 
-	// Get all JobConfigs from the cache.
-	jobConfigList, err := w.jobconfigInformer.Lister().JobConfigs(metav1.NamespaceAll).List(labels.Everything())
-	if err != nil {
-		klog.ErrorS(err, "croncontroller: list JobConfig error", "worker", w.WorkerName())
-		return
-	}
-	trace.Step("List all JobConfigs done")
-
-	// Create cron parser instance
-	parser := cronparser.NewParser(cfg)
-
-	// Sync each job config.
-	// TODO(irvinlim): Theoretically it is more computationally efficient to use a
-	//  heap instead of iterating all job configs for scheduling.
-	for _, jobConfig := range jobConfigList {
-		if err := w.syncOne(jobConfig, cfg, parser); err != nil {
-			klog.ErrorS(err, "croncontroller: sync JobConfig error",
-				"worker", w.WorkerName(),
-				"namespace", jobConfig.GetNamespace(),
-				"name", jobConfig.GetName(),
-			)
+	var scheduled uint64
+	for {
+		// Get the next job config that is due for scheduling, otherwise return early.
+		key, ts, ok := w.schedule.Pop(Clock.Now())
+		if !ok {
+			break
 		}
+
+		// Should not happen.
+		if ts.IsZero() {
+			continue
+		}
+
+		// Enqueue the job.
+		if err := w.syncOne(now, key, ts, scheduledCount, maxMissedSchedules); err != nil {
+			klog.ErrorS(err, "croncontroller: cannot sync single jobconfig to be scheduled",
+				"worker", w.WorkerName(),
+				"key", key,
+				"scheduleTime", ts,
+			)
+			continue
+		}
+
+		scheduled++
+		trace.Step("Sync JobConfig to be scheduled")
 	}
-	trace.Step("Sync all JobConfigs done")
+
+	if scheduled > 0 {
+		klog.V(4).InfoS("croncontroller: successfully scheduled jobs", "count", scheduled)
+	}
 }
 
-// flushKeys will read all keys to be flushed, and flush it from the nextScheduleTime precomputed map.
-func (w *CronWorker) flushKeys() {
+// refreshUpdatedJobConfigs will read all keys to be flushed, and recompute the
+// next schedule time for all job configs that were updated.
+func (w *CronWorker) refreshUpdatedJobConfigs(now time.Time) {
 	flushes := 0
 	defer func() {
 		if flushes > 0 {
-			klog.V(4).InfoS("croncontroller: flushed all job configs that need updating",
+			klog.V(4).InfoS("croncontroller: refreshed all job configs that need updating",
 				"worker", w.WorkerName(),
 				"len", flushes,
 			)
@@ -136,8 +178,24 @@ func (w *CronWorker) flushKeys() {
 	for flushes < 1000 {
 		select {
 		case jobConfig := <-w.updatedConfigs:
-			w.schedule.FlushNextScheduleTime(jobConfig)
 			flushes++
+
+			// Delete and add it back to the heap. We use the current time as the reference
+			// time, assuming that its previous schedule time is in the future.
+			if err := w.schedule.Delete(jobConfig); err != nil {
+				klog.ErrorS(err, "croncontroller: cannot remove outdated job config from heap",
+					"namespace", jobConfig.Namespace,
+					"name", jobConfig.Name,
+				)
+				continue
+			}
+			if _, err := w.schedule.Bump(jobConfig, now); err != nil {
+				klog.ErrorS(err, "croncontroller: cannot bump updated job config in heap",
+					"namespace", jobConfig.Namespace,
+					"name", jobConfig.Name,
+				)
+				continue
+			}
 		default:
 			// Nothing more to flush.
 			return
@@ -146,88 +204,65 @@ func (w *CronWorker) flushKeys() {
 }
 
 // syncOne reconciles a single JobConfig and enqueues Jobs to be created.
-func (w *CronWorker) syncOne(
-	jobConfig *execution.JobConfig,
-	cfg *configv1alpha1.CronExecutionConfig,
-	parser *cronparser.Parser,
-) error {
-	schedule := jobConfig.Spec.Schedule
-	if schedule == nil || schedule.Disabled || schedule.Cron == nil || len(schedule.Cron.Expression) == 0 {
-		return nil
-	}
-
-	namespacedName, err := cache.MetaNamespaceKeyFunc(jobConfig)
+func (w *CronWorker) syncOne(now time.Time, key string, ts time.Time, counts map[string]int, maxCount int) error {
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		return errors.Wrapf(err, "cannot get namespaced name")
+		return errors.Wrapf(err, "cannot split namespace and name from key %v", key)
 	}
-
-	expr, err := parser.Parse(schedule.Cron.Expression, namespacedName)
+	jobConfig, err := w.jobconfigInformer.Lister().JobConfigs(namespace).Get(name)
 	if err != nil {
-		return errors.Wrapf(err, "cannot parse cron schedule: %v", schedule.Cron.Expression)
+		return errors.Wrapf(err, "cannot get jobconfig %v", key)
 	}
 
-	// Get time in configured timezone.
-	tzstring := w.getTimezone(schedule.Cron, cfg)
-	timezone, err := tzutils.ParseTimezone(tzstring)
-	if err != nil {
-		return errors.Wrapf(err, "cannot parse timezone: %v", tzstring)
-	}
-	now := Clock.Now().In(timezone)
-
-	var maxMissedSchedules int
-	if spec := cfg.MaxMissedSchedules; spec != nil {
-		maxMissedSchedules = int(*spec)
-	}
-
-	// Get next scheduled time repeatedly and enqueue for each scheduled time.
-	// This helps to prevent missed executions (maybe due to worker stuck).
-	for i := 0; i < maxMissedSchedules; i++ {
-		next := w.schedule.GetNextScheduleTime(jobConfig, now, expr)
-
-		klog.V(6).InfoS("croncontroller: get next schedule for job config",
-			"namespace", jobConfig.Namespace,
-			"name", jobConfig.Name,
-			"now", now,
-			"next", next,
-		)
-
-		// There is no next schedule time.
-		if next.IsZero() {
-			return nil
+	// Check that it does not exceed maximum backschedule limit.
+	if counts[key] >= maxCount {
+		// Bump to next schedule time.
+		newNext, err := w.schedule.Bump(jobConfig, now)
+		if err != nil {
+			return errors.Wrapf(err, "cannot bump to new next schedule time")
 		}
 
-		// Skip if the next schedule is in the future.
-		if next.After(now) {
-			return nil
-		}
-
-		// Enqueue the job.
-		if err := w.handler.EnqueueJobConfig(jobConfig, next); err != nil {
-			return errors.Wrapf(err, "cannot enqueue job for %v", next)
-		}
-
-		// Bump the next schedule time for the job config.
-		w.schedule.BumpNextScheduleTime(jobConfig, next, expr)
-
-		klog.V(2).InfoS("croncontroller: scheduled job by cron",
+		klog.ErrorS(
+			errors.New("missed too many schedules"),
+			"croncontroller: skipping back-scheduling for JobConfig",
 			"worker", w.WorkerName(),
 			"namespace", jobConfig.GetNamespace(),
 			"name", jobConfig.GetName(),
-			"cron_schedule", schedule.Cron.Expression,
-			"schedule_time", next,
-			"timezone", timezone,
+			"maxCount", maxCount,
+			"newNextSchedule", newNext,
 		)
+
+		return nil
 	}
 
-	// Reached here, means we missed more too many schedules.
-	// Just bump next scheduled time.
-	err = fmt.Errorf("missed too many schedules, maximum=%v", maxMissedSchedules)
-	klog.ErrorS(err, "croncontroller: skipping back-scheduling for JobConfig",
+	// Update counter.
+	counts[key]++
+
+	// Enqueue the job.
+	if err := w.handler.EnqueueJobConfig(jobConfig, ts); err != nil {
+		return errors.Wrapf(err, "cannot enqueue job for %v", ts)
+	}
+
+	klog.V(3).InfoS("croncontroller: scheduled job",
 		"worker", w.WorkerName(),
 		"namespace", jobConfig.GetNamespace(),
 		"name", jobConfig.GetName(),
+		"scheduleTime", ts,
 	)
-	w.schedule.BumpNextScheduleTime(jobConfig, now, expr)
+
+	// Bump to next schedule time.
+	newNext, err := w.schedule.Bump(jobConfig, ts)
+	if err != nil {
+		return errors.Wrapf(err, "cannot bump to new next schedule time")
+	}
+
+	klog.V(6).InfoS("croncontroller: bumped job config's next schedule time",
+		"worker", w.WorkerName(),
+		"namespace", jobConfig.GetNamespace(),
+		"name", jobConfig.GetName(),
+		"previous", ts,
+		"next", newNext,
+	)
 
 	return nil
 }

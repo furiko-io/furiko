@@ -22,6 +22,23 @@ import (
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
+const (
+	// DefaultCronTimezone is the default timezone value that will be used if there
+	// is no timezone configuration for the JobConfig or a default value set for the
+	// controller.
+	DefaultCronTimezone = "UTC"
+
+	// DefaultCronMaxDowntimeThresholdSeconds is the default maximum downtime
+	// threshold (in seconds) that the cron controller can tolerate to automatically
+	// back-schedule missed schedules, if a value is not explicitly set.
+	DefaultCronMaxDowntimeThresholdSeconds = 300
+
+	// DefaultCronMaxMissedSchedules is the default maximum number of schedules that
+	// the controller should attempt to back-schedule, if a value is not explicitly
+	// set.
+	DefaultCronMaxMissedSchedules = 5
+)
+
 var (
 	DefaultJobExecutionConfig = &configv1alpha1.JobExecutionConfig{
 		DefaultTTLSecondsAfterFinished: pointer.Int64(3600),
@@ -38,8 +55,8 @@ var (
 		CronHashNames:               pointer.Bool(true),
 		CronHashSecondsByDefault:    pointer.Bool(false),
 		CronHashFields:              pointer.Bool(true),
-		MaxMissedSchedules:          pointer.Int64(5),
-		MaxDowntimeThresholdSeconds: 300,
-		DefaultTimezone:             pointer.String("UTC"),
+		MaxMissedSchedules:          pointer.Int64(DefaultCronMaxMissedSchedules),
+		MaxDowntimeThresholdSeconds: DefaultCronMaxDowntimeThresholdSeconds,
+		DefaultTimezone:             pointer.String(DefaultCronTimezone),
 	}
 )

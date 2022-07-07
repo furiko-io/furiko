@@ -38,9 +38,10 @@ import (
 )
 
 var (
-	cronWorkerJobConfig = &execution.JobConfig{
+	jobConfigTest = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "job-config-test",
+			Name:      "job-config-test",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: execution.JobConfigSpec{
 			Schedule: &execution.ScheduleSpec{
@@ -51,9 +52,10 @@ var (
 		},
 	}
 
-	cronWorkerJobConfigUpdateToEvery15Sec = &execution.JobConfig{
+	jobConfigTestUpdated = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "job-config-test",
+			Name:      "job-config-test",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: execution.JobConfigSpec{
 			Schedule: &execution.ScheduleSpec{
@@ -64,9 +66,10 @@ var (
 		},
 	}
 
-	cronWorkerJobConfigDaily = &execution.JobConfig{
+	jobConfigDaily = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "job-config-daily",
+			Name:      "job-config-daily",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: execution.JobConfigSpec{
 			Schedule: &execution.ScheduleSpec{
@@ -77,9 +80,10 @@ var (
 		},
 	}
 
-	cronWorkerJobConfigDailySingapore = &execution.JobConfig{
+	jobConfigDailySingapore = &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "job-config-daily-singapore",
+			Name:      "job-config-daily-singapore",
+			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: execution.JobConfigSpec{
 			Schedule: &execution.ScheduleSpec{
@@ -90,9 +94,23 @@ var (
 			},
 		},
 	}
+
+	jobConfigPointInTime = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "job-config-point-in-time",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "0 12 9 2 * 2021",
+				},
+			},
+		},
+	}
 )
 
-func TestCronWorker(t *testing.T) { // nolint:gocognit
+func TestCronWorker(t *testing.T) {
 	type step struct {
 		Name        string
 		Time        time.Time
@@ -104,18 +122,16 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 		name       string
 		jobConfigs []*execution.JobConfig
 		configs    map[configv1alpha1.ConfigName]runtime.Object
+		now        time.Time
 		steps      []step
 	}{
 		{
 			name: "Scheduled every minute",
 			jobConfigs: []*execution.JobConfig{
-				cronWorkerJobConfig,
+				jobConfigTest,
 			},
+			now: testutils.Mktime("2022-04-01T10:52:04Z"),
 			steps: []step{
-				{
-					Name: "Initial time",
-					Time: testutils.Mktime("2022-04-01T10:52:04Z"),
-				},
 				{
 					Name: "No enqueue until end of minute",
 					Time: testutils.Mktime("2022-04-01T10:52:59Z"),
@@ -124,7 +140,7 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 					Name: "Want enqueue at start of minute",
 					Time: testutils.Mktime("2022-04-01T10:53:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:53:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:53:00Z")),
 					},
 				},
 				{
@@ -135,16 +151,16 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 					Name: "Want enqueue at start of next minute",
 					Time: testutils.Mktime("2022-04-01T10:54:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:54:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:54:00Z")),
 					},
 				},
 				{
 					Name: "Multiple enqueue when jumping a few minutes",
 					Time: testutils.Mktime("2022-04-01T10:57:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:55:00Z")),
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:56:00Z")),
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:57:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:55:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:56:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:57:00Z")),
 					},
 				},
 			},
@@ -152,18 +168,15 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 		{
 			name: "Update JobConfig",
 			jobConfigs: []*execution.JobConfig{
-				cronWorkerJobConfig,
+				jobConfigTest,
 			},
+			now: testutils.Mktime("2022-04-01T10:52:04Z"),
 			steps: []step{
-				{
-					Name: "Initial time",
-					Time: testutils.Mktime("2022-04-01T10:52:04Z"),
-				},
 				{
 					Name: "Enqueue at next minute",
 					Time: testutils.Mktime("2022-04-01T10:53:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:53:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:53:00Z")),
 					},
 				},
 				{
@@ -172,7 +185,7 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 				},
 				{
 					Name:   "Update JobConfig",
-					Update: cronWorkerJobConfigUpdateToEvery15Sec,
+					Update: jobConfigTestUpdated,
 				},
 				{
 					Name: "No enqueue yet",
@@ -182,7 +195,7 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 					Name: "Want enqueue at 15 sec mark",
 					Time: testutils.Mktime("2022-04-01T10:53:15Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:53:15Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:53:15Z")),
 					},
 				},
 			},
@@ -190,23 +203,20 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 		{
 			name: "Delete JobConfig",
 			jobConfigs: []*execution.JobConfig{
-				cronWorkerJobConfig,
+				jobConfigTest,
 			},
+			now: testutils.Mktime("2022-04-01T10:52:04Z"),
 			steps: []step{
-				{
-					Name: "Initial time",
-					Time: testutils.Mktime("2022-04-01T10:52:04Z"),
-				},
 				{
 					Name: "Enqueue at next minute",
 					Time: testutils.Mktime("2022-04-01T10:53:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:53:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:53:00Z")),
 					},
 				},
 				{
 					Name:   "Delete JobConfig",
-					Delete: cronWorkerJobConfig,
+					Delete: jobConfigTest,
 				},
 				{
 					Name: "No enqueue 1 minute later",
@@ -221,18 +231,15 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 		{
 			name: "Scheduled daily",
 			jobConfigs: []*execution.JobConfig{
-				cronWorkerJobConfigDaily,
+				jobConfigDaily,
 			},
+			now: testutils.Mktime("2022-04-01T10:52:04Z"),
 			steps: []step{
-				{
-					Name: "Initial time",
-					Time: testutils.Mktime("2022-04-01T10:52:04Z"),
-				},
 				{
 					Name: "Enqueue next day",
 					Time: testutils.Mktime("2022-04-02T10:00:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfigDaily, testutils.Mktime("2022-04-02T10:00:00Z")),
+						keyFunc(jobConfigDaily, testutils.Mktime("2022-04-02T10:00:00Z")),
 					},
 				},
 			},
@@ -240,23 +247,20 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 		{
 			name: "Scheduled daily with default configured timezone",
 			jobConfigs: []*execution.JobConfig{
-				cronWorkerJobConfigDaily,
+				jobConfigDaily,
 			},
 			configs: map[configv1alpha1.ConfigName]runtime.Object{
 				configv1alpha1.CronExecutionConfigName: &configv1alpha1.CronExecutionConfig{
 					DefaultTimezone: pointer.String("America/New_York"),
 				},
 			},
+			now: testutils.Mktime("2022-04-01T10:52:04Z"),
 			steps: []step{
-				{
-					Name: "Initial time",
-					Time: testutils.Mktime("2022-04-01T10:52:04Z"),
-				},
 				{
 					Name: "Enqueue at 14:00 UTC",
 					Time: testutils.Mktime("2022-04-01T14:00:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfigDaily, testutils.Mktime("2022-04-01T14:00:00Z")),
+						keyFunc(jobConfigDaily, testutils.Mktime("2022-04-01T14:00:00Z")),
 					},
 				},
 			},
@@ -264,18 +268,15 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 		{
 			name: "Scheduled daily with job configured timezone",
 			jobConfigs: []*execution.JobConfig{
-				cronWorkerJobConfigDailySingapore,
+				jobConfigDailySingapore,
 			},
 			configs: map[configv1alpha1.ConfigName]runtime.Object{
 				configv1alpha1.CronExecutionConfigName: &configv1alpha1.CronExecutionConfig{
 					DefaultTimezone: pointer.String("America/New_York"),
 				},
 			},
+			now: testutils.Mktime("2022-04-01T10:52:04Z"),
 			steps: []step{
-				{
-					Name: "Initial time",
-					Time: testutils.Mktime("2022-04-01T10:52:04Z"),
-				},
 				{
 					Name: "No enqueue at 14:00 UTC",
 					Time: testutils.Mktime("2022-04-01T14:00:00Z"),
@@ -284,7 +285,7 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 					Name: "Enqueue at 02:00 UTC next day",
 					Time: testutils.Mktime("2022-04-02T02:00:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfigDailySingapore, testutils.Mktime("2022-04-02T02:00:00Z")),
+						keyFunc(jobConfigDailySingapore, testutils.Mktime("2022-04-02T02:00:00Z")),
 					},
 				},
 			},
@@ -292,39 +293,36 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 		{
 			name: "Missed too many schedules",
 			jobConfigs: []*execution.JobConfig{
-				cronWorkerJobConfig,
+				jobConfigTest,
 			},
 			configs: map[configv1alpha1.ConfigName]runtime.Object{
 				configv1alpha1.CronExecutionConfigName: &configv1alpha1.CronExecutionConfig{
 					MaxMissedSchedules: pointer.Int64(3),
 				},
 			},
+			now: testutils.Mktime("2022-04-01T10:52:04Z"),
 			steps: []step{
-				{
-					Name: "Initial time",
-					Time: testutils.Mktime("2022-04-01T10:52:04Z"),
-				},
 				{
 					Name: "Want enqueue at start of minute",
 					Time: testutils.Mktime("2022-04-01T10:53:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:53:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:53:00Z")),
 					},
 				},
 				{
 					Name: "Enqueue only 3 jobs",
 					Time: testutils.Mktime("2022-04-01T10:59:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:54:00Z")),
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:55:00Z")),
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T10:56:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:54:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:55:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T10:56:00Z")),
 					},
 				},
 				{
 					Name: "Enqueue once for next minute",
 					Time: testutils.Mktime("2022-04-01T11:00:00Z"),
 					WantEnqueue: []string{
-						keyFunc(cronWorkerJobConfig, testutils.Mktime("2022-04-01T11:00:00Z")),
+						keyFunc(jobConfigTest, testutils.Mktime("2022-04-01T11:00:00Z")),
 					},
 				},
 			},
@@ -334,11 +332,8 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 			jobConfigs: []*execution.JobConfig{
 				jobConfigPointInTime,
 			},
+			now: testutils.Mktime("2021-02-09T10:52:04Z"),
 			steps: []step{
-				{
-					Name: "Initial time",
-					Time: testutils.Mktime("2021-02-09T10:52:04Z"),
-				},
 				{
 					Name: "Enqueue job",
 					Time: testutils.Mktime("2021-02-09T12:00:00Z"),
@@ -358,7 +353,7 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			var prevtime time.Time
+			prevtime := tt.now
 			fakeClock := clock.NewFakeClock(prevtime)
 			croncontroller.Clock = fakeClock
 
@@ -392,9 +387,8 @@ func TestCronWorker(t *testing.T) { // nolint:gocognit
 				assert.FailNow(t, "caches not synced")
 			}
 
-			// Start CronWorker in background. This is mainly a no-op because we will be
-			// triggering Work manually in each step below.
-			worker.Start(ctx)
+			// Initialize CronWorker.
+			assert.NoError(t, worker.Init())
 
 			for _, step := range tt.steps {
 				msgAndArgs := []interface{}{
