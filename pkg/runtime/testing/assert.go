@@ -37,6 +37,14 @@ func AssertErrorIsNotFound() assert.ErrorAssertionFunc {
 	}
 }
 
+// AssertErrorIsForbidden returns assert.ErrorAssertionFunc that asserts that the error
+// is a ForbiddenError.
+func AssertErrorIsForbidden() assert.ErrorAssertionFunc {
+	return func(t assert.TestingT, err error, i ...interface{}) bool {
+		return assert.True(t, apierrors.IsForbidden(err), i...)
+	}
+}
+
 // WantError checks err against assert.ErrorAssertionFunc, returning true if an
 // error was encountered for short-circuiting.
 func WantError(t assert.TestingT, wantErr assert.ErrorAssertionFunc, err error, i ...interface{}) bool {

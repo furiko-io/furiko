@@ -79,7 +79,6 @@ type TaskClient interface {
 // Executor is a task executor interface.
 type Executor interface {
 	GetKind() string
-
 	Lister() TaskLister
 	Client() TaskClient
 }

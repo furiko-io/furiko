@@ -462,14 +462,14 @@ func (w *Reconciler) syncCreateTask(
 		jobutil.MarkAdmissionError(newRj, rerr.Error())
 		rj = newRj
 
-		// Publish event.
+		// Publish additional event about admission error to denote that the job will not retry anymore.
 		klog.ErrorS(rerr, "jobcontroller: worker cannot create task",
 			"worker", w.Name(),
 			"namespace", rj.GetNamespace(),
 			"name", rj.GetName(),
 		)
 		w.recorder.Eventf(rj, corev1.EventTypeWarning, "AdmissionError",
-			"Cannot create task: %v", rerr)
+			"Job failed, task cannot be created due to invalid template")
 	} else {
 		// Record event.
 		klog.InfoS("jobcontroller: worker created task",
@@ -520,14 +520,18 @@ func (w *Reconciler) createTask(
 	rj *execution.Job,
 	index jobtasks.TaskIndex,
 ) (jobtasks.Task, error) {
-	taskMgr, err := w.tasks.ForJob(rj)
+	executor, err := w.tasks.ForJob(rj)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get task manager")
 	}
 
 	// Create new task.
-	task, err := taskMgr.Client().CreateIndex(ctx, index)
+	task, err := executor.Client().CreateIndex(ctx, index)
+
+	// Record event on error.
 	if err != nil {
+		w.recorder.Eventf(rj, corev1.EventTypeWarning, "CreateTaskError",
+			"Error creating %v: %v", executor.GetKind(), err)
 		return nil, err
 	}
 

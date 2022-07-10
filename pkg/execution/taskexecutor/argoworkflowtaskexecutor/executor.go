@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	Kind = "ArgoWorkflow"
+	Kind = "Workflow"
 )
 
 type executor struct {
