@@ -80,7 +80,7 @@ func (p *PodTask) GetTaskRef() execution.TaskRef {
 }
 
 func (p *PodTask) GetKind() string {
-	return "Pod"
+	return Kind
 }
 
 func (p *PodTask) GetRetryIndex() (int64, bool) {

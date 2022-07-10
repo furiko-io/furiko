@@ -22,6 +22,10 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
 
+const (
+	Kind = "ArgoWorkflow"
+)
+
 type executor struct {
 	job        *execution.Job
 	informers  controllercontext.Informers
@@ -38,6 +42,10 @@ func NewExecutor(
 		informers:  informers,
 		job:        job,
 	}
+}
+
+func (e *executor) GetKind() string {
+	return Kind
 }
 
 func (e *executor) Lister() tasks.TaskLister {

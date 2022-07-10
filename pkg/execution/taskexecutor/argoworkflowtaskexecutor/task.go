@@ -67,7 +67,7 @@ func (t *task) GetTaskRef() execution.TaskRef {
 }
 
 func (t *task) GetKind() string {
-	return "ArgoWorkflow"
+	return Kind
 }
 
 func (t *task) GetRetryIndex() (int64, bool) {

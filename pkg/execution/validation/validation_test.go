@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	workflowv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -219,6 +220,20 @@ var (
 	startPolicyInvalidConcurrencyPolicy = v1alpha1.StartPolicySpec{
 		ConcurrencyPolicy: "invalid",
 	}
+
+	workflowSpec = workflowv1alpha1.WorkflowSpec{
+		Entrypoint: "main",
+		Templates: []workflowv1alpha1.Template{
+			{
+				Name: "main",
+				Container: &corev1.Container{
+					Name:    "container",
+					Image:   "alpine",
+					Command: []string{"true"},
+				},
+			},
+		},
+	}
 )
 
 func TestValidateJobConfig(t *testing.T) {
@@ -389,6 +404,23 @@ func TestValidateJobConfig(t *testing.T) {
 				},
 			},
 			wantErr: `spec.option.options[0]: Invalid value: "invalid name here!": must match regex: ^[a-zA-Z_0-9.-]+$`,
+		},
+		{
+			name: "can specify argo workflows task template",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Concurrency: concurrencySpecBasic,
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
+							TaskTemplate: v1alpha1.TaskTemplate{
+								ArgoWorkflow: &v1alpha1.ArgoWorkflowTemplateSpec{
+									Spec: workflowSpec,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		{
 			name: "require task template",
