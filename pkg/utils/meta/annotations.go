@@ -16,6 +16,11 @@
 
 package meta
 
+type LabelableAnnotatable interface {
+	Labelable
+	Annotatable
+}
+
 type Annotatable interface {
 	GetAnnotations() map[string]string
 	SetAnnotations(annotations map[string]string)

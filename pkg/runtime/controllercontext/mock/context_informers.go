@@ -17,40 +17,21 @@
 package mock
 
 import (
-	"context"
-
-	"k8s.io/client-go/informers"
-
-	furiko "github.com/furiko-io/furiko/pkg/generated/informers/externalversions"
+	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
 
 type Informers struct {
-	kubernetes informers.SharedInformerFactory
-	furiko     furiko.SharedInformerFactory
+	controllercontext.Informers
 }
 
-var _ controllercontext.Informers = &Informers{}
+var _ controllercontext.Informers = (*Informers)(nil)
 
 // NewInformers returns a new mock Informers implementations that implements
-// controllercontext.Informers.
+// controllercontext.Informers. Currently, it has no difference with the real
+// informers, so it uses the same implementation.
 func NewInformers(clientsets controllercontext.Clientsets) *Informers {
 	return &Informers{
-		kubernetes: informers.NewSharedInformerFactory(clientsets.Kubernetes(), 0),
-		furiko:     furiko.NewSharedInformerFactory(clientsets.Furiko(), 0),
+		Informers: controllercontext.SetUpInformers(clientsets, &configv1alpha1.BootstrapConfigSpec{}),
 	}
-}
-
-func (i *Informers) Kubernetes() informers.SharedInformerFactory {
-	return i.kubernetes
-}
-
-func (i *Informers) Furiko() furiko.SharedInformerFactory {
-	return i.furiko
-}
-
-func (i *Informers) Start(ctx context.Context) error {
-	i.kubernetes.Start(ctx.Done())
-	i.furiko.Start(ctx.Done())
-	return nil
 }

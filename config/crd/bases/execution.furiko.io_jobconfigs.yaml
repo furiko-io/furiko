@@ -256,6 +256,19 @@ spec:
                         taskTemplate:
                           description: Defines the template to create a single task in the Job.
                           properties:
+                            argoWorkflow:
+                              description: Describes how to create tasks as Argo Workflows.
+                              properties:
+                                metadata:
+                                  description: 'Standard object''s metadata that will be added to Workflow. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
+                                spec:
+                                  description: 'Specification of the desired behavior of the Workflow. API docs: https://argoproj.github.io/argo-workflows/fields/#workflow'
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                  x-kubernetes-preserve-unknown-fields: true
+                              type: object
                             pod:
                               description: Describes how to create tasks as Pods.
                               properties:

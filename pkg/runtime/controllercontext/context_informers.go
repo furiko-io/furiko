@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	argo "github.com/argoproj/argo-workflows/v3/pkg/client/informers/externalversions"
 	kubernetes "k8s.io/client-go/informers"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
@@ -39,14 +40,16 @@ type Informers interface {
 	Start(ctx context.Context) error
 	Kubernetes() kubernetes.SharedInformerFactory
 	Furiko() furiko.SharedInformerFactory
+	Argo() argo.SharedInformerFactory
 }
 
 type contextInformers struct {
 	kubernetes kubernetes.SharedInformerFactory
 	furiko     furiko.SharedInformerFactory
+	argo       argo.SharedInformerFactory
 }
 
-var _ Informers = &contextInformers{}
+var _ Informers = (*contextInformers)(nil)
 
 func (c *contextInformers) Kubernetes() kubernetes.SharedInformerFactory {
 	return c.kubernetes
@@ -54,6 +57,10 @@ func (c *contextInformers) Kubernetes() kubernetes.SharedInformerFactory {
 
 func (c *contextInformers) Furiko() furiko.SharedInformerFactory {
 	return c.furiko
+}
+
+func (c *contextInformers) Argo() argo.SharedInformerFactory {
+	return c.argo
 }
 
 func SetUpInformers(clientsets Clientsets, cfg *configv1alpha1.BootstrapConfigSpec) Informers {
@@ -65,11 +72,13 @@ func SetUpInformers(clientsets Clientsets, cfg *configv1alpha1.BootstrapConfigSp
 	informers := &contextInformers{}
 	informers.kubernetes = kubernetes.NewSharedInformerFactory(clientsets.Kubernetes(), defaultResync)
 	informers.furiko = furiko.NewSharedInformerFactory(clientsets.Furiko(), defaultResync)
+	informers.argo = argo.NewSharedInformerFactory(clientsets.Argo(), defaultResync)
 	return informers
 }
 
 func (c *contextInformers) Start(ctx context.Context) error {
 	c.Kubernetes().Start(ctx.Done())
 	c.Furiko().Start(ctx.Done())
+	c.Argo().Start(ctx.Done())
 	return nil
 }

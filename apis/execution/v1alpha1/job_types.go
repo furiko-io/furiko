@@ -592,7 +592,9 @@ type TaskRef struct {
 	// relevant task object, and is not guaranteed to be up-to-date. This field will
 	// persist the state of tasks beyond the lifetime of the task resources, even if
 	// they were deleted.
-	ContainerStates []TaskContainerState `json:"containerStates"`
+	//
+	// +optional
+	ContainerStates []TaskContainerState `json:"containerStates,omitempty"`
 }
 
 // TaskStatus stores the last known status of a Job's task.

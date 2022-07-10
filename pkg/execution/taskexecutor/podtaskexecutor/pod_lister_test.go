@@ -61,7 +61,7 @@ var (
 				Name:      getPodIndexedName(fakeJob.Name, 1),
 				Namespace: jobNamespace,
 				Labels: map[string]string{
-					podtaskexecutor.LabelKeyJobUID: jobUID,
+					tasks.LabelKeyJobUID: jobUID,
 				},
 			},
 		},
@@ -70,7 +70,7 @@ var (
 				Name:      getPodIndexedName(fakeJob.Name, 2),
 				Namespace: nonJobNamespace,
 				Labels: map[string]string{
-					podtaskexecutor.LabelKeyJobUID: jobUID,
+					tasks.LabelKeyJobUID: jobUID,
 				},
 			},
 		},
@@ -79,7 +79,7 @@ var (
 				Name:      getPodIndexedName(fakeJob.Name, 3),
 				Namespace: jobNamespace,
 				Labels: map[string]string{
-					podtaskexecutor.LabelKeyJobUID: nonJobUID,
+					tasks.LabelKeyJobUID: nonJobUID,
 				},
 			},
 		},
@@ -118,14 +118,8 @@ func TestNewPodTaskLister(t *testing.T) {
 	informerFactory.Start(ctx.Done())
 	informerFactory.WaitForCacheSync(ctx.Done())
 
-	// Should list only 1 job
-	list, err := lister.List()
-	assert.NoError(t, err)
-	assert.Len(t, list, 1)
-	assert.Equal(t, createdPods[0].GetName(), list[0].GetName())
-
-	// Should be able to get task by index
-	task, err := lister.Index(tasks.TaskIndex{Retry: 1})
+	// Should be able to get task by name
+	task, err := lister.Get(getPodIndexedName(fakeJob.Name, 1))
 	assert.NoError(t, err)
 	assert.Equal(t, createdPods[0].GetName(), task.GetName())
 

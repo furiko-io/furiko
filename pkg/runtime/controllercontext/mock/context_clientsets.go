@@ -17,6 +17,8 @@
 package mock
 
 import (
+	argo "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
+	argofake "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/fake"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -28,6 +30,7 @@ import (
 type Clientsets struct {
 	kubernetes *fake.Clientset
 	furiko     *furikofake.Clientset
+	argo       *argofake.Clientset
 }
 
 // NewClientsets returns a new Clientsets using fake clients.
@@ -35,10 +38,11 @@ func NewClientsets() *Clientsets {
 	return &Clientsets{
 		kubernetes: fake.NewSimpleClientset(),
 		furiko:     furikofake.NewSimpleClientset(),
+		argo:       argofake.NewSimpleClientset(),
 	}
 }
 
-var _ controllercontext.Clientsets = &Clientsets{}
+var _ controllercontext.Clientsets = (*Clientsets)(nil)
 
 func (c *Clientsets) Kubernetes() kubernetes.Interface {
 	return c.KubernetesMock()
@@ -58,8 +62,18 @@ func (c *Clientsets) FurikoMock() *furikofake.Clientset {
 	return c.furiko
 }
 
+func (c *Clientsets) Argo() argo.Interface {
+	return c.argo
+}
+
+// ArgoMock returns the underlying fake clientset.
+func (c *Clientsets) ArgoMock() *argofake.Clientset {
+	return c.argo
+}
+
 // ClearActions clears all actions.
 func (c *Clientsets) ClearActions() {
 	c.KubernetesMock().ClearActions()
 	c.FurikoMock().ClearActions()
+	c.ArgoMock().ClearActions()
 }

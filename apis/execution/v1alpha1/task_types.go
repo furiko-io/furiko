@@ -17,6 +17,7 @@
 package v1alpha1
 
 import (
+	workflowv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -27,6 +28,10 @@ type TaskTemplate struct {
 	// Describes how to create tasks as Pods.
 	// +optional
 	Pod *PodTemplateSpec `json:"pod,omitempty"`
+
+	// Describes how to create tasks as Argo Workflows.
+	// +optional
+	ArgoWorkflow *ArgoWorkflowTemplateSpec `json:"argoWorkflow,omitempty"`
 }
 
 // PodTemplateSpec describes the data a Pod should have when created from a template.
@@ -60,4 +65,24 @@ func (p *PodTemplateSpec) ConvertToCoreSpec() *corev1.PodTemplateSpec {
 		ObjectMeta: p.ObjectMeta,
 		Spec:       p.Spec,
 	}
+}
+
+// ArgoWorkflowTemplateSpec describes the data a Workflow should have when created from a template.
+type ArgoWorkflowTemplateSpec struct {
+	// Standard object's metadata that will be added to Workflow. More info:
+	// https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	//
+	// +kubebuilder:validation:XPreserveUnknownFields
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Specification of the desired behavior of the Workflow. API docs:
+	// https://argoproj.github.io/argo-workflows/fields/#workflow
+	//
+	// +kubebuilder:validation:Type=object
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:validation:XPreserveUnknownFields
+	// +mapType=atomic
+	// +optional
+	Spec workflowv1alpha1.WorkflowSpec `json:"spec,omitempty"`
 }

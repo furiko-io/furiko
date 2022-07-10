@@ -27,7 +27,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/tasks"
 )
 
 const (
@@ -42,7 +42,7 @@ type PodTask struct {
 	client v1.PodInterface
 }
 
-var _ jobtasks.Task = (*PodTask)(nil)
+var _ tasks.Task = (*PodTask)(nil)
 
 func NewPodTask(pod *corev1.Pod, client v1.PodInterface) *PodTask {
 	return &PodTask{Pod: pod, client: client}
@@ -84,7 +84,7 @@ func (p *PodTask) GetKind() string {
 }
 
 func (p *PodTask) GetRetryIndex() (int64, bool) {
-	val, ok := p.Pod.Labels[LabelKeyTaskRetryIndex]
+	val, ok := p.Pod.Labels[tasks.LabelKeyTaskRetryIndex]
 	if !ok {
 		return 0, false
 	}
@@ -96,7 +96,7 @@ func (p *PodTask) GetRetryIndex() (int64, bool) {
 }
 
 func (p *PodTask) GetParallelIndex() (*execution.ParallelIndex, bool) {
-	val, ok := p.Annotations[AnnotationKeyTaskParallelIndex]
+	val, ok := p.Annotations[tasks.AnnotationKeyTaskParallelIndex]
 	if !ok {
 		return nil, false
 	}
@@ -105,19 +105,6 @@ func (p *PodTask) GetParallelIndex() (*execution.ParallelIndex, bool) {
 		return nil, false
 	}
 	return res, true
-}
-
-// RequiresKillWithDeletion returns true if the Task should be killed with
-// deletion instead of active deadline. Currently, we only enforce deletion if
-// the Pod is not yet scheduled, otherwise we should always use kill timestamp
-// to allow for graceful termination.
-func (p *PodTask) RequiresKillWithDeletion() bool {
-	// If a Pod is not pending, it is definitely already scheduled.
-	return p.Status.Phase == corev1.PodPending &&
-		// Check the PodCondition, which may in some cases be non-existent from PodStatus
-		!IsPodConditionScheduled(p.Pod) &&
-		// Pod is not yet acknowledged by kubelet, which means it was not yet scheduled
-		p.Status.StartTime.IsZero()
 }
 
 func (p *PodTask) GetState() execution.TaskState {

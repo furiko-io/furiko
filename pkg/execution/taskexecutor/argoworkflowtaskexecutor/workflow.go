@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package podtaskexecutor
+package argoworkflowtaskexecutor
 
 import (
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
@@ -27,21 +27,20 @@ import (
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 )
 
-// NewPod returns a new Pod object for the given Job.
-func NewPod(
+// NewWorkflow returns a new Workflow object for the given Job.
+func NewWorkflow(
 	rj *execution.Job,
-	template *corev1.PodTemplateSpec,
+	template *execution.ArgoWorkflowTemplateSpec,
 	index tasks.TaskIndex,
-) (*corev1.Pod, error) {
-	// Generate name for pod.
-	podName, err := job.GenerateTaskName(rj.Name, index)
+) (*v1alpha1.Workflow, error) {
+	name, err := job.GenerateTaskName(rj.Name, index)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot generate pod name")
+		return nil, errors.Wrapf(err, "cannot generate workflow name")
 	}
 
-	// Generate PodSpec after substitutions.
-	podSpec := SubstitutePodSpec(rj, template.Spec, variablecontext.TaskSpec{
-		Name:          podName,
+	// Generate spec after substitutions.
+	spec := SubstituteSpec(rj, template.Spec, variablecontext.TaskSpec{
+		Name:          name,
 		Namespace:     rj.GetNamespace(),
 		RetryIndex:    index.Retry,
 		ParallelIndex: index.Parallel,
@@ -53,10 +52,10 @@ func NewPod(
 		return nil, err
 	}
 
-	pod := &corev1.Pod{
+	wf := &v1alpha1.Workflow{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   rj.GetNamespace(),
-			Name:        podName,
+			Name:        name,
 			Labels:      templateMeta.Labels,
 			Annotations: templateMeta.Annotations,
 			Finalizers:  templateMeta.Finalizers,
@@ -64,8 +63,8 @@ func NewPod(
 				*metav1.NewControllerRef(rj, execution.GVKJob),
 			},
 		},
-		Spec: podSpec,
+		Spec: spec,
 	}
 
-	return pod, nil
+	return wf, nil
 }
