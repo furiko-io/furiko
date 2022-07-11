@@ -9,7 +9,24 @@ rules:
   - ""
   resources:
   - events
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
   - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - workflows
   verbs:
   - create
   - delete
