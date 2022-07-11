@@ -199,7 +199,7 @@ spec:
                       description: If true, then automatic scheduling will be disabled for the JobConfig.
                       type: boolean
                     lastUpdated:
-                      description: "Specifies the time that the schedule was last upated. This prevents accidental back-scheduling. \n For example, if a JobConfig that was previously disabled from automatic scheduling is now enabled, we do not want to perform back-scheduling for schedules after LastScheduled prior to updating of the JobConfig."
+                      description: "Specifies the time that the schedule was last updated. This prevents accidental back-scheduling. \n For example, if a JobConfig that was previously disabled from automatic scheduling is now enabled, we do not want to perform back-scheduling for schedules after LastScheduled prior to updating of the JobConfig."
                       format: date-time
                       type: string
                   type: object
