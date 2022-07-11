@@ -20,6 +20,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	workflowinformers "github.com/argoproj/argo-workflows/v3/pkg/client/informers/externalversions/workflow/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -56,6 +57,7 @@ type Context struct {
 	controllercontext.Context
 	podInformer coreinformers.PodInformer
 	jobInformer executioninformers.JobInformer
+	wfInformer  workflowinformers.WorkflowInformer
 	hasSynced   []cache.InformerSynced
 	queue       workqueue.RateLimitingInterface
 	recorder    record.EventRecorder
@@ -88,9 +90,11 @@ func NewContextWithRecorder(context controllercontext.Context, recorder record.E
 	// Bind informers.
 	c.podInformer = c.Informers().Kubernetes().Core().V1().Pods()
 	c.jobInformer = c.Informers().Furiko().Execution().V1alpha1().Jobs()
+	c.wfInformer = c.Informers().Argo().Argoproj().V1alpha1().Workflows()
 	c.hasSynced = []cache.InformerSynced{
 		c.podInformer.Informer().HasSynced,
 		c.jobInformer.Informer().HasSynced,
+		c.wfInformer.Informer().HasSynced,
 	}
 
 	// Set task manager.

@@ -40,13 +40,20 @@ func NewInformerWorker(ctrlContext *Context) *InformerWorker {
 		Context: ctrlContext,
 	}
 
-	// Add event handler for Pods.
 	w.podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: w.handlePod,
 		UpdateFunc: func(_, newObj interface{}) {
 			w.handlePod(newObj)
 		},
 		DeleteFunc: w.handlePod,
+	})
+
+	w.wfInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: w.handleWorkflow,
+		UpdateFunc: func(_, newObj interface{}) {
+			w.handleWorkflow(newObj)
+		},
+		DeleteFunc: w.handleWorkflow,
 	})
 
 	w.jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -87,6 +94,22 @@ func (w *InformerWorker) handlePod(obj interface{}) {
 
 	if controllerRef := metav1.GetControllerOf(pod); controllerRef != nil {
 		rj := w.resolveRefedJob(pod.GetNamespace(), controllerRef)
+		if rj != nil {
+			w.enqueueObject(rj)
+			return
+		}
+	}
+}
+
+func (w *InformerWorker) handleWorkflow(obj interface{}) {
+	wf, err := eventhandler.WorkflowV1alpha1Workflow(obj)
+	if err != nil {
+		klog.ErrorS(err, "jobcontroller: unable to handle event", "worker", w.WorkerName())
+		return
+	}
+
+	if controllerRef := metav1.GetControllerOf(wf); controllerRef != nil {
+		rj := w.resolveRefedJob(wf.GetNamespace(), controllerRef)
 		if rj != nil {
 			w.enqueueObject(rj)
 			return
