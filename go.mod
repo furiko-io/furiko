@@ -8,7 +8,7 @@ require (
 	github.com/creack/pty v1.1.17
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.13.0
-	github.com/furiko-io/cronexpr v0.1.1
+	github.com/furiko-io/cronexpr v0.1.3
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.1.2
 	github.com/hinshun/vt10x v0.0.0-20220119200601-820417d04eec
