@@ -127,6 +127,10 @@ func (c *Controller) Run(ctx context.Context) error {
 		return controllerutil.ErrWaitForCacheSyncTimeout
 	}
 
+	if err := c.cronWorker.Init(); err != nil {
+		klog.ErrorS(err, "croncontroller: cannot initialize cron worker")
+	}
+
 	c.reconciler.Start(c.ctx)
 	c.cronWorker.Start(c.ctx)
 
