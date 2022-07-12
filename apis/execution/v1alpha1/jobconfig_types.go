@@ -83,7 +83,7 @@ type ScheduleSpec struct {
 	// +optional
 	Constraints *ScheduleContraints `json:"constraints,omitempty"`
 
-	// Specifies the time that the schedule was last upated. This prevents
+	// Specifies the time that the schedule was last updated. This prevents
 	// accidental back-scheduling.
 	//
 	// For example, if a JobConfig that was previously disabled from automatic
