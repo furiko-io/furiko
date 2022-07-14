@@ -168,9 +168,9 @@ func (w *Reconciler) sync(
 func (w *Reconciler) syncJobTasks(
 	ctx context.Context, rj *execution.Job, cfg *configv1alpha1.JobExecutionConfig, trace *utiltrace.Trace,
 ) (*execution.Job, error) {
-	taskMgr, err := w.tasks.ForJob(rj)
+	executor, err := w.tasks.ForJob(rj)
 	if err != nil {
-		return rj, errors.Wrapf(err, "cannot create task manager")
+		return rj, errors.Wrapf(err, "cannot get task executor")
 	}
 
 	// Get all tasks in the job's status from the cache. Any tasks that are not in
@@ -178,14 +178,14 @@ func (w *Reconciler) syncJobTasks(
 	// NOTE(irvinlim): Avoid using List() which performs a complete linear search.
 	tasks := make([]jobtasks.Task, 0, len(rj.Status.Tasks))
 	for _, ref := range rj.Status.Tasks {
-		if task, err := taskMgr.Lister().Get(ref.Name); err == nil {
+		if task, err := executor.Lister().Get(ref.Name); err == nil {
 			tasks = append(tasks, task)
 		}
 	}
 	trace.Step("List tasks from cache done")
 
 	// Create all tasks that need to be created.
-	newRj, tasks, err := w.syncCreateTasks(ctx, rj, tasks)
+	newRj, tasks, err := w.syncCreateTasks(ctx, rj, tasks, executor)
 	if err != nil {
 		return rj, err
 	}
@@ -340,6 +340,7 @@ func (w *Reconciler) syncCreateTasks(
 	ctx context.Context,
 	rj *execution.Job,
 	tasks []jobtasks.Task,
+	executor jobtasks.Executor,
 ) (*execution.Job, []jobtasks.Task, error) {
 	now := ktime.Now().Time
 
@@ -374,7 +375,7 @@ func (w *Reconciler) syncCreateTasks(
 		if !request.Earliest.IsZero() && request.Earliest.After(now) {
 			continue
 		}
-		newRj, newTasks, err := w.syncCreateTask(ctx, rj, tasks, jobtasks.TaskIndex{
+		newRj, newTasks, err := w.syncCreateTask(ctx, rj, tasks, executor, jobtasks.TaskIndex{
 			Retry:    request.RetryIndex,
 			Parallel: request.ParallelIndex,
 		})
@@ -404,6 +405,7 @@ func (w *Reconciler) syncCreateTask(
 	ctx context.Context,
 	rj *execution.Job,
 	tasks []jobtasks.Task,
+	executor jobtasks.Executor,
 	index jobtasks.TaskIndex,
 ) (*execution.Job, []jobtasks.Task, error) {
 	// Generate desired task name.
@@ -413,11 +415,11 @@ func (w *Reconciler) syncCreateTask(
 	}
 
 	// Create new task.
-	task, err := w.createTask(ctx, rj, index)
+	task, err := executor.Client().CreateIndex(ctx, index)
 
 	// Handle case when task already exists by name, and safely adopt into the Job's status.
 	if kerrors.IsAlreadyExists(err) {
-		task, err := w.getTaskForAdoption(rj, name)
+		task, err := w.getTaskForAdoption(rj, name, executor)
 		if err != nil {
 			return rj, tasks, errors.Wrapf(err, "cannot check if should adopt task")
 		}
@@ -450,7 +452,11 @@ func (w *Reconciler) syncCreateTask(
 		return rj, tasks, nil
 	}
 
+	// Error while creating task.
 	if err != nil {
+		w.recorder.Eventf(rj, corev1.EventTypeWarning, "CreateTaskError",
+			"Error creating %v: %v", executor.GetKind(), err)
+
 		// Handle this as a normal error.
 		rerr := coreerrors.Error(nil)
 		if !errors.As(err, &rerr) || !coreerrors.IsAdmissionRefused(err) {
@@ -470,32 +476,34 @@ func (w *Reconciler) syncCreateTask(
 		)
 		w.recorder.Eventf(rj, corev1.EventTypeWarning, "AdmissionError",
 			"Job failed, task cannot be created due to invalid template")
-	} else {
-		// Record event.
-		klog.InfoS("jobcontroller: worker created task",
-			"worker", w.Name(),
-			"namespace", rj.GetNamespace(),
-			"name", rj.GetName(),
-			"task", task.GetName(),
-		)
-		w.recorder.Eventf(rj, corev1.EventTypeNormal, "Created",
-			"Created task of kind %v: %v", task.GetKind(), task.GetName())
 
-		// Add to our list of tasks.
-		tasks = append(tasks, task)
+		return rj, tasks, nil
 	}
+
+	// Record event.
+	klog.InfoS("jobcontroller: worker created task",
+		"worker", w.Name(),
+		"namespace", rj.GetNamespace(),
+		"name", rj.GetName(),
+		"task", task.GetName(),
+	)
+	w.recorder.Eventf(rj, corev1.EventTypeNormal, "Created",
+		"Created task of kind %v: %v", task.GetKind(), task.GetName())
+	ObserveFirstTaskCreation(rj, task)
+
+	// Add to our list of tasks.
+	tasks = append(tasks, task)
 
 	return rj, tasks, nil
 }
 
-func (w *Reconciler) getTaskForAdoption(rj *execution.Job, name string) (jobtasks.Task, error) {
-	taskMgr, err := w.tasks.ForJob(rj)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get task manager")
-	}
-
+func (w *Reconciler) getTaskForAdoption(
+	rj *execution.Job,
+	name string,
+	executor jobtasks.Executor,
+) (jobtasks.Task, error) {
 	// Assumes that the task exists.
-	task, err := taskMgr.Lister().Get(name)
+	task, err := executor.Lister().Get(name)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get existing task")
 	}
@@ -511,34 +519,6 @@ func (w *Reconciler) getTaskForAdoption(rj *execution.Job, name string) (jobtask
 	}
 
 	return nil, nil
-}
-
-// createTask will create a new task for the Job.
-// May return AdmissionError if it cannot be created due to an unretryable or irrecoverable error.
-func (w *Reconciler) createTask(
-	ctx context.Context,
-	rj *execution.Job,
-	index jobtasks.TaskIndex,
-) (jobtasks.Task, error) {
-	executor, err := w.tasks.ForJob(rj)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get task manager")
-	}
-
-	// Create new task.
-	task, err := executor.Client().CreateIndex(ctx, index)
-
-	// Record event on error.
-	if err != nil {
-		w.recorder.Eventf(rj, corev1.EventTypeWarning, "CreateTaskError",
-			"Error creating %v: %v", executor.GetKind(), err)
-		return nil, err
-	}
-
-	// Observe latency for initial task creation.
-	ObserveFirstTaskCreation(rj, task)
-
-	return task, nil
 }
 
 // handlePendingTasks looks for pending tasks that have exceeded their pending
@@ -821,16 +801,16 @@ func (w *Reconciler) handleFinishFinalizer(
 		"name", rj.GetName(),
 	)
 
-	taskMgr, err := w.tasks.ForJob(rj)
+	executor, err := w.tasks.ForJob(rj)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get task manager")
+		return nil, errors.Wrapf(err, "cannot get task executor")
 	}
 
 	// Get list of all created tasks from cache.
 	// Use CreatedTaskRefs as they are guaranteed to contain all tasks that have been created by this Job.
 	tasks := make([]jobtasks.Task, 0, len(rj.Status.Tasks))
 	for _, taskRef := range rj.Status.Tasks {
-		task, err := taskMgr.Lister().Get(taskRef.Name)
+		task, err := executor.Lister().Get(taskRef.Name)
 		if kerrors.IsNotFound(err) {
 			continue
 		} else if err != nil {
@@ -895,9 +875,9 @@ func (w *Reconciler) handleFinishFinalizer(
 func (w *Reconciler) deleteTasks(
 	ctx context.Context, rj *execution.Job, task []jobtasks.Task, force bool,
 ) error {
-	taskMgr, err := w.tasks.ForJob(rj)
+	executor, err := w.tasks.ForJob(rj)
 	if err != nil {
-		return errors.Wrapf(err, "cannot get task manager")
+		return errors.Wrapf(err, "cannot get task executor")
 	}
 
 	eventReason := "Deleted"
@@ -911,7 +891,7 @@ func (w *Reconciler) deleteTasks(
 			return nil
 		}
 
-		if err := taskMgr.Client().Delete(ctx, task.GetName(), force); kerrors.IsNotFound(err) {
+		if err := executor.Client().Delete(ctx, task.GetName(), force); kerrors.IsNotFound(err) {
 			return nil
 		} else if err != nil {
 			return err
