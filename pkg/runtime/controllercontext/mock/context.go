@@ -29,11 +29,12 @@ import (
 type Context struct {
 	clientsets *Clientsets
 	configs    *Configs
-	informers  controllercontext.Informers
 	stores     *Stores
+	informers  controllercontext.Informers
+	crds       controllercontext.CRDs
 }
 
-var _ controllercontext.Context = &Context{}
+var _ controllercontext.Context = (*Context)(nil)
 
 func NewContext() *Context {
 	clientsets := NewClientsets()
@@ -41,9 +42,14 @@ func NewContext() *Context {
 		clientsets: clientsets,
 		configs:    NewConfigs(),
 		informers:  NewInformers(clientsets),
+		crds:       NewCRDManager(),
 	}
 	c.stores = NewStores(c)
 	return c
+}
+
+func (c *Context) CustomResourceDefinitions() controllercontext.CRDs {
+	return c.crds
 }
 
 func (c *Context) Clientsets() controllercontext.Clientsets {
@@ -82,7 +88,7 @@ func (c *Context) Start(ctx context.Context) error {
 	}
 
 	// Start informers.
-	if err := c.informers.Start(ctx); err != nil {
+	if err := c.informers.Start(ctx, c.crds); err != nil {
 		return errors.Wrapf(err, "cannot start informers")
 	}
 

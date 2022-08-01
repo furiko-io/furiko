@@ -19,6 +19,7 @@ package controllercontext
 import (
 	argo "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	"github.com/pkg/errors"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -31,18 +32,24 @@ func (c *ctrlContext) Clientsets() Clientsets {
 
 type Clientsets interface {
 	Kubernetes() kubernetes.Interface
+	APIExtensions() apiextensions.Interface
 	Furiko() furiko.Interface
 	Argo() argo.Interface
 }
 
 type contextClientsets struct {
-	kubernetes kubernetes.Interface
-	furiko     furiko.Interface
-	argo       argo.Interface
+	kubernetes    kubernetes.Interface
+	furiko        furiko.Interface
+	argo          argo.Interface
+	apiExtensions *apiextensions.Clientset
 }
 
 func (c *contextClientsets) Kubernetes() kubernetes.Interface {
 	return c.kubernetes
+}
+
+func (c *contextClientsets) APIExtensions() apiextensions.Interface {
+	return c.apiExtensions
 }
 
 func (c *contextClientsets) Furiko() furiko.Interface {
@@ -60,6 +67,10 @@ func SetUpClientsets(cfg *rest.Config) (Clientsets, error) {
 	clientsets.kubernetes, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not create kubernetes client")
+	}
+	clientsets.apiExtensions, err = apiextensions.NewForConfig(cfg)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not create apiextensions client")
 	}
 	clientsets.furiko, err = furiko.NewForConfig(cfg)
 	if err != nil {

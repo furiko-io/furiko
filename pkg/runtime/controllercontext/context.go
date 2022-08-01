@@ -32,6 +32,7 @@ type Context interface {
 	Configs() Configs
 	Stores() Stores
 	Informers() Informers
+	CustomResourceDefinitions() CRDs
 }
 
 type ctrlContext struct {
@@ -40,6 +41,7 @@ type ctrlContext struct {
 	storeMgr   Stores
 	clientsets Clientsets
 	informers  Informers
+	crdMgr     CRDs
 }
 
 var _ Context = &ctrlContext{}
@@ -60,6 +62,9 @@ func NewForConfig(cfg *rest.Config, ctrlConfig *configv1alpha1.BootstrapConfigSp
 	// Set up shared informer factories.
 	c.informers = SetUpInformers(c.clientsets, ctrlConfig)
 
+	// Set up CRD manager.
+	c.crdMgr = SetUpCRDs(c.informers)
+
 	// Set up config manager.
 	c.configMgr = SetUpConfigManager(ctrlConfig, c.Clientsets().Kubernetes())
 
@@ -70,13 +75,18 @@ func NewForConfig(cfg *rest.Config, ctrlConfig *configv1alpha1.BootstrapConfigSp
 }
 
 func (c *ctrlContext) Start(ctx context.Context) error {
+	// Start CRD manager. This is a dependency for starting the informer manager afterwards.
+	if err := c.crdMgr.Start(ctx); err != nil {
+		return errors.Wrapf(err, "cannot start CRD manager")
+	}
+
 	// Start config manager.
 	if err := c.configMgr.Start(ctx); err != nil {
 		return errors.Wrapf(err, "cannot start dynamic config manager")
 	}
 
 	// Start informers.
-	if err := c.informers.Start(ctx); err != nil {
+	if err := c.informers.Start(ctx, c.crdMgr); err != nil {
 		return errors.Wrapf(err, "cannot start informers")
 	}
 

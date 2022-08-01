@@ -19,6 +19,8 @@ package mock
 import (
 	argo "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	argofake "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/fake"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -28,17 +30,19 @@ import (
 )
 
 type Clientsets struct {
-	kubernetes *fake.Clientset
-	furiko     *furikofake.Clientset
-	argo       *argofake.Clientset
+	kubernetes    *fake.Clientset
+	apiExtensions *apiextensionsfake.Clientset
+	furiko        *furikofake.Clientset
+	argo          *argofake.Clientset
 }
 
 // NewClientsets returns a new Clientsets using fake clients.
 func NewClientsets() *Clientsets {
 	return &Clientsets{
-		kubernetes: fake.NewSimpleClientset(),
-		furiko:     furikofake.NewSimpleClientset(),
-		argo:       argofake.NewSimpleClientset(),
+		kubernetes:    fake.NewSimpleClientset(),
+		apiExtensions: apiextensionsfake.NewSimpleClientset(),
+		furiko:        furikofake.NewSimpleClientset(),
+		argo:          argofake.NewSimpleClientset(),
 	}
 }
 
@@ -51,6 +55,14 @@ func (c *Clientsets) Kubernetes() kubernetes.Interface {
 // KubernetesMock returns the underlying fake clientset.
 func (c *Clientsets) KubernetesMock() *fake.Clientset {
 	return c.kubernetes
+}
+
+func (c *Clientsets) APIExtensions() apiextensions.Interface {
+	return c.APIExtensionsMock()
+}
+
+func (c *Clientsets) APIExtensionsMock() *apiextensionsfake.Clientset {
+	return c.apiExtensions
 }
 
 func (c *Clientsets) Furiko() furiko.Interface {
@@ -74,6 +86,7 @@ func (c *Clientsets) ArgoMock() *argofake.Clientset {
 // ClearActions clears all actions.
 func (c *Clientsets) ClearActions() {
 	c.KubernetesMock().ClearActions()
+	c.APIExtensionsMock().ClearActions()
 	c.FurikoMock().ClearActions()
 	c.ArgoMock().ClearActions()
 }

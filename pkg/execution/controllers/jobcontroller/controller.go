@@ -94,7 +94,6 @@ func NewContextWithRecorder(context controllercontext.Context, recorder record.E
 	c.hasSynced = []cache.InformerSynced{
 		c.podInformer.Informer().HasSynced,
 		c.jobInformer.Informer().HasSynced,
-		c.wfInformer.Informer().HasSynced,
 	}
 
 	// Set task manager.
@@ -128,8 +127,19 @@ func (c *Controller) Run(ctx context.Context) error {
 	defer utilruntime.HandleCrash()
 	klog.InfoS("jobcontroller: starting controller")
 
+	// Check if Argo Workflows is installed.
+	if _, err := c.CustomResourceDefinitions().ArgoWorkflows(); err != nil {
+		klog.InfoS("jobcontroller: customresourcedefinition integration disabled",
+			"crd", "workflows.argoproj.io",
+			"err", err)
+	} else {
+		klog.InfoS("jobcontroller: customresourcedefinition integration enabled",
+			"crd", "workflows.argoproj.io")
+		c.hasSynced = append(c.hasSynced, c.wfInformer.Informer().HasSynced)
+	}
+
 	// Wait for cache sync up to a timeout.
-	if ok := cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.hasSynced...); !ok {
+	if !cache.WaitForNamedCacheSync(controllerName, ctx.Done(), c.hasSynced...) {
 		klog.Error("jobcontroller: cache sync timeout")
 		return controllerutil.ErrWaitForCacheSyncTimeout
 	}
