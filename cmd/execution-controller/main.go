@@ -37,8 +37,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/utils/yaml"
 )
 
-// +kubebuilder:rbac:groups="",resources=events,verbs=create
-// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=events;pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs/status,verbs=get;update;patch

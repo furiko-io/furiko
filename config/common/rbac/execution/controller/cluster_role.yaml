@@ -9,11 +9,6 @@ rules:
   - ""
   resources:
   - events
-  verbs:
-  - create
-- apiGroups:
-  - ""
-  resources:
   - pods
   verbs:
   - create
