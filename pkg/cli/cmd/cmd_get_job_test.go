@@ -30,6 +30,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/errors"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -307,7 +308,7 @@ func TestGetJobCommand(t *testing.T) {
 		{
 			Name:      "get job does not exist",
 			Args:      []string{"get", "job", "job-running"},
-			WantError: runtimetesting.AssertErrorIsNotFound(),
+			WantError: errors.AssertIsNotFound(),
 		},
 	})
 }

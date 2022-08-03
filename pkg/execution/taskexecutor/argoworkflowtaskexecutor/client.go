@@ -28,6 +28,18 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
+	utilerrors "github.com/furiko-io/furiko/pkg/utils/errors"
+)
+
+var (
+	// unretryableCreateErrors contains a list of functions that test for an error
+	// that is considered unretryable during create.
+	unretryableCreateErrors = []func(error) bool{
+		kerrors.IsInvalid,
+		kerrors.IsAlreadyExists,
+		// NOTE: NotFound is returned when the CRD is not found.
+		kerrors.IsNotFound,
+	}
 )
 
 type client struct {
@@ -52,6 +64,8 @@ func (c *client) CreateIndex(ctx context.Context, index tasks.TaskIndex) (tasks.
 	if template == nil {
 		return nil, errors.New("workflow template cannot be empty")
 	}
+
+	// Construct workflow object.
 	newWf, err := NewWorkflow(c.job, template, index)
 	if err != nil {
 		return nil, err
@@ -60,9 +74,8 @@ func (c *client) CreateIndex(ctx context.Context, index tasks.TaskIndex) (tasks.
 	// Create new workflow.
 	wf, err := c.client.Create(ctx, newWf, metav1.CreateOptions{})
 
-	// Rejected by apiserver, do not attempt to retry and raise an
-	// AdmissionRefusedError instead.
-	if kerrors.IsInvalid(err) {
+	// Unretryable error, rejected by apiserver.
+	if utilerrors.IsAny(err, unretryableCreateErrors...) {
 		return nil, coreerrors.NewAdmissionRefusedError(err.Error())
 	}
 

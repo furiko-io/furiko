@@ -36,6 +36,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/reconciler"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	utilerrors "github.com/furiko-io/furiko/pkg/utils/errors"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -87,7 +88,7 @@ func TestReconciler(t *testing.T) {
 					},
 				},
 			},
-			WantError: runtimetesting.AssertErrorIsForbidden(),
+			WantError: utilerrors.AssertIsForbidden(),
 			WantEvents: []runtimetesting.Event{
 				{
 					Type:    corev1.EventTypeWarning,

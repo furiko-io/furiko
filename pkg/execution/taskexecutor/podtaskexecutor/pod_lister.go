@@ -34,7 +34,7 @@ type PodTaskLister struct {
 	rj        *execution.Job
 }
 
-func NewPodTaskLister(
+func NewLister(
 	podLister corev1lister.PodLister, client v1.PodInterface, rj *execution.Job,
 ) *PodTaskLister {
 	return &PodTaskLister{

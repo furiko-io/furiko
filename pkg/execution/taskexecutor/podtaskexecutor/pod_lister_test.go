@@ -98,7 +98,7 @@ func TestNewPodTaskLister(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset()
 	informerFactory := informers.NewSharedInformerFactory(clientset, 0)
-	lister := podtaskexecutor.NewPodTaskLister(
+	lister := podtaskexecutor.NewLister(
 		informerFactory.Core().V1().Pods().Lister(),
 		clientset.CoreV1().Pods(jobNamespace),
 		fakeJob,
