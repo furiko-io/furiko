@@ -36,7 +36,6 @@ var (
 	// that is considered unretryable during create.
 	unretryableCreateErrors = []func(error) bool{
 		kerrors.IsInvalid,
-		kerrors.IsAlreadyExists,
 		// NOTE: NotFound is returned when the CRD is not found.
 		kerrors.IsNotFound,
 	}

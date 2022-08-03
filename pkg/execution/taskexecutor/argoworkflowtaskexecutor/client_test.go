@@ -109,7 +109,7 @@ func TestClient_CreateIndex(t *testing.T) {
 			wantErr: coreerrors.AssertIsAdmissionRefused(),
 		},
 		{
-			name: "AlreadyExists",
+			name: "AlreadyExists do not handle as AdmissionRefused",
 			job:  fakeJob,
 			index: tasks.TaskIndex{
 				Retry: 0,
@@ -124,7 +124,7 @@ func TestClient_CreateIndex(t *testing.T) {
 					return true, nil, kerrors.NewAlreadyExists(v1alpha1.Resource("workflow"), "workflow-name")
 				},
 			},
-			wantErr: coreerrors.AssertIsAdmissionRefused(),
+			wantErr: errors.AssertIsFunc("AlreadyExists", kerrors.IsAlreadyExists),
 		},
 		{
 			name: "CRD is NotFound",

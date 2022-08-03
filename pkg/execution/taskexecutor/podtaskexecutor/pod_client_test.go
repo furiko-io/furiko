@@ -149,7 +149,7 @@ func TestClient_CreateIndex(t *testing.T) {
 			wantErr: coreerrors.AssertIsAdmissionRefused(),
 		},
 		{
-			name: "AlreadyExists",
+			name: "AlreadyExists do not handle as AdmissionRefused",
 			job:  fakeJob,
 			index: tasks.TaskIndex{
 				Retry: 0,
@@ -164,7 +164,7 @@ func TestClient_CreateIndex(t *testing.T) {
 					return true, nil, kerrors.NewAlreadyExists(core.Resource("pod"), "pod-name")
 				},
 			},
-			wantErr: coreerrors.AssertIsAdmissionRefused(),
+			wantErr: errors.AssertIsFunc("AlreadyExists", kerrors.IsAlreadyExists),
 		},
 	}
 	for _, tt := range tests {
