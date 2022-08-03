@@ -31,7 +31,7 @@ type Context struct {
 	configs    *Configs
 	stores     *Stores
 	informers  controllercontext.Informers
-	crds       controllercontext.CRDs
+	crds       *CRDs
 }
 
 var _ controllercontext.Context = (*Context)(nil)
@@ -49,6 +49,10 @@ func NewContext() *Context {
 }
 
 func (c *Context) CustomResourceDefinitions() controllercontext.CRDs {
+	return c.MockCustomResourceDefinitions()
+}
+
+func (c *Context) MockCustomResourceDefinitions() *CRDs {
 	return c.crds
 }
 

@@ -299,7 +299,7 @@ func (m *Mutator) evaluateOptionValues(rj *v1alpha1.Job, rjc *v1alpha1.JobConfig
 // MutateJobTemplateSpec mutates a JobTemplate in-place.
 func (m *Mutator) MutateJobTemplateSpec(
 	spec *v1alpha1.JobTemplate,
-	taskTemplate bool,
+	mutateTaskTemplate bool,
 	fldPath *field.Path,
 ) *webhook.Result {
 	result := webhook.NewResult()
@@ -310,8 +310,31 @@ func (m *Mutator) MutateJobTemplateSpec(
 	if spec.Parallelism != nil {
 		result.Merge(m.MutateParallelismSpec(spec.Parallelism, fldPath.Child("parallelism")))
 	}
-	if taskTemplate {
+	result.Merge(m.ValidateTaskTemplate(&spec.TaskTemplate, fldPath.Child("taskTemplate")))
+	if mutateTaskTemplate {
 		result.Merge(m.MutateTaskTemplate(&spec.TaskTemplate, fldPath.Child("taskTemplate")))
+	}
+
+	return result
+}
+
+// ValidateTaskTemplate performs validation for a TaskTemplate. Mainly used for returning warnings.
+func (m *Mutator) ValidateTaskTemplate(spec *v1alpha1.TaskTemplate, fldPath *field.Path) *webhook.Result {
+	result := webhook.NewResult()
+	if spec.ArgoWorkflow != nil {
+		result.Merge(m.ValidateArgoWorkflowTemplateSpec(spec.ArgoWorkflow, fldPath.Child("argoWorkflow")))
+	}
+	return result
+}
+
+// ValidateArgoWorkflowTemplateSpec mutates ArgoWorkflowTemplateSpec in-place.
+func (m *Mutator) ValidateArgoWorkflowTemplateSpec(spec *v1alpha1.ArgoWorkflowTemplateSpec, fldPath *field.Path) *webhook.Result {
+	result := webhook.NewResult()
+
+	// Did not find Argo Workflow CRD, but user is trying to mutate a Job/JobConfig
+	// with an argoWorkflow task template.
+	if _, err := m.ctrlContext.CustomResourceDefinitions().ArgoWorkflows(); err != nil {
+		result.Warnings = append(result.Warnings, "Argo Workflows could not be detected in the cluster, the job may fail to run")
 	}
 
 	return result
