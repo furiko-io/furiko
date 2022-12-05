@@ -14,6 +14,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
   - id: execution-webhook
     main: ./cmd/execution-webhook
     binary: execution-webhook
@@ -23,6 +24,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
   - id: furiko-cli
     main: ./cmd/furiko-cli
     binary: furiko
@@ -61,26 +63,101 @@ changelog:
 
 # Build Docker images for each entrypoint separately.
 dockers:
-  - id: execution-controller
+  - goos: linux
+    goarch: amd64
     use: buildx
     ids:
       - execution-controller
     image_templates:
-      - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
-      - "furikoio/execution-controller:latest"
+      - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-amd64"
+      - "furikoio/execution-controller:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--target=execution-controller"
-  - id: execution-webhook
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - goos: linux
+    goarch: arm64
+    use: buildx
+    ids:
+      - execution-controller
+    image_templates:
+      - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
+      - "furikoio/execution-controller:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--target=execution-controller"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - goos: linux
+    goarch: amd64
     use: buildx
     ids:
       - execution-webhook
     image_templates:
-      - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
-      - "furikoio/execution-webhook:latest"
+      - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-amd64"
+      - "furikoio/execution-webhook:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--target=execution-webhook"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - goos: linux
+    goarch: arm64
+    use: buildx
+    ids:
+      - execution-webhook
+    image_templates:
+      - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
+      - "furikoio/execution-webhook:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--target=execution-webhook"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+
+# Support Docker manifests for multi-arch images.
+docker_manifests:
+- name_template: "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
+  image_templates:
+  - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-amd64"
+  - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
+- name_template: "furikoio/execution-controller:latest"
+  image_templates:
+  - "furikoio/execution-controller:latest-amd64"
+  - "furikoio/execution-controller:latest-arm64v8"
+- name_template: "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
+  image_templates:
+  - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-amd64"
+  - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
+- name_template: "furikoio/execution-webhook:latest"
+  image_templates:
+  - "furikoio/execution-webhook:latest-amd64"
+  - "furikoio/execution-webhook:latest-arm64v8"
 
 # Prepare release assets.
 release:
