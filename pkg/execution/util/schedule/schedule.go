@@ -150,10 +150,17 @@ func (s *Schedule) Bump(jobConfig *execution.JobConfig, fromTime time.Time) (tim
 	if err != nil {
 		return next, err
 	}
-	fromTime = fromTime.In(timezone)
+
+	// Set the timezone from job config if specified, otherwise fall back to the
+	// given time.Location of the input time.
+	if timezone != nil {
+		fromTime = fromTime.In(timezone)
+	}
 
 	// Get next schedule time.
-	next = getNext(jobConfig, expr, fromTime)
+	if expr != nil {
+		next = getNext(jobConfig, expr, fromTime)
+	}
 
 	// There is no next schedule time, so we just return here. Delete it from the
 	// heap in case it exists, since there is no next schedule time.

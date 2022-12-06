@@ -17,6 +17,7 @@
 package schedule_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
 	"github.com/furiko-io/furiko/pkg/execution/util/schedule"
+	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -821,4 +823,78 @@ func makeKey(jobConfig *execution.JobConfig) string {
 		panic(err)
 	}
 	return key
+}
+
+func TestSchedule_Bump(t *testing.T) {
+	tests := []struct {
+		name      string
+		jobConfig *execution.JobConfig
+		fromTime  time.Time
+		want      time.Time
+		wantErr   assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "bump job config without schedule",
+			jobConfig: &execution.JobConfig{},
+			fromTime:  testutils.Mktime(now),
+		},
+		{
+			name: "bump job config with disabled schedule",
+			jobConfig: &execution.JobConfig{
+				Spec: execution.JobConfigSpec{
+					Schedule: &execution.ScheduleSpec{
+						Cron: &execution.CronSchedule{
+							Expression: "0 0/5 * * * ? *",
+						},
+						Disabled: true,
+					},
+				},
+			},
+			fromTime: testutils.Mktime(now),
+		},
+		{
+			name: "bump job config without timezone",
+			jobConfig: &execution.JobConfig{
+				Spec: execution.JobConfigSpec{
+					Schedule: &execution.ScheduleSpec{
+						Cron: &execution.CronSchedule{
+							Expression: "0 0/5 * * * ? *",
+						},
+					},
+				},
+			},
+			fromTime: testutils.Mktime(now),
+			want:     testutils.Mktime("2021-02-09T04:10:00Z"),
+		},
+		{
+			name: "bump job config with timezone",
+			jobConfig: &execution.JobConfig{
+				Spec: execution.JobConfigSpec{
+					Schedule: &execution.ScheduleSpec{
+						Cron: &execution.CronSchedule{
+							Expression: "0 0/5 * * * ? *",
+							Timezone:   "UTC+08:00",
+						},
+					},
+				},
+			},
+			fromTime: testutils.Mktime(now),
+			want:     testutils.Mktime("2021-02-09T12:10:00+08:00"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := testutils.Mktime(now)
+			fakeClock := clock.NewFakeClock(now)
+			sched, err := schedule.New([]*execution.JobConfig{tt.jobConfig}, schedule.WithClock(fakeClock))
+			if err != nil {
+				t.Fatalf("cannot initialize schedule: %v", err)
+			}
+			got, err := sched.Bump(tt.jobConfig, tt.fromTime)
+			if runtimetesting.WantError(t, tt.wantErr, err, fmt.Sprintf("Bump(%v)", tt.fromTime)) {
+				return
+			}
+			assert.True(t, tt.want.Equal(got), fmt.Sprintf("Bump(%v): want %v, got %v", tt.fromTime, tt.want, got))
+		})
+	}
 }
