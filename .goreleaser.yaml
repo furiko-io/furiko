@@ -15,6 +15,8 @@ builds:
     goarch:
       - amd64
       - arm64
+    goarm:
+      - "7"
   - id: execution-webhook
     main: ./cmd/execution-webhook
     binary: execution-webhook
@@ -25,6 +27,8 @@ builds:
     goarch:
       - amd64
       - arm64
+    goarm:
+      - "7"
   - id: furiko-cli
     main: ./cmd/furiko-cli
     binary: furiko
@@ -34,7 +38,10 @@ builds:
       - windows
     goarch:
       - amd64
+      - arm
       - arm64
+    goarm:
+      - "7"
 
 # Create archive for each binary.
 archives:
@@ -78,7 +85,7 @@ dockers:
       - "--platform=linux/amd64"
       - "--target=execution-controller"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
       - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
       - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
       - --label=org.opencontainers.image.version={{ .Version }}
@@ -87,6 +94,7 @@ dockers:
       - --label=org.opencontainers.image.licenses=Apache-2.0
   - goos: linux
     goarch: arm64
+    goarm: "7"
     use: buildx
     ids:
       - execution-controller
@@ -97,7 +105,7 @@ dockers:
       - "--platform=linux/arm64"
       - "--target=execution-controller"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
       - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
       - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
       - --label=org.opencontainers.image.version={{ .Version }}
@@ -116,7 +124,7 @@ dockers:
       - "--platform=linux/amd64"
       - "--target=execution-webhook"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
       - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
       - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
       - --label=org.opencontainers.image.version={{ .Version }}
@@ -125,6 +133,7 @@ dockers:
       - --label=org.opencontainers.image.licenses=Apache-2.0
   - goos: linux
     goarch: arm64
+    goarm: "7"
     use: buildx
     ids:
       - execution-webhook
@@ -135,7 +144,7 @@ dockers:
       - "--platform=linux/arm64"
       - "--target=execution-webhook"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
       - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
       - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
       - --label=org.opencontainers.image.version={{ .Version }}
