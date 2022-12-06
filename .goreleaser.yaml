@@ -3,7 +3,7 @@ before:
   hooks:
     - make yaml
 
-# Build each entrypoint for Docker.
+# Build each Golang binary.
 builds:
   - id: execution-controller
     main: ./cmd/execution-controller
@@ -36,23 +36,26 @@ builds:
       - amd64
       - arm64
 
-# Create archive for each entrypoint.
+# Create archive for each binary.
 archives:
   - id: execution-controller
     builds:
       - execution-controller
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      {{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}
     wrap_in_directory: true
   - id: execution-webhook
     builds:
       - execution-webhook
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      {{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}
     wrap_in_directory: true
   - id: furiko-cli
     builds:
       - furiko-cli
     format: binary
-    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      {{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}
 
 checksum:
   name_template: 'checksums.txt'
@@ -61,7 +64,7 @@ snapshot:
 changelog:
   use: github-native
 
-# Build Docker images for each entrypoint separately.
+# Build container images for each server component for each supported platform.
 dockers:
   - goos: linux
     goarch: amd64
@@ -69,8 +72,8 @@ dockers:
     ids:
       - execution-controller
     image_templates:
-      - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-amd64"
-      - "furikoio/execution-controller:latest-amd64"
+      - "furiko-io/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}-amd64"
+      - "furiko-io/execution-controller:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--target=execution-controller"
@@ -88,8 +91,8 @@ dockers:
     ids:
       - execution-controller
     image_templates:
-      - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
-      - "furikoio/execution-controller:latest-arm64v8"
+      - "furiko-io/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
+      - "furiko-io/execution-controller:latest-arm64v8"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
       - "--target=execution-controller"
@@ -107,8 +110,8 @@ dockers:
     ids:
       - execution-webhook
     image_templates:
-      - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-amd64"
-      - "furikoio/execution-webhook:latest-amd64"
+      - "furiko-io/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}-amd64"
+      - "furiko-io/execution-webhook:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--target=execution-webhook"
@@ -126,8 +129,8 @@ dockers:
     ids:
       - execution-webhook
     image_templates:
-      - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
-      - "furikoio/execution-webhook:latest-arm64v8"
+      - "furiko-io/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
+      - "furiko-io/execution-webhook:latest-arm64v8"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
       - "--target=execution-webhook"
@@ -142,22 +145,22 @@ dockers:
 
 # Support Docker manifests for multi-arch images.
 docker_manifests:
-- name_template: "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
+- name_template: "furiko-io/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}"
   image_templates:
-  - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-amd64"
-  - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
-- name_template: "furikoio/execution-controller:latest"
+  - "furiko-io/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}-amd64"
+  - "furiko-io/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
+- name_template: "furiko-io/execution-controller:latest"
   image_templates:
-  - "furikoio/execution-controller:latest-amd64"
-  - "furikoio/execution-controller:latest-arm64v8"
-- name_template: "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
+  - "furiko-io/execution-controller:latest-amd64"
+  - "furiko-io/execution-controller:latest-arm64v8"
+- name_template: "furiko-io/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}"
   image_templates:
-  - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-amd64"
-  - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
-- name_template: "furikoio/execution-webhook:latest"
+  - "furiko-io/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}-amd64"
+  - "furiko-io/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else }}{{ .Tag }}{{ end }}-arm64v8"
+- name_template: "furiko-io/execution-webhook:latest"
   image_templates:
-  - "furikoio/execution-webhook:latest-amd64"
-  - "furikoio/execution-webhook:latest-arm64v8"
+  - "furiko-io/execution-webhook:latest-amd64"
+  - "furiko-io/execution-webhook:latest-arm64v8"
 
 # Prepare release assets.
 release:
