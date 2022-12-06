@@ -40,7 +40,7 @@ jobs:
         with:
           platforms: |
             linux/amd64
-            linux/arm64/v8
+            linux/arm64
       - uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
