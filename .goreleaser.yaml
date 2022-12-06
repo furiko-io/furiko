@@ -85,6 +85,7 @@ dockers:
       - "ghcr.io/furiko-io/execution-controller:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
       - "--target=execution-controller"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
@@ -105,6 +106,7 @@ dockers:
       - "ghcr.io/furiko-io/execution-controller:latest-armv7"
     build_flag_templates:
       - "--platform=linux/arm/v7"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
       - "--target=execution-controller"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
@@ -124,6 +126,7 @@ dockers:
       - "ghcr.io/furiko-io/execution-controller:latest-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
       - "--target=execution-controller"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
@@ -143,6 +146,7 @@ dockers:
       - "ghcr.io/furiko-io/execution-webhook:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
       - "--target=execution-webhook"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
@@ -163,6 +167,7 @@ dockers:
       - "ghcr.io/furiko-io/execution-webhook:latest-armv7"
     build_flag_templates:
       - "--platform=linux/arm/v7"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
       - "--target=execution-webhook"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
@@ -182,6 +187,7 @@ dockers:
       - "ghcr.io/furiko-io/execution-webhook:latest-arm64"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
       - "--target=execution-webhook"
       - --label=org.opencontainers.image.title={{ .ProjectName }}
       - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes

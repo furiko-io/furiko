@@ -25,17 +25,13 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Fetch all tags
-        run: git fetch --force --tags
-      - name: Get the tag
-        id: tag_name
-        run: echo ::set-output name=TAG_NAME::${GITHUB_REF/refs\/tags\//}
       - name: Determine Go version from go.mod
         run: echo "GO_VERSION=$(grep "go 1." go.mod | cut -d " " -f 2)" >> $GITHUB_ENV
       - uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Set up Docker Buildx
+        id: docker-buildx
         uses: docker/setup-buildx-action@v2
         with:
           platforms: |
@@ -62,3 +58,4 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKER_BUILDX_INSTANCE: ${{ steps.docker-buildx.outputs.name }}
