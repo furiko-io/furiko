@@ -58,4 +58,8 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # NOTE(irvinlim): If we don't specify this, then GoReleaser uses the "default" buildx
+          # instance with --builder=default, which doesn't add other architectures by default.
+          # We will pass this to the `docker buildx --builder=` command in GoReleaser.
           DOCKER_BUILDX_INSTANCE: ${{ steps.docker-buildx.outputs.name }}
