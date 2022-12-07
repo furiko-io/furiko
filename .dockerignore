@@ -17,3 +17,6 @@ LICENSE
 *.yaml
 *.yml
 *.cov
+Dockerfile*
+.goreleaser.yaml
+.golangci.yml

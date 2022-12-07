@@ -1,0 +1,48 @@
+##
+## This GitHub Action is used to release a nightly release of Furiko.
+##
+## The Action is only used to push new container images with the tag format "nightly",
+## and will be performed whenever the main branch is pushed.
+##
+## Because GoReleaser Pro is required for nightly release support, and to avoid unnecessary complexity,
+## a simple shell script is used instead. See ./hack/release-nightly.sh for more information.
+##
+
+name: Perform a nightly release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    # For now, only a single platform image will be built and pushed for nightly.
+    # TODO(irvinlim): Use docker manifest to support multi-arch nightly images.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Determine Go version from go.mod
+        run: echo "GO_VERSION=$(grep "go 1." go.mod | cut -d " " -f 2)" >> $GITHUB_ENV
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Log in to the Container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Perform nightly release
+        run: make release-nightly

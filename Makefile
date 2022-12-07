@@ -26,10 +26,10 @@ endif
 LICENSE_HEADER_GO ?= hack/boilerplate.go.txt
 
 # Set the registry name.
-IMAGE_REGISTRY ?= "docker.io"
+IMAGE_REGISTRY ?= "ghcr.io"
 
 # Set image name prefix. The actual image name and tag will be appended to this.
-IMAGE_NAME_PREFIX ?= "$(IMAGE_REGISTRY)/furikoio"
+IMAGE_NAME_PREFIX ?= "$(IMAGE_REGISTRY)/furiko-io"
 
 # Define the image tag to use, otherwise will default to latest.
 # The latest tag always refers to the latest stable release.
@@ -41,7 +41,7 @@ DEV_IMAGE_REGISTRY ?= "localhost:5000"
 
 # Set the development image name prefix. The actual image name and tag will be appended to this.
 # This will only be used for Makefile targets related to local development.
-DEV_IMAGE_NAME_PREFIX ?= "$(DEV_IMAGE_REGISTRY)/furikoio"
+DEV_IMAGE_NAME_PREFIX ?= "$(DEV_IMAGE_REGISTRY)/furiko-io"
 
 # Define the image tag to use for development images.
 # This will only be used for Makefile targets related to local development.
@@ -185,12 +185,12 @@ undeploy: $(KUSTOMIZE_DEST) ## Undeploy controller from the K8s cluster. Call wi
 dev: dev-build dev-push dev-deploy ## Builds local Docker images of all components and deploys them to the K8s cluster. Use the DEV_IMAGE_TAG environment variable to override the image tag, and DEV_IMAGE_REGISTRY to control the target registry to push to.
 
 .PHONY: dev-build
-dev-build: goreleaser ## Builds local Docker images of all components. Use the DEV_IMAGE_TAG environment variable to override the image tag that is built.
-	./hack/build-images.sh "$(IMAGE_NAME_PREFIX)" "$(DEV_IMAGE_TAG)"
+dev-build: ## Builds local Docker images of all components. Use the DEV_IMAGE_TAG environment variable to override the image tag that is built.
+	./hack/build-images.sh -p "$(IMAGE_NAME_PREFIX)" -t "$(DEV_IMAGE_TAG)"
 
 .PHONY: dev-push
 dev-push: ## Pushes all Docker images to the specified registry. Use the DEV_IMAGE_TAG environment variable to override the image tag, and DEV_IMAGE_REGISTRY to override the image registry to use (usually a local one).
-	./hack/push-images.sh "$(IMAGE_NAME_PREFIX)" "$(DEV_IMAGE_TAG)" "$(DEV_IMAGE_NAME_PREFIX)" "$(DEV_IMAGE_TAG)"
+	./hack/push-images.sh -p "$(IMAGE_NAME_PREFIX)" -t "$(DEV_IMAGE_TAG)" -P "$(DEV_IMAGE_NAME_PREFIX)" -T "$(DEV_IMAGE_TAG)"
 
 .PHONY: dev-deploy
 dev-deploy: manifests kustomize $(KUSTOMIZE_DEST) ## Deploys a development version of all components to the K8s cluster. Use the DEV_IMAGE_TAG environment variable to override the image tag that is deployed.
@@ -199,9 +199,9 @@ dev-deploy: manifests kustomize $(KUSTOMIZE_DEST) ## Deploys a development versi
 
 ##@ Release
 
-.PHONY: snapshot
-snapshot: goreleaser ## Release snapshot of current repository and upload Docker image.
-	./hack/release-snapshot.sh
+.PHONY: release-nightly
+release-nightly: ## Perform nightly release and upload Docker image.
+	./hack/release-nightly.sh
 
 ##@ Build Dependencies
 

@@ -152,7 +152,7 @@ Configurable options via environment variables:
 
 - `DEV_IMAGE_TAG`: The image tag to be built and deployed. Defaults to `dev`.
 - `DEV_IMAGE_REGISTRY`: The image registry to push to. Defaults to `localhost:5000`.
-- `DEV_IMAGE_NAME_PREFIX`: The image name prefix to push to and use. Defaults to `$DEV_IMAGE_REGISTRY/furikoio`.
+- `DEV_IMAGE_NAME_PREFIX`: The image name prefix to push to and use. Defaults to `$DEV_IMAGE_REGISTRY/furiko-io`.
 
 The above Makefile target consists of three sub-targets, which are run in order when using `make dev`:
 
@@ -174,7 +174,7 @@ Release automation is done using GitHub actions ([release.yml](https://github.co
 
 The release workflow automatically creates a draft release [here](https://github.com/furiko-io/furiko/releases). We expect release notes to contain both a high-level summary of changes since the last release, and a detailed changelog which should be generated using GoReleaser.
 
-Container images are automatically pushed to Docker Hub under the [`furikoio` namespace](https://hub.docker.com/r/furikoio).
+Container images are automatically pushed to GitHub Container Registry here: <https://github.com/orgs/furiko-io/packages>
 
 Finally, releases are minimally expected to contain the following artifacts, downloadable from the Releases page:
 

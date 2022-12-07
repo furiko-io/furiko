@@ -18,19 +18,13 @@
 
 set -euo pipefail
 
-## Builds all Docker images to a specified image tag, but does not push them.
+## Simple script that performs a nightly release to build and push container images.
 
-DOCKERFILE="Dockerfile.dev"
-IMAGE_NAME_PREFIX=""
-IMAGE_TAG=""
+IMAGE_NAME_PREFIX="ghcr.io/furiko-io"
+IMAGE_TAG="nightly"
 
-while getopts ":f:p:t:" opt; do
+while getopts ":p:t:" opt; do
   case $opt in
-    f)
-      # Defines the Dockerfile to use.
-      # Example: Dockerfile.dev
-      DOCKERFILE="$OPTARG"
-      ;;
     p)
       # Defines the image name prefix of the built image.
       # Example: ghcr.io/furiko-io
@@ -38,7 +32,7 @@ while getopts ":f:p:t:" opt; do
       ;;
     t)
       # Defines the image tag of the build image.
-      # Example: latest
+      # Example: nightly
       IMAGE_TAG="$OPTARG"
       ;;
     \?)
@@ -46,22 +40,18 @@ while getopts ":f:p:t:" opt; do
       exit 2
       ;;
     :)
-      echo "Usage: ./build-images.sh -p IMAGE_NAME_PREFIX -t IMAGE_TAG [-f DOCKERFILE]" >&2
+      echo "Usage: ./release-nightly.sh -p IMAGE_NAME_PREFIX -t IMAGE_TAG" >&2
       exit 2
       ;;
   esac
 done
 
-if [[ -z "${DOCKERFILE}" || -z "${IMAGE_NAME_PREFIX}" || -z "${IMAGE_TAG}" ]]
+if [[ -z "${IMAGE_NAME_PREFIX}" || -z "${IMAGE_TAG}" ]]
 then
-  echo "Usage: ./build-images.sh -p IMAGE_NAME_PREFIX -t IMAGE_TAG [-f DOCKERFILE]" >&2
+  echo "Usage: ./release-nightly.sh -p IMAGE_NAME_PREFIX -t IMAGE_TAG" >&2
   exit 2
 fi
 
-# Build all images.
-while IFS= read -r IMAGE; do
-  IMAGE_NAME="${IMAGE_NAME_PREFIX}/${IMAGE}:${IMAGE_TAG}"
-
-  # Note that $IMAGE has the same name as the target stage in the Docker multi-stage build.
-  docker build --file="${DOCKERFILE}" --target="${IMAGE}" -t "${IMAGE_NAME}" .
-done < ./hack/docker-images.txt
+# Build and push all images using the dev Dockerfile.
+./hack/build-images.sh -f "Dockerfile.dev" -p "${IMAGE_NAME_PREFIX}" -t "${IMAGE_TAG}"
+./hack/push-images.sh -p "${IMAGE_NAME_PREFIX}" -t "${IMAGE_TAG}"

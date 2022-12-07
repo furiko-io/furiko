@@ -3,7 +3,7 @@ before:
   hooks:
     - make yaml
 
-# Build each entrypoint for Docker.
+# Build each Golang binary.
 builds:
   - id: execution-controller
     main: ./cmd/execution-controller
@@ -14,6 +14,10 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
   - id: execution-webhook
     main: ./cmd/execution-webhook
     binary: execution-webhook
@@ -23,6 +27,10 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
   - id: furiko-cli
     main: ./cmd/furiko-cli
     binary: furiko
@@ -32,25 +40,31 @@ builds:
       - windows
     goarch:
       - amd64
+      - arm
       - arm64
+    goarm:
+      - "7"
 
-# Create archive for each entrypoint.
+# Create archive for each binary.
 archives:
   - id: execution-controller
     builds:
       - execution-controller
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      {{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}
     wrap_in_directory: true
   - id: execution-webhook
     builds:
       - execution-webhook
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      {{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}
     wrap_in_directory: true
   - id: furiko-cli
     builds:
       - furiko-cli
     format: binary
-    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      {{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}
 
 checksum:
   name_template: 'checksums.txt'
@@ -59,28 +73,153 @@ snapshot:
 changelog:
   use: github-native
 
-# Build Docker images for each entrypoint separately.
+# Build container images for each server component for each supported platform.
 dockers:
-  - id: execution-controller
+  - goos: linux
+    goarch: amd64
     use: buildx
     ids:
       - execution-controller
     image_templates:
-      - "furikoio/execution-controller:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
-      - "furikoio/execution-controller:latest"
+      - "ghcr.io/furiko-io/execution-controller:{{ .Tag }}-amd64"
+      - "ghcr.io/furiko-io/execution-controller:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
       - "--target=execution-controller"
-  - id: execution-webhook
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - goos: linux
+    goarch: arm
+    goarm: "7"
+    use: buildx
+    ids:
+      - execution-controller
+    image_templates:
+      - "ghcr.io/furiko-io/execution-controller:{{ .Tag }}-armv7"
+      - "ghcr.io/furiko-io/execution-controller:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
+      - "--target=execution-controller"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - goos: linux
+    goarch: arm64
+    use: buildx
+    ids:
+      - execution-controller
+    image_templates:
+      - "ghcr.io/furiko-io/execution-controller:{{ .Tag }}-arm64"
+      - "ghcr.io/furiko-io/execution-controller:latest-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
+      - "--target=execution-controller"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - goos: linux
+    goarch: amd64
     use: buildx
     ids:
       - execution-webhook
     image_templates:
-      - "furikoio/execution-webhook:{{ if (index .Env \"IMAGE_TAG\") }}{{ index .Env \"IMAGE_TAG\" }}{{ else if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}"
-      - "furikoio/execution-webhook:latest"
+      - "ghcr.io/furiko-io/execution-webhook:{{ .Tag }}-amd64"
+      - "ghcr.io/furiko-io/execution-webhook:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
       - "--target=execution-webhook"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - goos: linux
+    goarch: arm
+    goarm: "7"
+    use: buildx
+    ids:
+      - execution-webhook
+    image_templates:
+      - "ghcr.io/furiko-io/execution-webhook:{{ .Tag }}-armv7"
+      - "ghcr.io/furiko-io/execution-webhook:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
+      - "--target=execution-webhook"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - goos: linux
+    goarch: arm64
+    use: buildx
+    ids:
+      - execution-webhook
+    image_templates:
+      - "ghcr.io/furiko-io/execution-webhook:{{ .Tag }}-arm64"
+      - "ghcr.io/furiko-io/execution-webhook:latest-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--builder={{ index .Env \"DOCKER_BUILDX_INSTANCE\" }}"
+      - "--target=execution-webhook"
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description=Cloud-native, enterprise-level cron job platform for Kubernetes
+      - --label=org.opencontainers.image.url=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/furiko-io/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+
+# Support Docker manifests for multi-arch images.
+docker_manifests:
+- name_template: "ghcr.io/furiko-io/execution-controller:{{ .Tag }}"
+  image_templates:
+  - "ghcr.io/furiko-io/execution-controller:{{ .Tag }}-amd64"
+  - "ghcr.io/furiko-io/execution-controller:{{ .Tag }}-armv7"
+  - "ghcr.io/furiko-io/execution-controller:{{ .Tag }}-arm64"
+- name_template: "ghcr.io/furiko-io/execution-controller:latest"
+  image_templates:
+  - "ghcr.io/furiko-io/execution-controller:latest-amd64"
+  - "ghcr.io/furiko-io/execution-controller:latest-armv7"
+  - "ghcr.io/furiko-io/execution-controller:latest-arm64"
+- name_template: "ghcr.io/furiko-io/execution-webhook:{{ .Tag }}"
+  image_templates:
+  - "ghcr.io/furiko-io/execution-webhook:{{ .Tag }}-amd64"
+  - "ghcr.io/furiko-io/execution-webhook:{{ .Tag }}-armv7"
+  - "ghcr.io/furiko-io/execution-webhook:{{ .Tag }}-arm64"
+- name_template: "ghcr.io/furiko-io/execution-webhook:latest"
+  image_templates:
+  - "ghcr.io/furiko-io/execution-webhook:latest-amd64"
+  - "ghcr.io/furiko-io/execution-webhook:latest-armv7"
+  - "ghcr.io/furiko-io/execution-webhook:latest-arm64"
 
 # Prepare release assets.
 release:

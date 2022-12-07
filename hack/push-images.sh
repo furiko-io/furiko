@@ -20,30 +20,52 @@ set -euo pipefail
 
 ## Tags and pushes Docker images that have already been built.
 
-if [ $# -lt 2 ]
-then
-  echo 'Usage:'
-  echo '  ./push-images.sh IMAGE_NAME_PREFIX IMAGE_TAG [NEW_IMAGE_NAME_PREFIX] [NEW_IMAGE_TAG]'
-  exit 1
-fi
+IMAGE_NAME_PREFIX=""
+IMAGE_TAG=""
+NEW_IMAGE_NAME_PREFIX=""
+NEW_IMAGE_TAG=""
 
-# Positional arguments
-IMAGE_NAME_PREFIX="$1"
-if [[ -z "${IMAGE_NAME_PREFIX}" ]]
+while getopts ":p:t:P:T:" opt; do
+  case $opt in
+    p)
+      # Defines the image name prefix to push.
+      # Example: ghcr.io/furiko-io
+      IMAGE_NAME_PREFIX="$OPTARG"
+      ;;
+    t)
+      # Defines the image tag to push.
+      # Example: latest
+      IMAGE_TAG="$OPTARG"
+      ;;
+    P)
+      # Defines the image name prefix to re-tag the image before pushing.
+      # Example: ghcr.io/furiko-io
+      NEW_IMAGE_NAME_PREFIX="$OPTARG"
+      ;;
+    T)
+      # Defines the image tag to re-tag the image before pushing.
+      # Example: latest
+      NEW_IMAGE_TAG="$OPTARG"
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 2
+      ;;
+    :)
+      echo "Usage: ./push-images.sh -p IMAGE_NAME_PREFIX -t IMAGE_TAG [-P NEW_IMAGE_NAME_PREFIX] [-T NEW_IMAGE_TAG]" >&2
+      exit 2
+      ;;
+  esac
+done
+
+NEW_IMAGE_NAME_PREFIX="${NEW_IMAGE_NAME_PREFIX:-"${IMAGE_NAME_PREFIX}"}"
+NEW_IMAGE_TAG="${NEW_IMAGE_TAG:-"${IMAGE_TAG}"}"
+
+if [[ -z "${IMAGE_NAME_PREFIX}" || -z "${IMAGE_TAG}" || -z "${NEW_IMAGE_NAME_PREFIX}" || -z "${NEW_IMAGE_TAG}" ]]
 then
-  echo 'Error: IMAGE_NAME_PREFIX cannot be empty'
+  echo "Usage: ./push-images.sh -p IMAGE_NAME_PREFIX -t IMAGE_TAG [-P NEW_IMAGE_NAME_PREFIX] [-T NEW_IMAGE_TAG]" >&2
   exit 2
 fi
-
-IMAGE_TAG="$2"
-if [[ -z "${IMAGE_TAG}" ]]
-then
-  echo 'Error: IMAGE_TAG cannot be empty'
-  exit 2
-fi
-
-NEW_IMAGE_NAME_PREFIX="${3:-"${IMAGE_NAME_PREFIX}"}"
-NEW_IMAGE_TAG="${4:-"${IMAGE_TAG}"}"
 
 # Tag and push all images.
 while IFS= read -r IMAGE; do
@@ -53,7 +75,7 @@ while IFS= read -r IMAGE; do
   # Default the target image to be the source image.
   TARGET_IMAGE="${SRC_IMAGE}"
 
-  # Re-tag the image and push that tag instead.
+  # If NEW_IMAGE is not equal to SRC_IMAGE, re-tag the image and push that tag instead.
   if [ "${SRC_IMAGE}" != "${NEW_IMAGE}" ]; then
     TARGET_IMAGE="${NEW_IMAGE}"
     docker tag "${SRC_IMAGE}" "${TARGET_IMAGE}"
