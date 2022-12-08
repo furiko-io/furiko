@@ -2,7 +2,7 @@
 
 ![Furiko Logo](./docs/images/color_horizontal.png)
 
-[![CI](https://github.com/furiko-io/furiko/actions/workflows/ci.yml/badge.svg)](https://github.com/furiko-io/furiko/actions/workflows/ci.yml)
+[![CI](https://github.com/furiko-io/furiko/actions/workflows/ci.yaml/badge.svg)](https://github.com/furiko-io/furiko/actions/workflows/ci.yaml)
 [![Releases](https://img.shields.io/github/release-pre/furiko-io/furiko.svg?sort=semver)](https://github.com/furiko-io/furiko/releases)
 ![Go version](https://img.shields.io/github/go-mod/go-version/furiko-io/furiko)
 ![Kubernetes version](https://img.shields.io/badge/k8s-v1.23-blue)
