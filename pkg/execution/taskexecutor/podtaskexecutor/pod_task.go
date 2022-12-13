@@ -27,7 +27,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	jobtasks "github.com/furiko-io/furiko/pkg/execution/tasks"
+	"github.com/furiko-io/furiko/pkg/execution/tasks"
 )
 
 const (
@@ -36,19 +36,19 @@ const (
 	reasonDeadlineExceeded = "DeadlineExceeded"
 )
 
-// PodTask is a wrapper around Pod that fulfils Task.
-type PodTask struct {
+// Task is a wrapper around Pod that fulfils tasks.Task.
+type Task struct {
 	*corev1.Pod
 	client v1.PodInterface
 }
 
-var _ jobtasks.Task = (*PodTask)(nil)
+var _ tasks.Task = (*Task)(nil)
 
-func NewPodTask(pod *corev1.Pod, client v1.PodInterface) *PodTask {
-	return &PodTask{Pod: pod, client: client}
+func NewPodTask(pod *corev1.Pod, client v1.PodInterface) *Task {
+	return &Task{Pod: pod, client: client}
 }
 
-func (p *PodTask) GetTaskRef() execution.TaskRef {
+func (p *Task) GetTaskRef() execution.TaskRef {
 	reason, message := p.GetReasonMessage()
 	task := execution.TaskRef{
 		Name:              p.GetName(),
@@ -79,12 +79,12 @@ func (p *PodTask) GetTaskRef() execution.TaskRef {
 	return task
 }
 
-func (p *PodTask) GetKind() string {
-	return "Pod"
+func (p *Task) GetKind() string {
+	return Kind
 }
 
-func (p *PodTask) GetRetryIndex() (int64, bool) {
-	val, ok := p.Pod.Labels[LabelKeyTaskRetryIndex]
+func (p *Task) GetRetryIndex() (int64, bool) {
+	val, ok := p.Pod.Labels[tasks.LabelKeyTaskRetryIndex]
 	if !ok {
 		return 0, false
 	}
@@ -95,8 +95,8 @@ func (p *PodTask) GetRetryIndex() (int64, bool) {
 	return int64(i), true
 }
 
-func (p *PodTask) GetParallelIndex() (*execution.ParallelIndex, bool) {
-	val, ok := p.Annotations[AnnotationKeyTaskParallelIndex]
+func (p *Task) GetParallelIndex() (*execution.ParallelIndex, bool) {
+	val, ok := p.Annotations[tasks.AnnotationKeyTaskParallelIndex]
 	if !ok {
 		return nil, false
 	}
@@ -107,20 +107,7 @@ func (p *PodTask) GetParallelIndex() (*execution.ParallelIndex, bool) {
 	return res, true
 }
 
-// RequiresKillWithDeletion returns true if the Task should be killed with
-// deletion instead of active deadline. Currently, we only enforce deletion if
-// the Pod is not yet scheduled, otherwise we should always use kill timestamp
-// to allow for graceful termination.
-func (p *PodTask) RequiresKillWithDeletion() bool {
-	// If a Pod is not pending, it is definitely already scheduled.
-	return p.Status.Phase == corev1.PodPending &&
-		// Check the PodCondition, which may in some cases be non-existent from PodStatus
-		!IsPodConditionScheduled(p.Pod) &&
-		// Pod is not yet acknowledged by kubelet, which means it was not yet scheduled
-		p.Status.StartTime.IsZero()
-}
-
-func (p *PodTask) GetState() execution.TaskState {
+func (p *Task) GetState() execution.TaskState {
 	if !p.GetDeletionTimestamp().IsZero() && !p.IsFinished() {
 		return execution.TaskKilling
 	}
@@ -135,7 +122,7 @@ func (p *PodTask) GetState() execution.TaskState {
 	}
 }
 
-func (p *PodTask) GetResult() execution.TaskResult {
+func (p *Task) GetResult() execution.TaskResult {
 	// Pod was OOMKilled, always use task failed.
 	if p.IsOOMKilled() {
 		return execution.TaskFailed
@@ -153,11 +140,11 @@ func (p *PodTask) GetResult() execution.TaskResult {
 	return ""
 }
 
-func (p *PodTask) GetRunningTimestamp() metav1.Time {
+func (p *Task) GetRunningTimestamp() metav1.Time {
 	return GetContainerStartTime(p.Pod)
 }
 
-func (p *PodTask) GetFinishTimestamp() metav1.Time {
+func (p *Task) GetFinishTimestamp() metav1.Time {
 	// If pod phase is not terminal, return zero.
 	if !p.IsFinished() {
 		return metav1.Time{}
@@ -190,11 +177,11 @@ func (p *PodTask) GetFinishTimestamp() metav1.Time {
 	return fallbackFinishTime
 }
 
-func (p *PodTask) IsFinished() bool {
+func (p *Task) IsFinished() bool {
 	return p.Status.Phase == corev1.PodSucceeded || p.Status.Phase == corev1.PodFailed
 }
 
-func (p *PodTask) IsOOMKilled() bool {
+func (p *Task) IsOOMKilled() bool {
 	for _, container := range p.Status.ContainerStatuses {
 		container := container
 		if status := GetTerminationStatus(&container); status != nil && status.Reason == reasonOOMKilled {
@@ -204,7 +191,7 @@ func (p *PodTask) IsOOMKilled() bool {
 	return false
 }
 
-func (p *PodTask) GetContainerStates() []execution.TaskContainerState {
+func (p *Task) GetContainerStates() []execution.TaskContainerState {
 	states := make([]execution.TaskContainerState, 0, len(p.Status.ContainerStatuses))
 	for _, container := range p.Status.ContainerStatuses {
 		var state execution.TaskContainerState
@@ -220,7 +207,7 @@ func (p *PodTask) GetContainerStates() []execution.TaskContainerState {
 	return states
 }
 
-func (p *PodTask) GetReasonMessage() (string, string) { // nolint:gocognit
+func (p *Task) GetReasonMessage() (string, string) { // nolint:gocognit
 	// Take from Pod if exists.
 	if p.Status.Reason != "" && p.Status.Message != "" {
 		return p.Status.Reason, p.Status.Message
@@ -278,7 +265,7 @@ func hasReasonMessage(reason, message string) bool {
 
 // getDefaultMessageForTermination creates a default message for the terminated
 // status of a pod.
-func (p *PodTask) getDefaultMessageForTermination(status *corev1.ContainerStateTerminated) string {
+func (p *Task) getDefaultMessageForTermination(status *corev1.ContainerStateTerminated) string {
 	switch status.Reason {
 	case reasonOOMKilled, reasonError:
 		return fmt.Sprintf("Container exited with status %v", status.ExitCode)

@@ -52,7 +52,7 @@ func (f *FakeRecorder) Event(object runtime.Object, eventtype, reason, message s
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	obj, ok := object.(uid)
-	if !ok || obj.GetUID() == "" {
+	if !ok {
 		// no uid, silently drop event
 		return
 	}

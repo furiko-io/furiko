@@ -26,7 +26,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
-	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/errors"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -282,7 +282,7 @@ func TestDiffMissingIndexes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := parallel.ComputeMissingIndexesForCreation(tt.args.job, tt.args.indexes)
-			if runtimetesting.WantError(t, tt.wantErr, err,
+			if errors.Want(t, tt.wantErr, err,
 				fmt.Sprintf("ComputeMissingIndexesForCreation(%v, %v)", tt.args.job, tt.args.indexes)) {
 				return
 			}

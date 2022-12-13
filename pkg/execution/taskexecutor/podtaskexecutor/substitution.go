@@ -20,44 +20,21 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/core/options"
+	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
 )
 
-type subFunc func(s string) string
-
 // SubstitutePodSpec returns a PodSpec after substituting context variables.
 func SubstitutePodSpec(
-	rj *execution.Job,
+	job *execution.Job,
 	podSpec v1.PodSpec,
 	taskSpec variablecontext.TaskSpec,
 ) v1.PodSpec {
-	var subMaps []map[string]string
 	spec := podSpec.DeepCopy()
-
-	// Substitutions specified in the JobSpec takes the highest priority.
-	if len(rj.Spec.Substitutions) > 0 {
-		subMaps = append(subMaps, rj.Spec.Substitutions)
-	}
-
-	// Substitute job and task context variables.
-	subMaps = append(subMaps, variablecontext.ContextProvider.MakeVariablesFromJob(rj))
-	subMaps = append(subMaps, variablecontext.ContextProvider.MakeVariablesFromTask(taskSpec))
-
-	// Get list of all prefixes that were injected, and drop all leftover not
-	// substituted matches. This is to prevent cases like "Bad substitution" when
-	// trying to interpret in Bash.
-	removePrefixes := variablecontext.ContextProvider.GetAllPrefixes()
-	removePrefixes = append(removePrefixes, "option.")
-
-	sub := func(s string) string {
-		return options.SubstituteVariableMaps(s, subMaps, removePrefixes)
-	}
-
-	return substitutePodSpec(*spec, sub)
+	return substitutePodSpec(*spec, tasks.MakeSubstituter(job, taskSpec))
 }
 
-func substitutePodSpec(spec v1.PodSpec, sub subFunc) v1.PodSpec {
+func substitutePodSpec(spec v1.PodSpec, sub tasks.Substituter) v1.PodSpec {
 	// Substitute init containers.
 	for i, container := range spec.InitContainers {
 		spec.InitContainers[i] = substituteContainer(container, sub)
@@ -71,7 +48,7 @@ func substitutePodSpec(spec v1.PodSpec, sub subFunc) v1.PodSpec {
 	return spec
 }
 
-func substituteContainer(container v1.Container, sub subFunc) v1.Container {
+func substituteContainer(container v1.Container, sub tasks.Substituter) v1.Container {
 	newContainer := container.DeepCopy()
 
 	// Substitute image.

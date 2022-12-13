@@ -20,7 +20,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ktesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
@@ -32,6 +36,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/reconciler"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	utilerrors "github.com/furiko-io/furiko/pkg/utils/errors"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -63,6 +68,32 @@ func TestReconciler(t *testing.T) {
 					Actions: []runtimetesting.Action{
 						runtimetesting.NewUpdateJobStatusAction(jobNamespace, fakeJobResult),
 					},
+				},
+			},
+		},
+		{
+			Name:   "not allowed to create pod",
+			Target: fakeJob,
+			Reactors: runtimetesting.CombinedReactors{
+				Kubernetes: []*ktesting.SimpleReactor{
+					{
+						Verb:     "create",
+						Resource: "pods",
+						Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
+							return true, nil, apierrors.NewForbidden(schema.GroupResource{
+								Group:    "v1",
+								Resource: "pods",
+							}, fakePod0.Name, errors.New("forbidden error"))
+						},
+					},
+				},
+			},
+			WantError: utilerrors.AssertIsForbidden(),
+			WantEvents: []runtimetesting.Event{
+				{
+					Type:    corev1.EventTypeWarning,
+					Reason:  "CreateTaskError",
+					Message: "Error creating Pod: could not create pod: pods.v1 \"my-sample-job-gezdqo-0\" is forbidden: forbidden error",
 				},
 			},
 		},

@@ -19,7 +19,6 @@ package podtaskexecutor
 import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	corev1lister "k8s.io/client-go/listers/core/v1"
 
@@ -35,7 +34,7 @@ type PodTaskLister struct {
 	rj        *execution.Job
 }
 
-func NewPodTaskLister(
+func NewLister(
 	podLister corev1lister.PodLister, client v1.PodInterface, rj *execution.Job,
 ) *PodTaskLister {
 	return &PodTaskLister{
@@ -59,19 +58,6 @@ func (p *PodTaskLister) Index(index jobtasks.TaskIndex) (jobtasks.Task, error) {
 		return nil, errors.Wrapf(err, "cannot generate pod name")
 	}
 	return p.Get(name)
-}
-
-func (p *PodTaskLister) List() ([]jobtasks.Task, error) {
-	selector := labels.SelectorFromSet(LabelPodsForJob(p.rj))
-	pods, err := p.podLister.Pods(p.rj.GetNamespace()).List(selector)
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not list pods")
-	}
-	tasks := make([]jobtasks.Task, 0, len(pods))
-	for _, pod := range pods {
-		tasks = append(tasks, p.new(pod))
-	}
-	return tasks, nil
 }
 
 func (p *PodTaskLister) new(pod *corev1.Pod) jobtasks.Task {

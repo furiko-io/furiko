@@ -14,6 +14,7 @@ issues:
         - gocognit
         - gocyclo
         - dupl
+        - lll
 
 linters:
   enable:

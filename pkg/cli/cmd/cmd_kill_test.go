@@ -28,6 +28,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/errors"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -116,7 +117,7 @@ func TestKillCommand(t *testing.T) {
 		{
 			Name:      "job does not exist",
 			Args:      []string{"run", "running-job"},
-			WantError: runtimetesting.AssertErrorIsNotFound(),
+			WantError: errors.AssertIsNotFound(),
 		},
 		{
 			Name:     "kill running job",

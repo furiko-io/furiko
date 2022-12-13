@@ -25,10 +25,18 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
 
+const (
+	Kind = "Pod"
+)
+
 type executor struct {
 	rj       *execution.Job
 	informer coreinformers.PodInformer
 	client   corev1clientset.CoreV1Interface
+}
+
+func (e *executor) GetKind() string {
+	return Kind
 }
 
 // NewExecutor returns a new tasks.Executor which lists and operates on Pods.
@@ -44,11 +52,11 @@ func NewExecutor(
 
 func (e *executor) Lister() tasks.TaskLister {
 	podLister := e.informer.Lister()
-	return NewPodTaskLister(podLister, e.client.Pods(e.rj.GetNamespace()), e.rj)
+	return NewLister(podLister, e.client.Pods(e.rj.GetNamespace()), e.rj)
 }
 
 func (e *executor) Client() tasks.TaskClient {
-	return NewPodTaskClient(e.client.Pods(e.rj.GetNamespace()), e.rj)
+	return NewClient(e.rj, e.client.Pods(e.rj.GetNamespace()))
 }
 
 type factory struct {

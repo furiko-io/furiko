@@ -29,22 +29,31 @@ import (
 	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
+	utilerrors "github.com/furiko-io/furiko/pkg/utils/errors"
 )
 
-// PodTaskClient operates on Pod tasks.
-type PodTaskClient struct {
+var (
+	// unretryableCreateErrors contains a list of functions that test for an error
+	// that is considered unretryable during create.
+	unretryableCreateErrors = []func(error) bool{
+		kerrors.IsInvalid,
+	}
+)
+
+// Client operates on Pod tasks.
+type Client struct {
 	client v1.PodInterface
 	rj     *execution.Job
 }
 
-func NewPodTaskClient(client v1.PodInterface, rj *execution.Job) *PodTaskClient {
-	return &PodTaskClient{
+func NewClient(rj *execution.Job, client v1.PodInterface) *Client {
+	return &Client{
 		client: client,
 		rj:     rj,
 	}
 }
 
-func (p *PodTaskClient) Get(ctx context.Context, name string) (tasks.Task, error) {
+func (p *Client) Get(ctx context.Context, name string) (tasks.Task, error) {
 	pod, err := p.client.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not get pod")
@@ -52,7 +61,7 @@ func (p *PodTaskClient) Get(ctx context.Context, name string) (tasks.Task, error
 	return p.new(pod), nil
 }
 
-func (p *PodTaskClient) Index(ctx context.Context, index tasks.TaskIndex) (tasks.Task, error) {
+func (p *Client) Index(ctx context.Context, index tasks.TaskIndex) (tasks.Task, error) {
 	name, err := jobutil.GenerateTaskName(p.rj.GetName(), index)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot generate pod name")
@@ -60,7 +69,7 @@ func (p *PodTaskClient) Index(ctx context.Context, index tasks.TaskIndex) (tasks
 	return p.Get(ctx, name)
 }
 
-func (p *PodTaskClient) CreateIndex(ctx context.Context, index tasks.TaskIndex) (tasks.Task, error) {
+func (p *Client) CreateIndex(ctx context.Context, index tasks.TaskIndex) (tasks.Task, error) {
 	var template *corev1.PodTemplateSpec
 
 	// Get pod template
@@ -80,9 +89,8 @@ func (p *PodTaskClient) CreateIndex(ctx context.Context, index tasks.TaskIndex) 
 	// Create resource
 	pod, err := p.client.Create(ctx, newPod, metav1.CreateOptions{})
 
-	// Rejected by apiserver, do not attempt to retry and raise an
-	// AdmissionRefusedError instead.
-	if kerrors.IsInvalid(err) {
+	// Unretryable error, rejected by apiserver.
+	if utilerrors.IsAny(err, unretryableCreateErrors...) {
 		return nil, coreerrors.NewAdmissionRefusedError(err.Error())
 	}
 
@@ -93,7 +101,7 @@ func (p *PodTaskClient) CreateIndex(ctx context.Context, index tasks.TaskIndex) 
 	return p.new(pod), nil
 }
 
-func (p *PodTaskClient) Delete(ctx context.Context, name string, force bool) error {
+func (p *Client) Delete(ctx context.Context, name string, force bool) error {
 	opts := metav1.DeleteOptions{}
 
 	// Force delete pod using grace period set as 0.
@@ -109,6 +117,6 @@ func (p *PodTaskClient) Delete(ctx context.Context, name string, force bool) err
 	return nil
 }
 
-func (p *PodTaskClient) new(pod *corev1.Pod) tasks.Task {
+func (p *Client) new(pod *corev1.Pod) tasks.Task {
 	return NewPodTask(pod, p.client)
 }

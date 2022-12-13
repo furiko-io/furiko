@@ -38,12 +38,14 @@ import (
 )
 
 // +kubebuilder:rbac:groups="",resources=events;pods,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs/finalizers,verbs=update
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=argoproj.io,resources=workflows,verbs=get;list;watch;create;update;patch;delete
 
 func main() {
 	initFlags()

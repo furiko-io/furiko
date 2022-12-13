@@ -17,9 +17,6 @@
 package podtaskexecutor
 
 import (
-	"encoding/json"
-	"strconv"
-
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,9 +24,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/execution/util/job"
-	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 	"github.com/furiko-io/furiko/pkg/execution/variablecontext"
-	"github.com/furiko-io/furiko/pkg/utils/meta"
 )
 
 // NewPod returns a new Pod object for the given Job.
@@ -52,25 +47,11 @@ func NewPod(
 		ParallelIndex: index.Parallel,
 	})
 
-	hash, err := parallel.HashIndex(index.Parallel)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot hash parallel index")
-	}
-
-	// Make copy for mutation.
+	// Label object meta for setting task labels and annotations.
 	templateMeta := template.ObjectMeta.DeepCopy()
-
-	// Compute labels.
-	meta.SetLabel(templateMeta, LabelKeyJobUID, string(rj.GetUID()))
-	meta.SetLabel(templateMeta, LabelKeyTaskRetryIndex, strconv.Itoa(int(index.Retry)))
-	meta.SetLabel(templateMeta, LabelKeyTaskParallelIndexHash, hash)
-
-	// Compute annotations.
-	parallelIndexMarshaled, err := json.Marshal(index.Parallel)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot marshal parallel index")
+	if err := tasks.SetLabelsAnnotations(templateMeta, rj, index); err != nil {
+		return nil, err
 	}
-	meta.SetAnnotation(templateMeta, AnnotationKeyTaskParallelIndex, string(parallelIndexMarshaled))
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

@@ -29,7 +29,6 @@ import (
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/execution/taskexecutor"
 	"github.com/furiko-io/furiko/pkg/generated/clientset/versioned/scheme"
 	executioninformers "github.com/furiko-io/furiko/pkg/generated/informers/externalversions/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -56,7 +55,6 @@ type Context struct {
 	hasSynced         []cache.InformerSynced
 	queue             workqueue.RateLimitingInterface
 	recorder          record.EventRecorder
-	tasks             *taskexecutor.Manager
 }
 
 func NewContext(context controllercontext.Context) *Context {
@@ -85,9 +83,6 @@ func NewContextWithRecorder(context controllercontext.Context, recorder record.E
 		c.jobInformer.Informer().HasSynced,
 		c.jobconfigInformer.Informer().HasSynced,
 	}
-
-	// Add task manager
-	c.tasks = taskexecutor.NewManager(context.Clientsets(), context.Informers())
 
 	return c
 }

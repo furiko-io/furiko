@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	workflowv1alpha1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
@@ -155,6 +156,22 @@ var (
 		},
 	}
 
+	argoWorkflowTemplateSpecBare = v1alpha1.ArgoWorkflowTemplateSpec{
+		Spec: workflowv1alpha1.WorkflowSpec{
+			Entrypoint: "main",
+			Templates: []workflowv1alpha1.Template{
+				{
+					Name: "main",
+					Container: &corev1.Container{
+						Image:   "docker/whalesay",
+						Command: []string{"cowsay"},
+						Args:    []string{"Hello World"},
+					},
+				},
+			},
+		},
+	}
+
 	jobTemplateSpecBasic = v1alpha1.JobTemplateSpec{
 		Spec: v1alpha1.JobTemplate{
 			TaskTemplate: v1alpha1.TaskTemplate{
@@ -222,6 +239,7 @@ var (
 func TestMutator_MutateJobConfig(t *testing.T) {
 	tests := []struct {
 		name         string
+		ctx          controllercontext.Context
 		rjc          *v1alpha1.JobConfig
 		want         *v1alpha1.JobConfig
 		wantErrors   string
@@ -321,11 +339,39 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "show warning if Argo CRD not installed",
+			ctx: func() controllercontext.Context {
+				ctx := mock.NewContext()
+				ctx.MockCustomResourceDefinitions().SetArgoWorkflows(false)
+				return ctx
+			}(),
+			rjc: &v1alpha1.JobConfig{
+				ObjectMeta: objectMetaJobConfig,
+				Spec: v1alpha1.JobConfigSpec{
+					Template: v1alpha1.JobTemplateSpec{
+						Spec: v1alpha1.JobTemplate{
+							TaskTemplate: v1alpha1.TaskTemplate{
+								ArgoWorkflow: &argoWorkflowTemplateSpecBare,
+							},
+							MaxAttempts: pointer.Int64(1),
+						},
+					},
+				},
+			},
+			wantWarnings: []string{
+				"Argo Workflows could not be detected in the cluster, the job may fail to run",
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			mutator := mutation.NewMutator(mock.NewContext())
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = mock.NewContext()
+			}
+			mutator := mutation.NewMutator(ctx)
 			newRjc := tt.rjc.DeepCopy()
 			resp := mutator.MutateJobConfig(newRjc)
 

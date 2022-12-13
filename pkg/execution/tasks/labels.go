@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package podtaskexecutor
+package tasks
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-
 	executiongroup "github.com/furiko-io/furiko/apis/execution"
-	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 )
 
 var (
@@ -39,10 +36,3 @@ var (
 	// index of the task in JSON format.
 	AnnotationKeyTaskParallelIndex = executiongroup.AddGroupToLabel("task-parallel-index")
 )
-
-// LabelPodsForJob returns a labels.Set that labels all Pods for a Job.
-func LabelPodsForJob(rj *execution.Job) labels.Set {
-	return labels.Set{
-		LabelKeyJobUID: string(rj.GetUID()),
-	}
-}

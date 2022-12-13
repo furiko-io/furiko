@@ -36,6 +36,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/utils/yaml"
 )
 
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobs/status,verbs=get
 // +kubebuilder:rbac:groups=execution.furiko.io,resources=jobconfigs,verbs=get;list;watch

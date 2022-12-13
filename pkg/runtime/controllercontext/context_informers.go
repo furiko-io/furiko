@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	argo "github.com/argoproj/argo-workflows/v3/pkg/client/informers/externalversions"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/informers/externalversions"
 	kubernetes "k8s.io/client-go/informers"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
@@ -36,24 +38,36 @@ func (c *ctrlContext) Informers() Informers {
 }
 
 type Informers interface {
-	Start(ctx context.Context) error
+	Start(ctx context.Context, crdMgr CRDs) error
 	Kubernetes() kubernetes.SharedInformerFactory
+	APIExtensions() apiextensions.SharedInformerFactory
 	Furiko() furiko.SharedInformerFactory
+	Argo() argo.SharedInformerFactory
 }
 
 type contextInformers struct {
-	kubernetes kubernetes.SharedInformerFactory
-	furiko     furiko.SharedInformerFactory
+	kubernetes    kubernetes.SharedInformerFactory
+	apiExtensions apiextensions.SharedInformerFactory
+	furiko        furiko.SharedInformerFactory
+	argo          argo.SharedInformerFactory
 }
 
-var _ Informers = &contextInformers{}
+var _ Informers = (*contextInformers)(nil)
 
 func (c *contextInformers) Kubernetes() kubernetes.SharedInformerFactory {
 	return c.kubernetes
 }
 
+func (c *contextInformers) APIExtensions() apiextensions.SharedInformerFactory {
+	return c.apiExtensions
+}
+
 func (c *contextInformers) Furiko() furiko.SharedInformerFactory {
 	return c.furiko
+}
+
+func (c *contextInformers) Argo() argo.SharedInformerFactory {
+	return c.argo
 }
 
 func SetUpInformers(clientsets Clientsets, cfg *configv1alpha1.BootstrapConfigSpec) Informers {
@@ -64,12 +78,20 @@ func SetUpInformers(clientsets Clientsets, cfg *configv1alpha1.BootstrapConfigSp
 
 	informers := &contextInformers{}
 	informers.kubernetes = kubernetes.NewSharedInformerFactory(clientsets.Kubernetes(), defaultResync)
+	informers.apiExtensions = apiextensions.NewSharedInformerFactory(clientsets.APIExtensions(), defaultResync)
 	informers.furiko = furiko.NewSharedInformerFactory(clientsets.Furiko(), defaultResync)
+	informers.argo = argo.NewSharedInformerFactory(clientsets.Argo(), defaultResync)
 	return informers
 }
 
-func (c *contextInformers) Start(ctx context.Context) error {
+func (c *contextInformers) Start(ctx context.Context, crdMgr CRDs) error {
 	c.Kubernetes().Start(ctx.Done())
 	c.Furiko().Start(ctx.Done())
+
+	// Only start informer if CRD is installed.
+	if _, err := crdMgr.ArgoWorkflows(); err == nil {
+		c.Argo().Start(ctx.Done())
+	}
+
 	return nil
 }

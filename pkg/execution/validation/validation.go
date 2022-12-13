@@ -526,6 +526,15 @@ func (v *Validator) ValidateTaskTemplate(spec *v1alpha1.TaskTemplate, fldPath *f
 			allErrs = append(allErrs, v.ValidatePodTaskTemplateSpec(spec.Pod, fldPath)...)
 		}
 	}
+	if spec.ArgoWorkflow != nil {
+		fldPath := fldPath.Child("argoWorkflow")
+		if numSpecified >= 1 {
+			allErrs = append(allErrs, field.Forbidden(fldPath, errMessageTooManyTemplates))
+		} else {
+			// TODO(irvinlim): Validate the Workflow template here if possible.
+			numSpecified++
+		}
+	}
 	if numSpecified == 0 {
 		allErrs = append(allErrs, field.Required(fldPath, "must specify a template type"))
 	}

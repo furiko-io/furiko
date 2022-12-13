@@ -239,54 +239,6 @@ func TestPodTask_GetFinishTimestamp(t *testing.T) {
 	}
 }
 
-func TestPodTask_RequiresKillWithDeletion(t *testing.T) {
-	tests := []struct {
-		name string
-		Pod  corev1.Pod
-		want bool
-	}{
-		{
-			name: "not yet scheduled",
-			Pod:  podPendingUnschedulable,
-			want: true,
-		},
-		{
-			name: "already scheduled",
-			Pod:  podPending,
-			want: false,
-		},
-		{
-			name: "already scheduled, cannot pull image",
-			Pod:  podErrImagePull,
-			want: false,
-		},
-		{
-			name: "pod completed",
-			Pod:  podCompleted,
-			want: false,
-		},
-		{
-			name: "pod error",
-			Pod:  podError,
-			want: false,
-		},
-		{
-			name: "deadline exceeded",
-			Pod:  podDeadlineExceeded,
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			p := podtaskexecutor.NewPodTask(&tt.Pod, nil)
-			if got := p.RequiresKillWithDeletion(); got != tt.want {
-				t.Errorf("RequiresKillWithDeletion() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestPodTask_GetReasonMessage(t *testing.T) {
 	type reasonMessage struct {
 		reason  string

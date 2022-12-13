@@ -169,12 +169,13 @@ func (r *ReconcilerTest) RunTestCase(t testinginterface.T, tt ReconcilerTestCase
 	}
 
 	// Trigger sync.
-	if err := r.triggerReconcile(ctx, t, target, tt, recon); err != nil {
+	ok, err := r.triggerReconcile(ctx, t, target, tt, recon)
+	if err != nil {
 		t.Fatalf("cannot trigger reconcile: %v", err)
 	}
 
 	// Compare actions.
-	r.assertResult(t, tt, c.MockClientsets(), ctrlContext, recorder)
+	r.assertResult(t, tt, c.MockClientsets(), ctrlContext, recorder, ok)
 }
 
 func (r *ReconcilerTest) setupContext(
@@ -255,17 +256,17 @@ func (r *ReconcilerTest) triggerReconcile(
 	target interface{},
 	tt ReconcilerTestCase,
 	recon reconciler.Reconciler,
-) error {
+) (bool, error) {
 	// Get sync target.
 	syncTarget := tt.SyncTarget
 	if syncTarget == nil {
 		key, err := cache.MetaNamespaceKeyFunc(target)
 		if err != nil {
-			return errors.Wrapf(err, "cannot create namespaced key for target %v", target)
+			return false, errors.Wrapf(err, "cannot create namespaced key for target %v", target)
 		}
 		namespace, name, err := cache.SplitMetaNamespaceKey(key)
 		if err != nil {
-			return errors.Wrapf(err, "cannot split namespace and name from key: %v", key)
+			return false, errors.Wrapf(err, "cannot split namespace and name from key: %v", key)
 		}
 		syncTarget = &SyncTarget{
 			Namespace: namespace,
@@ -278,10 +279,15 @@ func (r *ReconcilerTest) triggerReconcile(
 	if wantError == nil {
 		wantError = assert.NoError
 	}
-	wantError(t, recon.SyncOne(ctx, syncTarget.Namespace, syncTarget.Name, 0),
-		fmt.Sprintf("Error in test %v", tt.Name))
+	err := recon.SyncOne(ctx, syncTarget.Namespace, syncTarget.Name, 0)
+	wantError(t, err, fmt.Sprintf("Error in test %v", tt.Name))
 
-	return nil
+	// Don't need to continue other assertions if an error is returned.
+	if err != nil {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (r *ReconcilerTest) assertResult(
@@ -290,13 +296,19 @@ func (r *ReconcilerTest) assertResult(
 	client *mock.Clientsets,
 	ctrlContext ControllerContext,
 	recorder *FakeRecorder,
+	reconcileOk bool,
 ) {
-	// Compare actions.
-	CompareActions(t, tt.WantActions.Kubernetes, client.KubernetesMock().Actions())
-	CompareActions(t, tt.WantActions.Furiko, client.FurikoMock().Actions())
+	// Compare actions if there was no reconcile error.
+	if reconcileOk {
+		CompareActions(t, tt.WantActions.Kubernetes, client.KubernetesMock().Actions())
+		CompareActions(t, tt.WantActions.Furiko, client.FurikoMock().Actions())
+	}
 
 	// Compare recorded events.
-	r.compareEvents(t, recorder.GetEvents(), tt.WantEvents)
+	// NOTE(irvinlim): We don't do this check unless we specify at least one event we expect to see.
+	if len(tt.WantEvents) > 0 {
+		r.compareEvents(t, recorder.GetEvents(), tt.WantEvents)
+	}
 
 	// Run custom assertions.
 	if tt.Assert != nil {

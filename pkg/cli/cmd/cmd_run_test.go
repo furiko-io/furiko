@@ -28,6 +28,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	"github.com/furiko-io/furiko/pkg/cli/console"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/errors"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -181,7 +182,7 @@ func TestRunCommand(t *testing.T) {
 		{
 			Name:      "jobconfig does not exist",
 			Args:      []string{"run", "adhoc-jobconfig"},
-			WantError: runtimetesting.AssertErrorIsNotFound(),
+			WantError: errors.AssertIsNotFound(),
 		},
 		{
 			Name:     "created job",

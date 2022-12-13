@@ -19,16 +19,30 @@ package podtaskexecutor_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
+	ktesting "k8s.io/client-go/testing"
+	"k8s.io/kubernetes/pkg/apis/core"
+	"k8s.io/utils/pointer"
 
+	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	coreerrors "github.com/furiko-io/furiko/pkg/core/errors"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
+	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
+	"github.com/furiko-io/furiko/pkg/utils/errors"
+)
+
+const (
+	testTimeout = time.Second * 3
 )
 
 func TestNewPodTaskClient(t *testing.T) {
@@ -36,7 +50,7 @@ func TestNewPodTaskClient(t *testing.T) {
 	defer cancel()
 
 	clientset := fake.NewSimpleClientset()
-	client := podtaskexecutor.NewPodTaskClient(clientset.CoreV1().Pods(jobNamespace), fakeJob)
+	client := podtaskexecutor.NewClient(fakeJob, clientset.CoreV1().Pods(jobNamespace))
 
 	// Populate Pods
 	createdPods := make([]*corev1.Pod, 0, len(fakePods))
@@ -96,6 +110,81 @@ func TestNewPodTaskClient(t *testing.T) {
 	// Not idempotent
 	err = client.Delete(ctx, newTask.GetName(), false)
 	assert.Error(t, err)
+}
+
+func TestClient_CreateIndex(t *testing.T) {
+	tests := []struct {
+		name    string
+		job     *execution.Job
+		index   tasks.TaskIndex
+		reactor *ktesting.SimpleReactor
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "no error",
+			job:  fakeJob,
+			index: tasks.TaskIndex{
+				Retry: 0,
+				Parallel: execution.ParallelIndex{
+					IndexNumber: pointer.Int64(0),
+				},
+			},
+		},
+		{
+			name: "Invalid",
+			job:  fakeJob,
+			index: tasks.TaskIndex{
+				Retry: 0,
+				Parallel: execution.ParallelIndex{
+					IndexNumber: pointer.Int64(0),
+				},
+			},
+			reactor: &ktesting.SimpleReactor{
+				Verb:     "*",
+				Resource: "*",
+				Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
+					return true, nil, kerrors.NewInvalid(core.Kind("pod"), "pod-name", field.ErrorList{})
+				},
+			},
+			wantErr: coreerrors.AssertIsAdmissionRefused(),
+		},
+		{
+			name: "AlreadyExists do not handle as AdmissionRefused",
+			job:  fakeJob,
+			index: tasks.TaskIndex{
+				Retry: 0,
+				Parallel: execution.ParallelIndex{
+					IndexNumber: pointer.Int64(0),
+				},
+			},
+			reactor: &ktesting.SimpleReactor{
+				Verb:     "*",
+				Resource: "*",
+				Reaction: func(action ktesting.Action) (bool, runtime.Object, error) {
+					return true, nil, kerrors.NewAlreadyExists(core.Resource("pod"), "pod-name")
+				},
+			},
+			wantErr: errors.AssertIsFunc("AlreadyExists", kerrors.IsAlreadyExists),
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+			defer cancel()
+
+			clientsets := mock.NewClientsets()
+			if tt.reactor != nil {
+				clientsets.KubernetesMock().PrependReactor(tt.reactor.Verb, tt.reactor.Resource, tt.reactor.React)
+			}
+
+			client := podtaskexecutor.NewClient(tt.job, clientsets.Kubernetes().CoreV1().Pods(tt.job.Namespace))
+			_, err := client.CreateIndex(ctx, tt.index)
+			if errors.Want(t, tt.wantErr, err, "CreateIndex() incorrect error") {
+				return
+			}
+		})
+	}
 }
 
 func getPodIndexedName(name string, index int64) string {

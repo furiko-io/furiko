@@ -17,6 +17,10 @@
 package taskexecutor
 
 import (
+	"github.com/pkg/errors"
+
+	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/argoworkflowtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/taskexecutor/podtaskexecutor"
 	"github.com/furiko-io/furiko/pkg/execution/tasks"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -25,8 +29,11 @@ import (
 // Manager is a task executor manager. It holds references to task executor
 // factories to create task executors on demand.
 type Manager struct {
-	tasks.ExecutorFactory
+	podFactory          tasks.ExecutorFactory
+	argoWorkflowFactory tasks.ExecutorFactory
 }
+
+var _ tasks.ExecutorFactory = (*Manager)(nil)
 
 // NewManager returns a task executor manager that currently always returns the
 // Pod task executor.
@@ -34,6 +41,24 @@ func NewManager(
 	clientsets controllercontext.Clientsets, informers controllercontext.Informers,
 ) *Manager {
 	return &Manager{
-		ExecutorFactory: podtaskexecutor.NewFactory(clientsets, informers),
+		podFactory:          podtaskexecutor.NewFactory(clientsets, informers),
+		argoWorkflowFactory: argoworkflowtaskexecutor.NewFactory(clientsets, informers),
 	}
+}
+
+func (m *Manager) ForJob(job *execution.Job) (tasks.Executor, error) {
+	template := job.Spec.Template
+	if template == nil {
+		return nil, errors.New("job template cannot be empty")
+	}
+	taskTemplate := template.TaskTemplate
+
+	switch {
+	case taskTemplate.Pod != nil:
+		return m.podFactory.ForJob(job)
+	case taskTemplate.ArgoWorkflow != nil:
+		return m.argoWorkflowFactory.ForJob(job)
+	}
+
+	return nil, errors.New("no task executors could be matched")
 }
