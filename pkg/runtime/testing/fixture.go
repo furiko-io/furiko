@@ -41,7 +41,7 @@ func InitFixtures(ctx context.Context, client controllercontext.Clientsets, fixt
 
 // InitFixture initializes a single fixture against a clientset.
 // TODO(irvinlim): Currently we just hardcode a list of types to be initialized,
-//  we could probably use reflection instead.
+// we could probably use reflection instead.
 func InitFixture(ctx context.Context, client controllercontext.Clientsets, fixture runtime.Object) error {
 	var err error
 	switch f := fixture.(type) {

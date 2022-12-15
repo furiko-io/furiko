@@ -33,6 +33,7 @@ import (
 
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
+	"github.com/furiko-io/furiko/pkg/runtime/controllerutil"
 	"github.com/furiko-io/furiko/pkg/runtime/reconciler"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
@@ -158,15 +159,15 @@ func (r *ReconcilerTest) RunTestCase(t testinginterface.T, tt ReconcilerTestCase
 	// Initialize reconciler.
 	recon := r.ReconcilerFunc(ctrlContext)
 
-	// Start the context.
-	err := c.Start(ctx)
-	assert.NoError(t, err)
-
 	// Initialize fixtures.
 	target, err := r.initClientset(ctx, c.MockClientsets(), tt, ctrlContext.GetHasSynced())
 	if err != nil {
 		t.Fatalf("cannot initialize fixtures: %v", err)
 	}
+
+	// Start the context.
+	assert.NoError(t, c.Start(ctx))
+	assert.NoError(t, r.waitForCacheSync(ctx, c.MockClientsets(), ctrlContext.GetHasSynced()))
 
 	// Trigger sync.
 	if err := r.triggerReconcile(ctx, t, target, tt, recon); err != nil {
@@ -236,17 +237,23 @@ func (r *ReconcilerTest) initClientset(
 		client.FurikoMock().PrependReactor(reactor.Verb, reactor.Resource, reactor.React)
 	}
 
-	// Wait for cache sync
-	// NOTE(irvinlim): Add a short delay otherwise cache may not sync consistently
-	time.Sleep(time.Millisecond * 50)
-	if !cache.WaitForCacheSync(ctx.Done(), hasSynced...) {
-		return nil, errors.New("caches not synced")
+	return target, nil
+}
+
+func (r *ReconcilerTest) waitForCacheSync(
+	ctx context.Context,
+	client *mock.Clientsets,
+	hasSynced []cache.InformerSynced,
+) error {
+	// Wait for cache sync.
+	if err := controllerutil.WaitForNamedCacheSyncWithTimeout(ctx, "TestController", time.Second, hasSynced...); err != nil {
+		return err
 	}
 
 	// Clear all actions prior to reconcile.
 	client.ClearActions()
 
-	return target, nil
+	return nil
 }
 
 func (r *ReconcilerTest) triggerReconcile(

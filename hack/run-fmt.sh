@@ -43,7 +43,7 @@ fi
 GOIMPORTS="${GOIMPORTS:-$(pwd)/bin/goimports}"
 
 # Run go fmt.
-go fmt ./...
+go fmt ./cmd/... $(go list -f "{{.Dir}}" ./pkg/... | grep -v pkg/generated)
 
 # Run goimports to sort imports.
 # Do not sort generated files.
