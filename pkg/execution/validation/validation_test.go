@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// nolint:lll
 package validation_test
 
 import (
