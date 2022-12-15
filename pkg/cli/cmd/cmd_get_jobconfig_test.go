@@ -26,6 +26,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
 var (
@@ -135,7 +136,7 @@ func TestGetJobConfigCommand(t *testing.T) {
 		{
 			Name:      "get jobconfig does not exist",
 			Args:      []string{"get", "jobconfig", "periodic-jobconfig"},
-			WantError: runtimetesting.AssertErrorIsNotFound(),
+			WantError: testutils.AssertErrorIsNotFound(),
 		},
 	})
 }

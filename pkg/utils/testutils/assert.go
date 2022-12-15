@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package testing
+package testutils
 
 import (
 	"github.com/stretchr/testify/assert"

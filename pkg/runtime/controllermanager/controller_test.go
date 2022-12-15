@@ -28,7 +28,7 @@ import (
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
-	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
 type mockRunnable struct {
@@ -136,7 +136,7 @@ func TestControllerManager_Start(t *testing.T) {
 			controllers: []controllermanager.Controller{
 				newMockController("mock", mockRunnable{runError: true}),
 			},
-			wantStartErr: runtimetesting.AssertErrorIs(assert.AnError),
+			wantStartErr: testutils.AssertErrorIs(assert.AnError),
 		},
 		{
 			name: "start single store",
@@ -150,7 +150,7 @@ func TestControllerManager_Start(t *testing.T) {
 			stores: []controllermanager.Store{
 				newMockStore("mock", mockRunnable{runError: true}),
 			},
-			wantStartErr: runtimetesting.AssertErrorIs(assert.AnError),
+			wantStartErr: testutils.AssertErrorIs(assert.AnError),
 		},
 		{
 			name: "start controller timeout",
@@ -159,7 +159,7 @@ func TestControllerManager_Start(t *testing.T) {
 				newMockController("mock2", mockRunnable{startupDuration: time.Millisecond * 20}),
 			},
 			timeout:      time.Millisecond * 50,
-			wantStartErr: runtimetesting.AssertErrorIs(context.DeadlineExceeded),
+			wantStartErr: testutils.AssertErrorIs(context.DeadlineExceeded),
 		},
 		{
 			name: "start store timeout",
@@ -171,7 +171,7 @@ func TestControllerManager_Start(t *testing.T) {
 				newMockStore("mock", mockRunnable{startupDuration: time.Millisecond * 500}),
 			},
 			timeout:      time.Millisecond * 50,
-			wantStartErr: runtimetesting.AssertErrorIs(context.DeadlineExceeded),
+			wantStartErr: testutils.AssertErrorIs(context.DeadlineExceeded),
 		},
 		{
 			name: "start multiple controllers and stores with varying duration",
@@ -198,7 +198,7 @@ func TestControllerManager_Start(t *testing.T) {
 			},
 			cancelAfter:  time.Millisecond * 40,
 			timeout:      time.Second,
-			wantStartErr: runtimetesting.AssertErrorIs(context.DeadlineExceeded),
+			wantStartErr: testutils.AssertErrorIs(context.DeadlineExceeded),
 		},
 		{
 			name: "start with leader election",

@@ -116,7 +116,7 @@ func TestKillCommand(t *testing.T) {
 		{
 			Name:      "job does not exist",
 			Args:      []string{"run", "running-job"},
-			WantError: runtimetesting.AssertErrorIsNotFound(),
+			WantError: testutils.AssertErrorIsNotFound(),
 		},
 		{
 			Name:     "kill running job",

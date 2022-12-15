@@ -35,6 +35,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
 // RunCommandTests executes all CommandTest cases.
@@ -153,7 +154,7 @@ func (c *CommandTest) runCommand(t *testing.T, iostreams genericclioptions.IOStr
 	done := console.Run(c.Stdin.Procedure)
 
 	// Execute command.
-	if WantError(t, c.WantError, command.Execute(), fmt.Sprintf("Run error with args: %v", c.Args)) {
+	if testutils.WantError(t, c.WantError, command.Execute(), fmt.Sprintf("Run error with args: %v", c.Args)) {
 		return true
 	}
 

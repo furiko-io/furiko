@@ -24,6 +24,7 @@ import (
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
 func TestEnableCommand(t *testing.T) {
@@ -43,7 +44,7 @@ func TestEnableCommand(t *testing.T) {
 		{
 			Name:      "job config does not exist",
 			Args:      []string{"run", "periodic-jobconfig"},
-			WantError: runtimetesting.AssertErrorIsNotFound(),
+			WantError: testutils.AssertErrorIsNotFound(),
 		},
 		{
 			Name:     "successfully enabled",
