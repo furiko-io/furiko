@@ -160,6 +160,12 @@ const (
 	ConcurrencyPolicyEnqueue ConcurrencyPolicy = "Enqueue"
 )
 
+var ConcurrencyPoliciesAll = []ConcurrencyPolicy{
+	ConcurrencyPolicyAllow,
+	ConcurrencyPolicyForbid,
+	ConcurrencyPolicyEnqueue,
+}
+
 // OptionSpec defines how a JobConfig is parameterized using Job Options.
 type OptionSpec struct {
 	// Options is a list of job options.

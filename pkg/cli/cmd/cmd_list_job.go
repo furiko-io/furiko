@@ -63,6 +63,12 @@ func NewListJobCommand(streams *streams.Streams) *cobra.Command {
 
 	cmd.Flags().StringVar(&c.jobConfig, "for", "", "Return only jobs for the given job config.")
 
+	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
+		{FlagName: "for", CompletionFunc: (&CompletionHelper{}).ListJobConfigs()},
+	}); err != nil {
+		Fatal(err, DefaultErrorExitCode)
+	}
+
 	return cmd
 }
 

@@ -58,13 +58,14 @@ func NewGetJobConfigCommand(streams *streams.Streams) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "jobconfig",
-		Aliases: []string{"jobconfigs"},
-		Short:   "Displays information about one or more JobConfigs.",
-		Example: GetJobConfigExample,
-		PreRunE: PrerunWithKubeconfig,
-		Args:    cobra.MinimumNArgs(1),
-		RunE:    c.Run,
+		Use:               "jobconfig",
+		Aliases:           []string{"jobconfigs"},
+		Short:             "Displays information about one or more JobConfigs.",
+		Example:           GetJobConfigExample,
+		PreRunE:           PrerunWithKubeconfig,
+		Args:              cobra.MinimumNArgs(1),
+		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
+		RunE:              c.Run,
 	}
 
 	return cmd

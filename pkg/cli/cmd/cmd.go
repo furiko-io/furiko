@@ -69,6 +69,12 @@ func NewRootCommand(streams *streams.Streams) *cobra.Command {
 		"Overrides the namespace of the dynamic cluster config.")
 	flags.IntVarP(&c.verbosity, "v", "v", 0, "Sets the log level verbosity.")
 
+	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
+		{FlagName: "namespace", CompletionFunc: (&CompletionHelper{}).ListNamespaces()},
+	}); err != nil {
+		Fatal(err, DefaultErrorExitCode)
+	}
+
 	cmd.AddCommand(NewGetCommand(streams))
 	cmd.AddCommand(NewListCommand(streams))
 	cmd.AddCommand(NewRunCommand(streams))
