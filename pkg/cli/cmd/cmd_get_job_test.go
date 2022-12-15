@@ -307,7 +307,7 @@ func TestGetJobCommand(t *testing.T) {
 		{
 			Name:      "get job does not exist",
 			Args:      []string{"get", "job", "job-running"},
-			WantError: runtimetesting.AssertErrorIsNotFound(),
+			WantError: testutils.AssertErrorIsNotFound(),
 		},
 	})
 }

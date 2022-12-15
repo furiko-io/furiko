@@ -181,7 +181,7 @@ func TestRunCommand(t *testing.T) {
 		{
 			Name:      "jobconfig does not exist",
 			Args:      []string{"run", "adhoc-jobconfig"},
-			WantError: runtimetesting.AssertErrorIsNotFound(),
+			WantError: testutils.AssertErrorIsNotFound(),
 		},
 		{
 			Name:     "created job",

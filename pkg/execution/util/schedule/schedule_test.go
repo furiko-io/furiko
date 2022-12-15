@@ -32,7 +32,6 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
 	"github.com/furiko-io/furiko/pkg/execution/util/schedule"
-	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -891,7 +890,7 @@ func TestSchedule_Bump(t *testing.T) {
 				t.Fatalf("cannot initialize schedule: %v", err)
 			}
 			got, err := sched.Bump(tt.jobConfig, tt.fromTime)
-			if runtimetesting.WantError(t, tt.wantErr, err, fmt.Sprintf("Bump(%v)", tt.fromTime)) {
+			if testutils.WantError(t, tt.wantErr, err, fmt.Sprintf("Bump(%v)", tt.fromTime)) {
 				return
 			}
 			assert.True(t, tt.want.Equal(got), fmt.Sprintf("Bump(%v): want %v, got %v", tt.fromTime, tt.want, got))

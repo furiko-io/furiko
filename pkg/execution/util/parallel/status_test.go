@@ -25,7 +25,6 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
-	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
@@ -232,7 +231,7 @@ func TestGetParallelStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := parallel.GetParallelStatus(tt.args.job, tt.args.tasks)
-			if runtimetesting.WantError(t, tt.wantErr, err,
+			if testutils.WantError(t, tt.wantErr, err,
 				fmt.Sprintf("GetParallelStatus(%v, %v)", tt.args.job, tt.args.tasks)) {
 				return
 			}
@@ -618,7 +617,7 @@ func TestGetParallelStatusCounters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			status, err := parallel.GetParallelStatus(tt.args.job, tt.args.tasks)
-			if runtimetesting.WantError(t, tt.wantErr, err,
+			if testutils.WantError(t, tt.wantErr, err,
 				fmt.Sprintf("GetParallelStatus(%v, %v)", tt.args.job, tt.args.tasks)) {
 				return
 			}
