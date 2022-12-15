@@ -131,7 +131,6 @@ func (w *Webhook) Handle(
 
 // Validate the incoming admission request for a JobConfig and return an
 // ErrorList of aggregated errors.
-// nolint:lll
 func (w *Webhook) Validate(req *admissionv1.AdmissionRequest, oldRjc, rjc *executionv1alpha1.JobConfig) field.ErrorList {
 	validator := validation.NewValidator(w)
 	errorList := validator.ValidateJobConfig(rjc)

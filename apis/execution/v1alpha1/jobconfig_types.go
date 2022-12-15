@@ -481,7 +481,6 @@ type JobReference struct {
 	StartTime *metav1.Time `json:"startTime,omitempty"`
 }
 
-// nolint:lll
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
