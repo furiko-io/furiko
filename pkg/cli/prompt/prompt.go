@@ -119,7 +119,7 @@ func (p *stringPrompt) Run() (interface{}, error) {
 	if err := survey.AskOne(
 		p.survey,
 		&resp,
-		survey.WithValidator(ValidateStringRequired(p.option.Required)),
+		survey.WithValidator(ValidateRequired(p.option.Required)),
 		survey.WithStdio(p.s.In, p.s.Out, p.s.ErrOut),
 	); err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func (p *stringPrompt) Run() (interface{}, error) {
 type selectPrompt struct {
 	s      *streams.Streams
 	cfg    *execution.SelectOptionConfig
-	survey *survey.Select
+	survey survey.Prompt
 	option execution.Option
 }
 
@@ -142,15 +142,29 @@ func NewSelectPrompt(s *streams.Streams, option execution.Option) Prompt {
 	if cfg == nil {
 		cfg = &execution.SelectOptionConfig{}
 	}
+
+	var prompt survey.Prompt
+	if cfg.AllowCustom {
+		prompt = &survey.Input{
+			Message: MakeLabel(option),
+			Default: cfg.Default,
+			Suggest: func(toComplete string) []string {
+				return cfg.Values
+			},
+		}
+	} else {
+		prompt = &survey.Select{
+			Message: MakeLabel(option),
+			Default: cfg.Default,
+			Options: cfg.Values,
+		}
+	}
+
 	return &selectPrompt{
 		s:      s,
 		cfg:    cfg,
 		option: option,
-		survey: &survey.Select{
-			Message: MakeLabel(option),
-			Options: cfg.Values,
-			Default: cfg.Default,
-		},
+		survey: prompt,
 	}
 }
 
@@ -159,7 +173,7 @@ func (p *selectPrompt) Run() (interface{}, error) {
 	if err := survey.AskOne(
 		p.survey,
 		&resp,
-		survey.WithValidator(ValidateStringRequired(p.option.Required)),
+		survey.WithValidator(ValidateRequired(p.option.Required)),
 		survey.WithStdio(p.s.In, p.s.Out, p.s.ErrOut),
 	); err != nil {
 		return nil, err
@@ -183,6 +197,7 @@ func NewMultiPrompt(s *streams.Streams, option execution.Option) Prompt {
 		cfg = &execution.MultiOptionConfig{}
 	}
 
+	// TODO(irvinlim): Find a way to support AllowCustom for Multi options in the CLI.
 	return &multiPrompt{
 		s:      s,
 		cfg:    cfg,
@@ -245,7 +260,7 @@ func (p *datePrompt) Run() (interface{}, error) {
 	if err := survey.AskOne(
 		p.survey,
 		&value,
-		survey.WithValidator(ValidateStringRequired(p.option.Required)),
+		survey.WithValidator(ValidateRequired(p.option.Required)),
 		survey.WithValidator(ValidateDate),
 		survey.WithStdio(p.s.In, p.s.Out, p.s.ErrOut),
 	); err != nil {
