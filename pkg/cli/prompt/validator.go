@@ -37,21 +37,14 @@ func ValidateDate(ans interface{}) error {
 	return nil
 }
 
-// ValidateStringRequired returns a survey.Validator that validates a string
+// ValidateRequired returns a survey.Validator that validates a string
 // answer if required.
-func ValidateStringRequired(required bool) survey.Validator {
+func ValidateRequired(required bool) survey.Validator {
 	return func(ans interface{}) error {
 		if !required {
 			return nil
 		}
-		v, ok := ans.(string)
-		if !ok {
-			return errors.New("not a string")
-		}
-		if v == "" {
-			return errors.New("value is required")
-		}
-		return nil
+		return survey.Required(ans)
 	}
 }
 

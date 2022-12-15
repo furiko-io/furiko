@@ -60,7 +60,8 @@ func NewContext(_ *cobra.Command) (controllercontext.Context, error) {
 
 // PrerunWithKubeconfig is a pre-run function that will set up the common context when kubeconfig is needed.
 // TODO(irvinlim): We currently reuse controllercontext, but most of it is unusable for CLI interfaces.
-//  We should create a new common context as needed.
+//
+//	We should create a new common context as needed.
 func PrerunWithKubeconfig(cmd *cobra.Command, _ []string) error {
 	// Already set up previously.
 	if ctrlContext != nil {
@@ -94,8 +95,9 @@ func GetNamespace(cmd *cobra.Command) (string, error) {
 
 // GetDynamicConfig loads the dynamic config by name and unmarshals to out.
 // TODO(irvinlim): If the current user does not have permissions to read the
-//  ConfigMap, or the ConfigMap uses a different name/namespace, we should
-//  gracefully handle this case.
+//
+//	ConfigMap, or the ConfigMap uses a different name/namespace, we should
+//	gracefully handle this case.
 func GetDynamicConfig(ctx context.Context, cmd *cobra.Command, name configv1alpha1.ConfigName, out interface{}) error {
 	cfgNamespace, err := cmd.Flags().GetString("dynamic-config-namespace")
 	if err != nil {
