@@ -27,7 +27,7 @@ then
   echo '  ./run-fmt.sh GO_PACKAGE_NAME'
   echo
   echo 'Optional environment variables:'
-  echo '  GOIMPORTS: Path to goimports executable. Default: ./bin/goimports'
+  echo '  GOIMPORTS_REVISER: Path to goimports-reviser executable. Default: ./bin/goimports-reviser'
   exit 1
 fi
 
@@ -40,11 +40,8 @@ then
 fi
 
 # Optional environment variables
-GOIMPORTS="${GOIMPORTS:-$(pwd)/bin/goimports}"
+GOIMPORTS_REVISER="${GOIMPORTS_REVISER:-$(pwd)/bin/goimports-reviser}"
 
-# Run go fmt.
-go fmt ./cmd/... $(go list -f "{{.Dir}}" ./pkg/... | grep -v pkg/generated)
-
-# Run goimports to sort imports.
-# Do not sort generated files.
-./bin/goimports -w -local "${GO_PACKAGE_NAME}" ./cmd $(go list -f "{{.Dir}}" ./pkg/... | grep -v pkg/generated)
+# Run goimports-reviser with format.
+# Automatically skips generated files.
+"${GOIMPORTS_REVISER}" -apply-to-generated-files=false -format -project-name="${GO_PACKAGE_NAME}" ./...

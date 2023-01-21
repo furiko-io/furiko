@@ -86,7 +86,7 @@ generate-groups: generate-groups.sh ## Generate code such as client, lister, inf
 	$(GENERATE_GROUPS) $(GENERATE_GROUPS_GENERATORS) "$(PKG)/pkg/generated" "$(PKG)/apis" execution:v1alpha1 --go-header-file=$(LICENSE_HEADER_GO) $(GENERATE_GROUPS_FLAGS)
 
 .PHONY: fmt
-fmt: goimports ## Format code.
+fmt: goimports-reviser ## Format code.
 	./hack/run-fmt.sh "$(PKG)"
 
 .PHONY: lint
@@ -222,6 +222,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOIMPORTS ?= $(LOCALBIN)/goimports
+GOIMPORTS_REVISER ?= $(LOCALBIN)/goimports-reviser
 YQ ?= $(LOCALBIN)/yq
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 LICENSE_HEADER_CHECKER ?= $(LOCALBIN)/license-header-checker
@@ -231,6 +232,7 @@ GORELEASER ?= $(LOCALBIN)/goreleaser
 KUSTOMIZE_VERSION ?= v4.5.5
 CONTROLLER_TOOLS_VERSION ?= v0.8.0
 YQ_VERSION ?= v4.14.1
+GOIMPORTS_REVISER_VERSION ?= 32c80678d5d73a50b6966f06b346de58b1d018f1
 GOLANGCILINT_VERSION ?= v1.45.2
 LICENSEHEADERCHECKER_VERSION ?= v1.3.0
 GORELEASER_VERSION ?= v1.8.2
@@ -255,6 +257,11 @@ $(ENVTEST):
 goimports: $(GOIMPORTS) ## Download goimports locally if necessary.
 $(GOIMPORTS):
 	GOBIN=$(LOCALBIN) go install golang.org/x/tools/cmd/goimports@latest
+
+.PHONY: goimports-reviser
+goimports-reviser: $(GOIMPORTS_REVISER) ## Download goimports-reviser locally if necessary.
+$(GOIMPORTS_REVISER):
+	GOBIN=$(LOCALBIN) go install github.com/incu6us/goimports-reviser/v3@$(GOIMPORTS_REVISER_VERSION)
 
 .PHONY: yq
 yq: $(YQ) ## Download yq locally if necessary.
