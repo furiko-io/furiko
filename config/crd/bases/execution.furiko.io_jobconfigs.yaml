@@ -37,7 +37,7 @@ spec:
         - jsonPath: .spec.schedule.cron.timezone
           name: Timezone
           type: string
-        - jsonPath: .status.lastScheduleTime
+        - jsonPath: .status.lastScheduled
           name: Last Schedule Time
           type: date
       name: v1alpha1
