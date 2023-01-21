@@ -71,10 +71,11 @@ func NewRunCommand(streams *streams.Streams) *cobra.Command {
 		Long: `Runs a new Job from an existing JobConfig.
 
 If the JobConfig has some options defined, an interactive prompt will be shown.`,
-		Example: RunExample,
-		Args:    cobra.ExactArgs(1),
-		PreRunE: PrerunWithKubeconfig,
-		RunE:    c.Run,
+		Example:           RunExample,
+		Args:              cobra.ExactArgs(1),
+		PreRunE:           PrerunWithKubeconfig,
+		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
+		RunE:              c.Run,
 	}
 
 	cmd.Flags().StringVar(&c.name, "name", "",
@@ -91,6 +92,12 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 	cmd.Flags().StringVar(&c.concurrencyPolicy, "concurrency-policy", "",
 		"Specify an explicit concurrency policy to use for the job, overriding the "+
 			"JobConfig's concurrency policy.")
+
+	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
+		{FlagName: "concurrency-policy", CompletionFunc: (&CompletionHelper{}).FromSlice(execution.ConcurrencyPoliciesAll)},
+	}); err != nil {
+		Fatal(err, DefaultErrorExitCode)
+	}
 
 	return cmd
 }

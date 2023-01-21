@@ -36,6 +36,12 @@ func NewListCommand(streams *streams.Streams) *cobra.Command {
 	cmd.PersistentFlags().StringP("output", "o", string(printer.OutputFormatPretty),
 		fmt.Sprintf("Output format. One of: %v", strings.Join(printer.GetAllOutputFormatStrings(), "|")))
 
+	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
+		{FlagName: "output", CompletionFunc: (&CompletionHelper{}).FromSlice(printer.AllOutputFormats)},
+	}); err != nil {
+		Fatal(err, DefaultErrorExitCode)
+	}
+
 	cmd.AddCommand(NewListJobCommand(streams))
 	cmd.AddCommand(NewListJobConfigCommand(streams))
 

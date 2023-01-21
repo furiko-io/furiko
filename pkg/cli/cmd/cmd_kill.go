@@ -57,13 +57,14 @@ func NewKillCommand(streams *streams.Streams) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "kill",
-		Short:   "Kill an ongoing Job.",
-		Long:    `Kills an ongoing Job that is currently running or pending.`,
-		Example: KillExample,
-		Args:    cobra.ExactArgs(1),
-		PreRunE: PrerunWithKubeconfig,
-		RunE:    c.Run,
+		Use:               "kill",
+		Short:             "Kill an ongoing Job.",
+		Long:              `Kills an ongoing Job that is currently running or pending.`,
+		Example:           KillExample,
+		Args:              cobra.ExactArgs(1),
+		PreRunE:           PrerunWithKubeconfig,
+		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobs()),
+		RunE:              c.Run,
 	}
 
 	cmd.Flags().BoolVar(&c.override, "override", false,

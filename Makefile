@@ -125,6 +125,13 @@ build-execution-controller: ## Build execution-controller.
 build-execution-webhook: ## Build execution-webhook.
 	go build -o build/execution-webhook ./cmd/execution-webhook
 
+##@ Command-line Tools
+
+.PHONY: install-furiko-cli
+install-furiko-cli: ## Install furiko-cli to PATH.
+	go install ./cmd/furiko-cli
+	mv $(GOBIN)/furiko-cli $(GOBIN)/furiko
+
 ##@ YAML Configuration
 
 ## Location to write YAMLs to

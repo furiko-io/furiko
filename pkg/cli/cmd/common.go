@@ -18,6 +18,8 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/kr/text"
@@ -31,6 +33,10 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/utils/jsonyaml"
+)
+
+const (
+	DefaultErrorExitCode = 1
 )
 
 var (
@@ -59,9 +65,14 @@ func NewContext(_ *cobra.Command) (controllercontext.Context, error) {
 }
 
 // PrerunWithKubeconfig is a pre-run function that will set up the common context when kubeconfig is needed.
+func PrerunWithKubeconfig(cmd *cobra.Command, _ []string) error {
+	return SetupCtrlContext(cmd)
+}
+
+// SetupCtrlContext sets up the common context.
 // TODO(irvinlim): We currently reuse controllercontext, but most of it is unusable for CLI interfaces.
 // We should create a new common context as needed.
-func PrerunWithKubeconfig(cmd *cobra.Command, _ []string) error {
+func SetupCtrlContext(cmd *cobra.Command) error {
 	// Already set up previously.
 	if ctrlContext != nil {
 		return nil
@@ -135,4 +146,17 @@ func PrepareExample(example string) string {
 	example = strings.TrimPrefix(example, "\n")
 	example = strings.ReplaceAll(example, "{{.CommandName}}", CommandName)
 	return text.Indent(example, "  ")
+}
+
+// Fatal terminates the command immediately and writes to stderr.
+func Fatal(err error, code int) {
+	msg := err.Error()
+	if len(msg) > 0 {
+		// add newline if needed
+		if !strings.HasSuffix(msg, "\n") {
+			msg += "\n"
+		}
+		_, _ = fmt.Fprint(os.Stderr, msg)
+	}
+	os.Exit(code)
 }

@@ -51,10 +51,11 @@ func NewEnableCommand(streams *streams.Streams) *cobra.Command {
 
 If the specified JobConfig does not have a schedule, then an error will be thrown.
 If the specified JobConfig is already enabled, then this is a no-op.`,
-		Example: EnableExample,
-		Args:    cobra.ExactArgs(1),
-		PreRunE: PrerunWithKubeconfig,
-		RunE:    c.Run,
+		Example:           EnableExample,
+		Args:              cobra.ExactArgs(1),
+		PreRunE:           PrerunWithKubeconfig,
+		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
+		RunE:              c.Run,
 	}
 
 	return cmd
@@ -87,7 +88,7 @@ func (c *EnableCommand) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("job config has no schedule specified")
 	}
 	if !jobConfig.Spec.Schedule.Disabled {
-		c.streams.Printf("Job config %v is already enabled", key)
+		c.streams.Printf("Job config %v is already enabled\n", key)
 		return nil
 	}
 

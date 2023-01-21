@@ -55,13 +55,14 @@ func NewGetJobCommand(streams *streams.Streams) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "job",
-		Aliases: []string{"jobs"},
-		Short:   "Displays information about one or more Jobs.",
-		Example: GetJobExample,
-		PreRunE: PrerunWithKubeconfig,
-		Args:    cobra.MinimumNArgs(1),
-		RunE:    c.Run,
+		Use:               "job",
+		Aliases:           []string{"jobs"},
+		Short:             "Displays information about one or more Jobs.",
+		Example:           GetJobExample,
+		PreRunE:           PrerunWithKubeconfig,
+		Args:              cobra.MinimumNArgs(1),
+		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobs()),
+		RunE:              c.Run,
 	}
 
 	return cmd
