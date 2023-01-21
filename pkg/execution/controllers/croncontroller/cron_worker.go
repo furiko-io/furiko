@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-
 	utiltrace "k8s.io/utils/trace"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
