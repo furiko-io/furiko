@@ -38,7 +38,10 @@ spec:
           name: Timezone
           type: string
         - jsonPath: .status.lastScheduled
-          name: Last Schedule Time
+          name: Last Scheduled
+          type: date
+        - jsonPath: .status.lastExecuted
+          name: Last Executed
           type: date
       name: v1alpha1
       schema:
@@ -315,6 +318,10 @@ spec:
                       - uid
                     type: object
                   type: array
+                lastExecuted:
+                  description: The last timestamp that the job config was executed, including both scheduled and adhoc executions.
+                  format: date-time
+                  type: string
                 lastScheduled:
                   description: The last known schedule time for this job config, used to persist state during controller downtime. If the controller was down for a short period of time, any schedules that were missed during the downtime will be back-scheduled, subject to the number of schedules missed since LastScheduled.
                   format: date-time

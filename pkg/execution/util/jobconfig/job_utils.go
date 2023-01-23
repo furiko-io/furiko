@@ -26,7 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/execution/util/job"
 	lister "github.com/furiko-io/furiko/pkg/generated/listers/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 // GetLastScheduleTime returns the latest schedule time in a list of all Jobs.
@@ -55,6 +57,23 @@ func GetLabelScheduleTime(rj *execution.Job) *metav1.Time {
 		}
 	}
 	return nil
+}
+
+// GetLastStartTime returns the latest StartTime in a list of all Jobs.
+// If the list is empty, or none of the jobs were scheduled jobs, will return nil.
+func GetLastStartTime(jobs []*execution.Job) *metav1.Time {
+	var lastStartTime metav1.Time
+	for _, rj := range jobs {
+		rj := rj
+		if !job.IsStarted(rj) || rj.Status.StartTime.IsZero() {
+			continue
+		}
+		lastStartTime = *ktime.TimeMax(&lastStartTime, rj.Status.StartTime)
+	}
+	if lastStartTime.IsZero() {
+		return nil
+	}
+	return &lastStartTime
 }
 
 // LookupJobOwner looks up the JobConfig for a Job using the ownerReferences

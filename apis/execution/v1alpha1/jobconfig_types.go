@@ -442,6 +442,12 @@ type JobConfigStatus struct {
 	//
 	// +optional
 	LastScheduled *metav1.Time `json:"lastScheduled,omitempty"`
+
+	// The last timestamp that the job config was executed, including both scheduled
+	// and adhoc executions.
+	//
+	// +optional
+	LastExecuted *metav1.Time `json:"lastExecuted,omitempty"`
 }
 
 type JobConfigState string
@@ -498,7 +504,8 @@ type JobReference struct {
 // +kubebuilder:printcolumn:name="Queued",type=string,JSONPath=`.status.queued`
 // +kubebuilder:printcolumn:name="Cron Schedule",type=string,JSONPath=`.spec.schedule.cron.expression`
 // +kubebuilder:printcolumn:name="Timezone",type=string,JSONPath=`.spec.schedule.cron.timezone`
-// +kubebuilder:printcolumn:name="Last Schedule Time",type=date,JSONPath=`.status.lastScheduled`
+// +kubebuilder:printcolumn:name="Last Scheduled",type=date,JSONPath=`.status.lastScheduled`
+// +kubebuilder:printcolumn:name="Last Executed",type=date,JSONPath=`.status.lastExecuted`
 // +kubebuilder:webhook:path=/mutating/jobconfigs.execution.furiko.io,mutating=true,failurePolicy=fail,sideEffects=None,groups=execution.furiko.io,resources=jobconfigs,verbs=create;update,versions=*,name=mutating.webhook.jobconfigs.execution.furiko.io,admissionReviewVersions=v1
 // +kubebuilder:webhook:path=/validating/jobconfigs.execution.furiko.io,mutating=false,failurePolicy=fail,sideEffects=None,groups=execution.furiko.io,resources=jobconfigs,verbs=create;update,versions=*,name=validation.webhook.jobconfigs.execution.furiko.io,admissionReviewVersions=v1
 
