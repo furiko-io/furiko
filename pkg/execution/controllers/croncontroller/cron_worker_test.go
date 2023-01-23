@@ -26,8 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
+	fakeclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/pointer"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
@@ -354,7 +354,7 @@ func TestCronWorker(t *testing.T) {
 			defer cancel()
 
 			prevtime := tt.now
-			fakeClock := clock.NewFakeClock(prevtime)
+			fakeClock := fakeclock.NewFakeClock(prevtime)
 			croncontroller.Clock = fakeClock
 
 			// Initialize contexts and worker
