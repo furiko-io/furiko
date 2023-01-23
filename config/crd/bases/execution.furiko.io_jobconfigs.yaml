@@ -31,18 +31,18 @@ spec:
         - jsonPath: .status.queued
           name: Queued
           type: string
+        - jsonPath: .status.lastExecuted
+          name: Last Executed
+          type: date
+        - jsonPath: .status.lastScheduled
+          name: Last Scheduled
+          type: date
         - jsonPath: .spec.schedule.cron.expression
           name: Cron Schedule
           type: string
         - jsonPath: .spec.schedule.cron.timezone
           name: Timezone
           type: string
-        - jsonPath: .status.lastScheduled
-          name: Last Scheduled
-          type: date
-        - jsonPath: .status.lastExecuted
-          name: Last Executed
-          type: date
       name: v1alpha1
       schema:
         openAPIV3Schema:
