@@ -117,8 +117,9 @@ func (c *ListJobConfigCommand) makeJobHeader() []string {
 		"STATE",
 		"ACTIVE",
 		"QUEUED",
-		"CRON SCHEDULE",
+		"LAST EXECUTED",
 		"LAST SCHEDULED",
+		"CRON SCHEDULE",
 	}
 }
 
@@ -133,10 +134,14 @@ func (c *ListJobConfigCommand) makeJobRows(jobConfigs []execution.JobConfig) [][
 
 func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []string {
 	cronSchedule := ""
+	lastExecuted := ""
 	lastScheduled := ""
 
 	if schedule := jobConfig.Spec.Schedule; schedule != nil && schedule.Cron != nil {
 		cronSchedule = schedule.Cron.Expression
+	}
+	if !jobConfig.Status.LastExecuted.IsZero() {
+		lastExecuted = formatter.FormatTimeAgo(jobConfig.Status.LastExecuted)
 	}
 	if !jobConfig.Status.LastScheduled.IsZero() {
 		lastScheduled = formatter.FormatTimeAgo(jobConfig.Status.LastScheduled)
@@ -147,7 +152,8 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 		string(jobConfig.Status.State),
 		strconv.Itoa(int(jobConfig.Status.Active)),
 		strconv.Itoa(int(jobConfig.Status.Queued)),
-		cronSchedule,
+		lastExecuted,
 		lastScheduled,
+		cronSchedule,
 	}
 }

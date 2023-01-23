@@ -23,6 +23,8 @@ import (
 
 	"github.com/xeonx/timeago"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 const (
@@ -75,7 +77,7 @@ func FormatTimeAgo(t *metav1.Time) string {
 	if t.IsZero() {
 		return ""
 	}
-	return shorthandDurationFormatter.Format(t.Time)
+	return shorthandDurationFormatter.FormatReference(t.Time, ktime.Now().Time)
 }
 
 // FormatDuration formats a duration.

@@ -23,6 +23,7 @@ import (
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
+	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
 
 func TestListJobConfigCommand(t *testing.T) {
@@ -79,6 +80,18 @@ func TestListJobConfigCommand(t *testing.T) {
 					string(periodicJobConfig.Status.State),
 					string(adhocJobConfig.Status.State),
 					"H/5 * * * *",
+				},
+			},
+		},
+		{
+			Name:     "show LastExecuted and LastScheduled",
+			Args:     []string{"list", "jobconfig"},
+			Fixtures: []runtime.Object{jobConfigLastScheduled},
+			Now:      testutils.Mktime("2022-01-01T10:15:00Z"),
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					"9h", // last scheduled
+					"7h", // last executed
 				},
 			},
 		},
