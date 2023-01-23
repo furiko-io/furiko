@@ -87,6 +87,23 @@ var (
 			State: execution.JobConfigReady,
 		},
 	}
+
+	jobConfigLastScheduled = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "jobconfig-last-scheduled",
+			Namespace: DefaultNamespace,
+		},
+		Spec: execution.JobConfigSpec{
+			Concurrency: execution.ConcurrencySpec{
+				Policy: execution.ConcurrencyPolicyAllow,
+			},
+		},
+		Status: execution.JobConfigStatus{
+			State:         execution.JobConfigReady,
+			LastScheduled: testutils.Mkmtimep("2022-01-01T01:00:00Z"),
+			LastExecuted:  testutils.Mkmtimep("2022-01-01T03:14:00Z"),
+		},
+	}
 )
 
 func TestGetJobConfigCommand(t *testing.T) {

@@ -22,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
@@ -63,11 +62,12 @@ func TestListJobCommand(t *testing.T) {
 			Name:     "list job, print table",
 			Args:     []string{"list", "job"},
 			Fixtures: []runtime.Object{jobRunning},
+			Now:      testutils.Mktime("2021-02-09T04:05:00Z"),
 			Stdout: runtimetesting.Output{
 				ContainsAll: []string{
 					jobRunning.GetName(),
 					string(jobRunning.Status.Phase),
-					formatter.FormatTimeAgo(testutils.Mkmtimep(taskCreateTime)),
+					"3m", // create time
 				},
 			},
 		},
