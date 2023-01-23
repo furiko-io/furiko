@@ -112,6 +112,11 @@ func (w *Reconciler) SyncOne(ctx context.Context, namespace, name string, _ int)
 		newRjc.Status.LastScheduled = ktime.TimeMax(lastScheduleTime, newRjc.Status.LastScheduled)
 	}
 
+	// Update last executed time.
+	if lastExecutedTime := jobconfig.GetLastStartTime(rjs); !lastExecutedTime.IsZero() {
+		newRjc.Status.LastExecuted = ktime.TimeMax(lastExecutedTime, newRjc.Status.LastExecuted)
+	}
+
 	// Compute final state.
 	newRjc.Status.State = jobconfig.GetState(newRjc)
 

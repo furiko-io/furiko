@@ -59,11 +59,37 @@ var (
 		},
 	}
 
-	jobConfig1Ready     = makeJobConfig(jobConfig1, execution.JobConfigReady, nil, nil)
-	jobConfig1JobQueued = makeJobConfig(jobConfig1, execution.JobConfigJobQueued,
-		[]*execution.Job{job1Queued}, []*execution.Job{})
-	jobConfig1Executing = makeJobConfig(jobConfig1, execution.JobConfigExecuting,
-		[]*execution.Job{}, []*execution.Job{job1Running})
+	jobConfig1Ready = makeJobConfig(
+		jobConfig1,
+		execution.JobConfigReady,
+		nil,
+		nil,
+		nil,
+	)
+
+	jobConfig1JobQueued = makeJobConfig(
+		jobConfig1,
+		execution.JobConfigJobQueued,
+		[]func() runtime.Object{job1Queued},
+		[]func() runtime.Object{},
+		nil,
+	)
+
+	jobConfig1Executing = makeJobConfig(
+		jobConfig1,
+		execution.JobConfigExecuting,
+		[]func() runtime.Object{},
+		[]func() runtime.Object{job1Running},
+		testutils.Mkmtimep(startTime),
+	)
+
+	jobConfig1Finished = makeJobConfig(
+		jobConfig1,
+		execution.JobConfigReady,
+		nil,
+		nil,
+		testutils.Mkmtimep(startTime),
+	)
 
 	jobConfig2 = makeJobConfig(&execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -71,7 +97,7 @@ var (
 			Namespace: testNamespace,
 			UID:       jobConfigUID2,
 		},
-	}, execution.JobConfigReady, nil, nil)
+	}, execution.JobConfigReady, nil, nil, testutils.Mkmtimep(startTime))
 
 	ownerReferences = []metav1.OwnerReference{
 		{
@@ -143,6 +169,7 @@ func TestReconciler(t *testing.T) {
 		Stores: []mock.StoreFactory{
 			activejobstore.NewFactory(),
 		},
+		Now: testutils.Mktime(startTime),
 	}
 
 	test.Run(t, []runtimetesting.ReconcilerTestCase{
@@ -159,69 +186,77 @@ func TestReconciler(t *testing.T) {
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
-						runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Ready),
+						runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Ready()),
 					},
 				},
 			},
 		},
 		{
-			Name:   "up-to-date JobConfigReady status",
-			Target: jobConfig1Ready,
+			Name:            "up-to-date JobConfigReady status",
+			TargetGenerator: jobConfig1Ready,
 		},
 		{
-			Name:     "update JobConfigReady status for Queued job",
-			Target:   jobConfig1Ready,
-			Fixtures: []runtime.Object{job1Queued},
+			Name:              "update JobConfigReady status for Queued job",
+			TargetGenerator:   jobConfig1Ready,
+			FixtureGenerators: []func() runtime.Object{job1Queued},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
-					Actions: []runtimetesting.Action{
-						runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1JobQueued),
+					ActionGenerators: []runtimetesting.ActionGenerator{
+						func() (runtimetesting.Action, error) {
+							return runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1JobQueued()), nil
+						},
 					},
 				},
 			},
 		},
 		{
-			Name:     "up-to-date JobConfigJobQueued status for Queued job",
-			Target:   jobConfig1JobQueued,
-			Fixtures: []runtime.Object{job1Queued},
+			Name:              "up-to-date JobConfigJobQueued status for Queued job",
+			TargetGenerator:   jobConfig1JobQueued,
+			FixtureGenerators: []func() runtime.Object{job1Queued},
 		},
 		{
-			Name:     "update JobConfigReady status for Running job",
-			Target:   jobConfig1Ready,
-			Fixtures: []runtime.Object{job1Running},
+			Name:              "update JobConfigReady status for Running job",
+			TargetGenerator:   jobConfig1Ready,
+			FixtureGenerators: []func() runtime.Object{job1Running},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
-					Actions: []runtimetesting.Action{
-						runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Executing),
+					ActionGenerators: []runtimetesting.ActionGenerator{
+						func() (runtimetesting.Action, error) {
+							return runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Executing()), nil
+						},
 					},
 				},
 			},
 		},
 		{
-			Name:     "update JobConfigJobQueued status for Running job",
-			Target:   jobConfig1JobQueued,
-			Fixtures: []runtime.Object{job1Running},
+			Name:              "update JobConfigJobQueued status for Running job",
+			TargetGenerator:   jobConfig1JobQueued,
+			FixtureGenerators: []func() runtime.Object{job1Running},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
-					Actions: []runtimetesting.Action{
-						runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Executing),
+					ActionGenerators: []runtimetesting.ActionGenerator{
+						func() (runtimetesting.Action, error) {
+							return runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Executing()), nil
+						},
 					},
 				},
 			},
 		},
 		{
-			Name:     "up-to-date JobConfigExecuting status for Running job",
-			Target:   jobConfig1Executing,
-			Fixtures: []runtime.Object{job1Running},
+			Name:              "up-to-date JobConfigExecuting status for Running job",
+			TargetGenerator:   jobConfig1Executing,
+			FixtureGenerators: []func() runtime.Object{job1Running},
 		},
 		{
-			Name:     "update JobConfigExecuting status for Finished job",
-			Target:   jobConfig1Executing,
-			Fixtures: []runtime.Object{job1Finished},
+			Name:              "update JobConfigExecuting status for Finished job",
+			TargetGenerator:   jobConfig1Executing,
+			FixtureGenerators: []func() runtime.Object{job1Finished},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
-					Actions: []runtimetesting.Action{
-						runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Ready),
+					ActionGenerators: []runtimetesting.ActionGenerator{
+						func() (runtimetesting.Action, error) {
+							return runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Finished()), nil
+						},
 					},
 				},
 			},
@@ -235,12 +270,14 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			Name:   "update JobConfigExecuting status for deleted job",
-			Target: jobConfig1Executing,
+			Name:            "update JobConfigExecuting status for deleted job",
+			TargetGenerator: jobConfig1Executing,
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
-					Actions: []runtimetesting.Action{
-						runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Ready),
+					ActionGenerators: []runtimetesting.ActionGenerator{
+						func() (runtimetesting.Action, error) {
+							return runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, jobConfig1Finished()), nil
+						},
 					},
 				},
 			},
@@ -254,36 +291,46 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			Name:     "no update for JobConfig with non-child jobs",
-			Target:   jobConfig2,
-			Fixtures: []runtime.Object{job1Running},
+			Name:              "no update for JobConfig with non-child jobs",
+			TargetGenerator:   jobConfig2,
+			FixtureGenerators: []func() runtime.Object{job1Running},
 		},
 		{
-			Name:     "update JobConfigExecuting status for a new Running job",
-			Target:   jobConfig1Executing,
-			Fixtures: []runtime.Object{job1Running, job2Running},
+			Name:              "update JobConfigExecuting status for a new Running job",
+			TargetGenerator:   jobConfig1Executing,
+			FixtureGenerators: []func() runtime.Object{job1Running, job2Running},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
 					ActionGenerators: []runtimetesting.ActionGenerator{
 						func() (runtimetesting.Action, error) {
-							newJobConfig := makeJobConfig(jobConfig1, execution.JobConfigExecuting,
-								[]*execution.Job{}, []*execution.Job{job1Running, job2Running})
-							return runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, newJobConfig), nil
+							newJobConfig := makeJobConfig(
+								jobConfig1,
+								execution.JobConfigExecuting,
+								[]func() runtime.Object{},
+								[]func() runtime.Object{job1Running, job2Running},
+								testutils.Mkmtimep(startTime),
+							)
+							return runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, newJobConfig()), nil
 						},
 					},
 				},
 			},
 		},
 		{
-			Name:     "update JobConfigExecuting status with LastScheduleTime",
-			Target:   jobConfig1,
-			Fixtures: []runtime.Object{scheduledJob1},
+			Name:              "update JobConfigExecuting status with LastScheduleTime",
+			Target:            jobConfig1,
+			FixtureGenerators: []func() runtime.Object{scheduledJob1},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
 					ActionGenerators: []runtimetesting.ActionGenerator{
 						func() (runtimetesting.Action, error) {
-							newJobConfig := makeJobConfig(jobConfig1, execution.JobConfigExecuting,
-								[]*execution.Job{}, []*execution.Job{scheduledJob1})
+							newJobConfig := makeJobConfig(
+								jobConfig1,
+								execution.JobConfigExecuting,
+								[]func() runtime.Object{},
+								[]func() runtime.Object{scheduledJob1},
+								testutils.Mkmtimep(startTime),
+							)().(*execution.JobConfig)
 							newJobConfig.Status.LastScheduled = testutils.Mkmtimep(startTime)
 							return runtimetesting.NewUpdateJobConfigStatusAction(testNamespace, newJobConfig), nil
 						},
@@ -294,26 +341,41 @@ func TestReconciler(t *testing.T) {
 	})
 }
 
-func makeJob(job *execution.Job, phase execution.JobPhase) *execution.Job {
-	newJob := job.DeepCopy()
-	if phase != execution.JobQueued {
-		newJob.Status.StartTime = ktime.Now()
+func makeJob(job *execution.Job, phase execution.JobPhase) func() runtime.Object {
+	return func() runtime.Object {
+		newJob := job.DeepCopy()
+		if phase != execution.JobQueued {
+			newJob.Status.StartTime = ktime.Now()
+		}
+		newJob.Status.Phase = phase
+		return newJob
 	}
-	newJob.Status.Phase = phase
-	return newJob
 }
 
 func makeJobConfig(
 	jobConfig *execution.JobConfig,
 	state execution.JobConfigState,
-	queued []*execution.Job,
-	active []*execution.Job,
-) *execution.JobConfig {
-	newJobConfig := jobConfig.DeepCopy()
-	newJobConfig.Status.State = state
-	newJobConfig.Status.Queued = int64(len(queued))
-	newJobConfig.Status.QueuedJobs = jobconfigcontroller.ToJobReferences(queued)
-	newJobConfig.Status.Active = int64(len(active))
-	newJobConfig.Status.ActiveJobs = jobconfigcontroller.ToJobReferences(active)
-	return newJobConfig
+	queuedFuncs []func() runtime.Object,
+	activeFuncs []func() runtime.Object,
+	lastExecuted *metav1.Time,
+) func() runtime.Object {
+	return func() runtime.Object {
+		queued := make([]*execution.Job, 0, len(queuedFuncs))
+		active := make([]*execution.Job, 0, len(activeFuncs))
+		for _, queuedFunc := range queuedFuncs {
+			queued = append(queued, queuedFunc().(*execution.Job))
+		}
+		for _, activeFunc := range activeFuncs {
+			active = append(active, activeFunc().(*execution.Job))
+		}
+
+		newJobConfig := jobConfig.DeepCopy()
+		newJobConfig.Status.State = state
+		newJobConfig.Status.Queued = int64(len(queued))
+		newJobConfig.Status.QueuedJobs = jobconfigcontroller.ToJobReferences(queued)
+		newJobConfig.Status.Active = int64(len(active))
+		newJobConfig.Status.ActiveJobs = jobconfigcontroller.ToJobReferences(active)
+		newJobConfig.Status.LastExecuted = lastExecuted
+		return newJobConfig
+	}
 }

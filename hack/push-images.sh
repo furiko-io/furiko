@@ -78,6 +78,13 @@ while IFS= read -r IMAGE; do
   # If NEW_IMAGE is not equal to SRC_IMAGE, re-tag the image and push that tag instead.
   if [ "${SRC_IMAGE}" != "${NEW_IMAGE}" ]; then
     TARGET_IMAGE="${NEW_IMAGE}"
+
+    # Check if the tag already exists on the local builder, if so, delete it.
+    if [[ $(docker image ls "${TARGET_IMAGE}" -q) ]]; then
+      docker rmi "${TARGET_IMAGE}"
+    fi
+
+    # Tag the new image from the source image name.
     docker tag "${SRC_IMAGE}" "${TARGET_IMAGE}"
   fi
 

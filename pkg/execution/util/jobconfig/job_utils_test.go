@@ -27,9 +27,10 @@ import (
 
 var (
 	timestring1 = "1626244260"
-	timestring2 = "1626244080"
+	timestring2 = "1626244380"
 	timestring3 = "1626244500"
 	metatime1   = metav1.Unix(1626244260, 0)
+	metatime2   = metav1.Unix(1626244380, 0)
 	metatime3   = metav1.Unix(1626244500, 0)
 )
 
@@ -101,10 +102,96 @@ func TestGetLastScheduleTime(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := jobconfig.GetLastScheduleTime(tt.jobs); !tt.want.Equal(got) {
 				t.Errorf("GetLastScheduleTime() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetLastStartTime(t *testing.T) {
+	tests := []struct {
+		name string
+		jobs []*execution.Job
+		want *metav1.Time
+	}{
+		{
+			name: "empty list",
+			jobs: nil,
+			want: nil,
+		},
+		{
+			name: "no status",
+			jobs: []*execution.Job{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "job1",
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "job is started",
+			jobs: []*execution.Job{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "job1",
+					},
+					Status: execution.JobStatus{
+						StartTime: &metatime1,
+					},
+				},
+			},
+			want: &metatime1,
+		},
+		{
+			name: "don't take non-started job",
+			jobs: []*execution.Job{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "job1",
+					},
+					Status: execution.JobStatus{
+						StartTime: &metatime1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "job2",
+					},
+				},
+			},
+			want: &metatime1,
+		},
+		{
+			name: "multiple items",
+			jobs: []*execution.Job{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "job1",
+					},
+					Status: execution.JobStatus{
+						StartTime: &metatime1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "job2",
+					},
+					Status: execution.JobStatus{
+						StartTime: &metatime2,
+					},
+				},
+			},
+			want: &metatime2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := jobconfig.GetLastStartTime(tt.jobs); !tt.want.Equal(got) {
+				t.Errorf("GetLastStartTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
