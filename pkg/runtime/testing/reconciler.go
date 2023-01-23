@@ -89,6 +89,12 @@ type ReconcilerTestCase struct {
 	// Other fixtures to be created prior to the sync.
 	Fixtures []runtime.Object
 
+	// Generator functions that returns Fixtures. The generators will be called
+	// lazily, evaluated only after all initialization is done. For example, if the
+	// target depends on the clock to have already been mocked, use FixtureGenerators
+	// instead of Fixtures.
+	FixtureGenerators []func() runtime.Object
+
 	// Optionally specifies the current time to mock to override from the parent
 	// ReconcilerTest.
 	Now time.Time
@@ -214,7 +220,14 @@ func (r *ReconcilerTest) initClientset(
 	hasSynced []cache.InformerSynced,
 ) (runtime.Object, error) {
 	// Set up all fixtures.
-	if err := InitFixtures(ctx, client, tt.Fixtures); err != nil {
+	fixtures := tt.Fixtures
+	if len(tt.FixtureGenerators) > 0 {
+		fixtures = make([]runtime.Object, 0, len(tt.FixtureGenerators))
+		for _, generator := range tt.FixtureGenerators {
+			fixtures = append(fixtures, generator())
+		}
+	}
+	if err := InitFixtures(ctx, client, fixtures); err != nil {
 		return nil, err
 	}
 
