@@ -27,8 +27,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	fakeclock "k8s.io/utils/clock/testing"
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	"github.com/furiko-io/furiko/pkg/cli/console"
@@ -117,7 +117,7 @@ func (c *CommandTest) Run(t *testing.T) {
 	if !c.Now.IsZero() {
 		now = c.Now
 	}
-	ktime.Clock = clock.NewFakeClock(now)
+	ktime.Clock = fakeclock.NewFakeClock(now)
 
 	// Run command with I/O.
 	iostreams, _, stdout, stderr := genericclioptions.NewTestIOStreams()

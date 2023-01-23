@@ -29,8 +29,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
+	fakeclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
 
@@ -368,7 +368,7 @@ func TestMutator_MutateCreateJobConfig(t *testing.T) {
 		{
 			name: "bump LastUpdatedTime with updated cron schedule",
 			setup: func() {
-				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+				mutation.Clock = fakeclock.NewFakeClock(mockNow.Time)
 			},
 			rjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
@@ -388,7 +388,7 @@ func TestMutator_MutateCreateJobConfig(t *testing.T) {
 		{
 			name: "don't reset future LastUpdated",
 			setup: func() {
-				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+				mutation.Clock = fakeclock.NewFakeClock(mockNow.Time)
 			},
 			rjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
@@ -473,7 +473,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 		{
 			name: "no change expected",
 			setup: func() {
-				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+				mutation.Clock = fakeclock.NewFakeClock(mockNow.Time)
 			},
 			oldRjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
@@ -493,7 +493,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 		{
 			name: "no change expected without schedule",
 			setup: func() {
-				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+				mutation.Clock = fakeclock.NewFakeClock(mockNow.Time)
 			},
 			oldRjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
@@ -511,7 +511,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 		{
 			name: "bump LastUpdated",
 			setup: func() {
-				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+				mutation.Clock = fakeclock.NewFakeClock(mockNow.Time)
 			},
 			oldRjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
@@ -538,7 +538,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 		{
 			name: "bump LastUpdated add schedule",
 			setup: func() {
-				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+				mutation.Clock = fakeclock.NewFakeClock(mockNow.Time)
 			},
 			oldRjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
@@ -564,7 +564,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 		{
 			name: "bump LastUpdated update disabled",
 			setup: func() {
-				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+				mutation.Clock = fakeclock.NewFakeClock(mockNow.Time)
 			},
 			oldRjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,
@@ -602,7 +602,7 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 		{
 			name: "don't reset future LastUpdated",
 			setup: func() {
-				mutation.Clock = clock.NewFakeClock(mockNow.Time)
+				mutation.Clock = fakeclock.NewFakeClock(mockNow.Time)
 			},
 			oldRjc: &v1alpha1.JobConfig{
 				ObjectMeta: objectMetaJobConfig,

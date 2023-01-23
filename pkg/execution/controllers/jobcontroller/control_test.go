@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/clock"
+	fakeclock "k8s.io/utils/clock/testing"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/execution/controllers/jobcontroller"
@@ -37,7 +37,7 @@ func TestExecutionControl(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	ktime.Clock = clock.NewFakeClock(time.Now())
+	ktime.Clock = fakeclock.NewFakeClock(time.Now())
 	c := mock.NewContext()
 	client := c.MockClientsets().FurikoMock().ExecutionV1alpha1()
 	control := jobcontroller.NewExecutionControl(client, "test")

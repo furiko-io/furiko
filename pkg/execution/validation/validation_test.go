@@ -26,8 +26,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
+	fakeclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/pointer"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
@@ -1071,7 +1071,7 @@ func TestValidateJobUpdate(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClock := clock.NewFakeClock(time.Now())
+			fakeClock := fakeclock.NewFakeClock(time.Now())
 			validation.Clock = fakeClock
 			if tt.now != nil {
 				fakeClock.SetTime(*tt.now)

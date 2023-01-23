@@ -25,8 +25,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
+	fakeclock "k8s.io/utils/clock/testing"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
@@ -474,7 +474,7 @@ func TestSchedule(t *testing.T) {
 			}
 
 			// Initialize the Schedule from initTime.
-			fakeClock := clock.NewFakeClock(initTime)
+			fakeClock := fakeclock.NewFakeClock(initTime)
 			sched, err := schedule.New(
 				tt.jobConfigs,
 				schedule.WithClock(fakeClock),
@@ -700,7 +700,7 @@ func TestSchedule_Sequence(t *testing.T) {
 			}
 
 			// Use UTC time for the fake clock.
-			fakeClock := clock.NewFakeClock(now.In(time.UTC))
+			fakeClock := fakeclock.NewFakeClock(now.In(time.UTC))
 
 			sched, err := schedule.New(
 				[]*execution.JobConfig{tt.jobConfig},
@@ -749,7 +749,7 @@ func TestSchedule_Sequence(t *testing.T) {
 
 func TestSchedule_FlushNextScheduleTime(t *testing.T) {
 	now := testutils.Mktime(now)
-	fakeClock := clock.NewFakeClock(now)
+	fakeClock := fakeclock.NewFakeClock(now)
 	jobConfig := &execution.JobConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "job-config-to-be-updated",
@@ -884,7 +884,7 @@ func TestSchedule_Bump(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			now := testutils.Mktime(now)
-			fakeClock := clock.NewFakeClock(now)
+			fakeClock := fakeclock.NewFakeClock(now)
 			sched, err := schedule.New([]*execution.JobConfig{tt.jobConfig}, schedule.WithClock(fakeClock))
 			if err != nil {
 				t.Fatalf("cannot initialize schedule: %v", err)

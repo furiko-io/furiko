@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/util/clock"
+	fakeclock "k8s.io/utils/clock/testing"
 
 	"github.com/furiko-io/furiko/pkg/execution/controllers/croncontroller"
 )
@@ -38,7 +38,7 @@ func TestClockTickUntil(t *testing.T) {
 	work := func() {
 		atomic.AddInt64(&i, 1)
 	}
-	fakeClock := clock.NewFakeClock(initialTime)
+	fakeClock := fakeclock.NewFakeClock(initialTime)
 	croncontroller.Clock = fakeClock
 
 	step := 5
@@ -90,7 +90,7 @@ func TestCronTimerUntil_Seconds(t *testing.T) {
 	work := func() {
 		atomic.AddInt64(&i, 1)
 	}
-	fakeClock := clock.NewFakeClock(initialTime)
+	fakeClock := fakeclock.NewFakeClock(initialTime)
 	croncontroller.Clock = fakeClock
 
 	timestep := time.Second

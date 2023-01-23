@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/clock"
+	fakeclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/pointer"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
@@ -34,7 +34,7 @@ import (
 
 func TestGetCondition(t *testing.T) {
 	timeNow := time.Now()
-	ktime.Clock = clock.NewFakeClock(timeNow)
+	ktime.Clock = fakeclock.NewFakeClock(timeNow)
 
 	type args struct {
 		rj         *execution.Job

@@ -26,10 +26,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/clock"
 	ktesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	fakeclock "k8s.io/utils/clock/testing"
 
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
@@ -202,7 +202,7 @@ func (r *ReconcilerTest) setupContext(
 	if !tt.Now.IsZero() {
 		now = tt.Now
 	}
-	fakeClock := clock.NewFakeClock(now)
+	fakeClock := fakeclock.NewFakeClock(now)
 	ktime.Clock = fakeClock
 
 	// Set up fake recorder.
