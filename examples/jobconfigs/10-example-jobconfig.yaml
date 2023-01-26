@@ -1,0 +1,36 @@
+# This is a basic example of a JobConfig.
+#
+# To create this JobConfig, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobconfigs/10-example-jobconfig.yaml
+#
+# For more in-depth information on other JobConfig fields, refer to https://furiko.io/docs/execution/jobconfig/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: JobConfig
+metadata:
+  name: example-jobconfig
+spec:
+  # The schedule section defines how the JobConfig shall be executed automatically on schedule.
+  # It is currently disabled by default.
+  schedule:
+    cron:
+      expression: '*/5 * * * *'
+    disabled: true
+
+  # The concurrency policy will prevent multiple executions of the same JobConfig.
+  concurrency:
+    policy: Forbid
+
+  # The template section defines how Jobs are created, either by schedule or on an ad-hoc basis.
+  # Each Job will create an individual Pod, which contains a single container.
+  template:
+    spec:
+      taskTemplate:
+        pod:
+          spec:
+            containers:
+              - name: container
+                image: alpine
+                command:
+                  - echo
+                  - 'Hello World'

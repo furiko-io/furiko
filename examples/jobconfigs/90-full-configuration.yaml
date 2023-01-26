@@ -1,0 +1,94 @@
+# Full configuration that explains most JobConfig fields.
+#
+# To create this JobConfig, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobconfigs/90-full-configuration.yaml
+#
+# For more in-depth information on other JobConfig fields, refer to https://furiko.io/docs/execution/jobconfig/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: JobConfig
+metadata:
+  name: full-configuration
+spec:
+  # Defines how to handle multiple concurrent Jobs for the JobConfig.
+  concurrency:
+    # Describes how to treat concurrent executions of the same JobConfig.
+    # Allowed values: Forbid, Allow, Enqueue
+    policy: Forbid
+
+    # Maximum number of Jobs that can be running concurrently for the same JobConfig.
+    # Cannot be specified if Policy is set to Allow. Defaults to 1.
+    maxConcurrency: 1
+
+  # Defines how a JobConfig should be automatically scheduled.
+  schedule:
+    cron:
+      # Defines a cron expression for scheduling the JobConfig.
+      expression: "0 */15 * * * * *"
+
+      # Defines the timezone for interpreting the cron expression.
+      # Accepts either a timezone string (America/New_York) or UTC offset (UTC+08:00).
+      timezone: "Asia/Singapore"
+
+    constraints:
+      # Defines that the JobConfig should not be scheduled before this time.
+      notBefore: "2022-01-01T00:00:00+08:00"
+
+      # Defines that the JobConfig should not be scheduled after this time.
+      notAfter: "2027-01-01T00:00:00+08:00"
+
+    # Optionally toggle whether the schedule should be enabled or disabled.
+    disabled: false
+
+  # Defines options for parameterizing the JobConfig.
+  option:
+    options:
+      # Example String option with a default value.
+      # This option can be substituted as ${option.username} in the task template.
+      - type: String
+        name: username
+        label: Username
+        string:
+          default: Example User
+          trimSpaces: true
+
+  # Template for the Job to be created.
+  template:
+    # Any labels and annotations will be automatically added to downstream Jobs.
+    metadata:
+      annotations:
+        annotations.furiko.io/job-group: "cool-jobs"
+
+    spec:
+      # Specifies maximum number of attempts for each task, defaults to 1.
+      maxAttempts: 3
+
+      # Optional delay between each task retry.
+      retryDelaySeconds: 10
+
+      # Optional duration in seconds for how long each task should be pending for
+      # until it gets killed.
+      taskPendingTimeoutSeconds: 1800
+
+      # The template for each task to be created by the Job.
+      taskTemplate:
+        # Specify how to create the task as a Pod. This is just a PodTemplateSpec.
+        pod:
+          spec:
+            containers:
+              # Notice how we can use context variables and job options inside
+              # the PodSpec freely to be substituted at runtime.
+              - name: job-container
+                args:
+                  - echo
+                  - "Hello world, ${option.username}!"
+                env:
+                  - name: JOBCONFIG_NAME
+                    value: "${jobconfig.name}"
+                  - name: JOB_NAME
+                    value: "${job.name}"
+                image: "alpine"
+                resources:
+                  limits:
+                    cpu: 100m
+                    memory: 64Mi

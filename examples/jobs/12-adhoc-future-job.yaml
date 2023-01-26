@@ -1,0 +1,25 @@
+# This is an example Job that can be schedule to be executed in the future.
+# This example depends on another JobConfig at https://github.com/furiko-io/furiko/blob/main/examples/jobconfigs/10-example-jobconfig.yaml.
+#
+# To create the Job, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobs/12-adhoc-future-job.yaml
+#
+# For more in-depth information on other Job fields, refer to https://furiko.io/docs/execution/job/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: Job
+metadata:
+  generateName: example-jobconfig-
+spec:
+  # Specify the name of the JobConfig that we want to create a Job for.
+  configName: example-jobconfig
+
+  # Specify start conditions for the Job.
+  startPolicy:
+    # Defines the behavior for multiple concurrent Jobs.
+    # In this example, we will use Enqueue so that we will wait for any ongoing Jobs to terminate before starting this one.
+    # If not specified, will default to the JobConfig's concurrency.policy.
+    concurrencyPolicy: Enqueue
+
+    # Optionally specify that the job shall only start after this time.
+    startAfter: 2022-03-06T00:27:00+08:00

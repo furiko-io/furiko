@@ -1,0 +1,37 @@
+# This is an example of how to configure a JobConfig with Context Variables: https://furiko.io/docs/execution/jobconfig/context-variables.
+#
+# To create this JobConfig, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobconfigs/30-context-variables.yaml
+#
+# For more in-depth information on other JobConfig fields, refer to https://furiko.io/docs/execution/jobconfig/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: JobConfig
+metadata:
+  name: context-variables
+spec:
+  concurrency:
+    policy: Forbid
+
+  template:
+    spec:
+      # Context variables will be substituted into the task template.
+      # In this example, the variables will be substituted into their final values when the Pod is about to be created.
+      taskTemplate:
+        pod:
+          spec:
+            containers:
+              - name: container
+                image: "alpine"
+                args:
+                  - echo
+                  - "Hello world from ${jobconfig.name}!"
+                env:
+                  - name: JOBCONFIG_NAMESPACE
+                    value: "${jobconfig.namespace}"
+                  - name: JOBCONFIG_NAME
+                    value: "${jobconfig.name}"
+                  - name: JOB_NAMESPACE
+                    value: "${job.namespace}"
+                  - name: JOB_NAME
+                    value: "${job.name}"

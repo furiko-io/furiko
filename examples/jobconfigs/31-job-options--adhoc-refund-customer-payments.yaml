@@ -1,0 +1,82 @@
+# This is an example of how to configure a JobConfig with Job Options: https://furiko.io/docs/execution/jobconfig/job-options.
+#
+# To create this JobConfig, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobconfigs/31-job-options--adhoc-refund-customer-payments.yaml
+#
+# For more in-depth information on other JobConfig fields, refer to https://furiko.io/docs/execution/jobconfig/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: JobConfig
+metadata:
+  name: adhoc-refund-customer-payments
+spec:
+  option:
+    options:
+      # Example of a required option. It will be substituted as ${option.username} in the task template.
+      # If the value is empty then the Job cannot be executed.
+      - name: customer_id
+        type: String
+        required: true
+
+      # Example of an option with enumerable values. It will be substituted as ${option.refund_type} in the task template.
+      # Values must be specified from the given list.
+      - name: refund_type
+        type: Select
+        required: true
+        select:
+          default: "immediate"
+          values:
+            - immediate
+            - best-effort
+
+      # Example of a boolean option. It will be substituted as ${option.dry_run} in the task template.
+      # Defaults to false, and will be rendered as "y" or "n".
+      - name: dry_run
+        type: Bool
+        bool:
+          default: false
+          format: Custom
+          trueVal: "y"
+          falseVal: "n"
+
+  concurrency:
+    policy: Forbid
+
+  template:
+    spec:
+      # The option values can be substituted into the task template accordingly.
+      # Here we will demonstrate an example workflow depending on the options that were chosen.
+      taskTemplate:
+        pod:
+          spec:
+            containers:
+              - name: container
+                image: bash
+                command:
+                  - bash
+                  - "-c"
+                  - |
+                    # Display what we are about to do.
+                    echo "[*] Will refund for customer '${option.customer_id}' using ${option.refund_type} refund method."
+
+                    # Exit if only dry run.
+                    if [[ "${option.dry_run}" == "y" ]]; then
+                      echo "[!] Dry run mode specified, exiting."
+                      exit 0
+                    fi
+
+                    # Simulates some actual work to be done.
+                    case "${option.refund_type}" in
+                      immediate)
+                        echo "[*] Processing immediate refund for customer '${option.customer_id}' now..."
+                        sleep 10
+                        echo "[!] Succesfully processed refund."
+                        ;;
+
+                      best-effort)
+                        sleep 1
+                        echo "[!] Successfully enqueued best-effort refund for customer '${option.customer_id}', it will be processed within 3 business days."
+                        ;;
+                    esac
+
+                    echo "[*] Refund process complete."
