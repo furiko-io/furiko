@@ -1,0 +1,16 @@
+# This is an example Job that can be created from an existing JobConfig.
+# This example depends on another JobConfig at https://github.com/furiko-io/furiko/blob/main/examples/jobconfigs/10-example-jobconfig.yaml.
+#
+# To create the Job, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobs/10-adhoc-job-from-config.yaml
+#
+# For more in-depth information on other Job fields, refer to https://furiko.io/docs/execution/job/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: Job
+metadata:
+  generateName: example-jobconfig-
+spec:
+  # Only one field is required when creating a Job from a JobConfig - the name of the JobConfig.
+  # The JobConfig should be in the same namespace as the Job that is to be created.
+  configName: example-jobconfig

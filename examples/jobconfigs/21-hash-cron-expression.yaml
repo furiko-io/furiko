@@ -1,0 +1,34 @@
+# This is an example JobConfig using hash cron expressions.
+#
+# To create this JobConfig, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobconfigs/21-hash-cron-expression.yaml
+#
+# For more in-depth information on other JobConfig fields, refer to https://furiko.io/docs/execution/jobconfig/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: JobConfig
+metadata:
+  name: hash-cron-expression
+spec:
+  schedule:
+    cron:
+      # Here we specify a hash cron expression using the "H" token, which allows us to select
+      # a random moment within the desired interval, determined based on the hash of the JobConfig's name.
+      # In this example, the JobConfig will be scheduled anytime within a 5-minute interval,
+      # and allows cluster administrators to evenly spread out the load of scheduled job configs.
+      expression: 'H H/5 * * * * *'
+
+  concurrency:
+    policy: Forbid
+
+  template:
+    spec:
+      taskTemplate:
+        pod:
+          spec:
+            containers:
+              - name: container
+                image: alpine
+                command:
+                  - echo
+                  - 'Hello World'

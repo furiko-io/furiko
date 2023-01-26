@@ -1,0 +1,45 @@
+# This is a basic example of a JobConfig with a cron schedule.
+#
+# To create this JobConfig, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobconfigs/20-cron-schedule.yaml
+#
+# For more in-depth information on other JobConfig fields, refer to https://furiko.io/docs/execution/jobconfig/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: JobConfig
+metadata:
+  name: cron-schedule
+spec:
+  schedule:
+    cron:
+      # Defines a cron expression for scheduling the JobConfig.
+      expression: "0 */15 * * * * *"
+
+      # Defines the timezone for interpreting the cron expression.
+      # Accepts either a timezone string (America/New_York) or UTC offset (UTC+08:00).
+      timezone: "Asia/Singapore"
+
+    constraints:
+      # Defines that the JobConfig should not be scheduled before this time.
+      notBefore: "2022-01-01T00:00:00+08:00"
+
+      # Defines that the JobConfig should not be scheduled after this time.
+      notAfter: "2027-01-01T00:00:00+08:00"
+
+    # Optionally toggle whether the schedule should be enabled or disabled.
+    disabled: false
+
+  concurrency:
+    policy: Forbid
+
+  template:
+    spec:
+      taskTemplate:
+        pod:
+          spec:
+            containers:
+              - name: container
+                image: alpine
+                command:
+                  - echo
+                  - 'Hello World'

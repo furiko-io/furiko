@@ -1,0 +1,24 @@
+# This is an example Job that can be created from an existing JobConfig that contains Job Options.
+# This example depends on another JobConfig at https://github.com/furiko-io/furiko/blob/main/examples/jobconfigs/31-job-options--adhoc-refund-customer-payments.yaml.
+#
+# To create the Job, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobs/11-adhoc-job-with-options.yaml
+#
+# For more in-depth information on other Job fields, refer to https://furiko.io/docs/execution/job/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: Job
+metadata:
+  generateName: adhoc-refund-customer-payments-
+spec:
+  # Specify the name of the JobConfig that we want to create a Job for.
+  # For more information, refer to https://github.com/furiko-io/furiko/blob/main/examples/jobconfigs/31-job-options--adhoc-refund-customer-payments.yaml.
+  configName: adhoc-refund-customer-payments
+
+  # Specify any option values here.
+  # For any options that are omitted, the default value will be used.
+  # However, if it is required and there is no default value, then the Job execution will fail.
+  optionValues: |-
+    customer_id: "123"
+    refund_type: "best-effort"
+
