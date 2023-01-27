@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
@@ -40,7 +41,9 @@ var (
 
 type ListJobConfigCommand struct {
 	streams   *streams.Streams
+	output    printer.OutputFormat
 	noHeaders bool
+	watch     bool
 }
 
 func NewListJobConfigCommand(streams *streams.Streams) *cobra.Command {
@@ -55,24 +58,26 @@ func NewListJobConfigCommand(streams *streams.Streams) *cobra.Command {
 		Example: ListJobConfigExample,
 		PreRunE: PrerunWithKubeconfig,
 		Args:    cobra.ExactArgs(0),
-		RunE:    c.Run,
+		RunE: RunAllE(
+			c.Complete,
+			c.Run,
+		),
 	}
 
 	return cmd
+}
+
+func (c *ListJobConfigCommand) Complete(cmd *cobra.Command, args []string) error {
+	c.output = GetOutputFormat(cmd)
+	c.noHeaders = GetFlagBool(cmd, "no-headers")
+	c.watch = GetFlagBool(cmd, "watch")
+	return nil
 }
 
 func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
 	namespace, err := GetNamespace(cmd)
-	if err != nil {
-		return err
-	}
-	output, err := GetOutputFormat(cmd)
-	if err != nil {
-		return err
-	}
-	c.noHeaders, err = GetNoHeaders(cmd)
 	if err != nil {
 		return err
 	}
@@ -88,16 +93,37 @@ func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return c.PrintJobConfigs(output, jobConfigList)
+	p := printer.NewTablePrinter(c.streams.Out)
+
+	if len(jobConfigList.Items) > 0 {
+		if err := c.PrintJobConfigs(p, jobConfigList); err != nil {
+			return errors.Wrapf(err, "cannot print jobconfigs")
+		}
+	}
+
+	if c.watch {
+		watchOptions := *options.DeepCopy()
+		watchOptions.ResourceVersion = jobConfigList.ResourceVersion
+		watch, err := client.JobConfigs(namespace).Watch(ctx, watchOptions)
+		if err != nil {
+			return errors.Wrapf(err, "cannot watch jobconfigs")
+		}
+
+		return WatchAndPrint(ctx, watch, func(obj runtime.Object) (bool, error) {
+			if jobConfig, ok := obj.(*execution.JobConfig); ok {
+				return true, c.PrintJobConfig(p, jobConfig)
+			}
+			return false, nil
+		})
+	}
+
+	return nil
 }
 
-func (c *ListJobConfigCommand) PrintJobConfigs(
-	output printer.OutputFormat,
-	jobConfigList *execution.JobConfigList,
-) error {
+func (c *ListJobConfigCommand) PrintJobConfigs(p *printer.TablePrinter, jobConfigList *execution.JobConfigList) error {
 	// Handle pretty print as a special case.
-	if output == printer.OutputFormatPretty {
-		c.prettyPrint(jobConfigList.Items)
+	if c.output == printer.OutputFormatPretty {
+		c.prettyPrint(p, jobConfigList.Items)
 		return nil
 	}
 
@@ -108,11 +134,21 @@ func (c *ListJobConfigCommand) PrintJobConfigs(
 		items = append(items, &job)
 	}
 
-	return printer.PrintObjects(execution.GVKJobConfig, output, c.streams.Out, items)
+	return printer.PrintObjects(execution.GVKJobConfig, c.output, c.streams.Out, items)
 }
 
-func (c *ListJobConfigCommand) prettyPrint(jobConfigs []execution.JobConfig) {
-	p := printer.NewTablePrinter(c.streams.Out)
+func (c *ListJobConfigCommand) PrintJobConfig(p *printer.TablePrinter, jobConfig *execution.JobConfig) error {
+	// Handle pretty print as a special case.
+	if c.output == printer.OutputFormatPretty {
+		jobConfigList := []execution.JobConfig{*jobConfig}
+		c.prettyPrint(p, jobConfigList)
+		return nil
+	}
+
+	return printer.PrintObject(execution.GVKJobConfig, c.output, c.streams.Out, jobConfig)
+}
+
+func (c *ListJobConfigCommand) prettyPrint(p *printer.TablePrinter, jobConfigs []execution.JobConfig) {
 	var headers []string
 	if !c.noHeaders {
 		headers = c.makeJobHeader()

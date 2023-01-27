@@ -47,6 +47,8 @@ var (
 
 type GetJobCommand struct {
 	streams *streams.Streams
+
+	output printer.OutputFormat
 }
 
 func NewGetJobCommand(streams *streams.Streams) *cobra.Command {
@@ -62,20 +64,24 @@ func NewGetJobCommand(streams *streams.Streams) *cobra.Command {
 		PreRunE:           PrerunWithKubeconfig,
 		Args:              cobra.MinimumNArgs(1),
 		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobs()),
-		RunE:              c.Run,
+		RunE: RunAllE(
+			c.Complete,
+			c.Run,
+		),
 	}
 
 	return cmd
+}
+
+func (c *GetJobCommand) Complete(cmd *cobra.Command, args []string) error {
+	c.output = GetOutputFormat(cmd)
+	return nil
 }
 
 func (c *GetJobCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
 	namespace, err := GetNamespace(cmd)
-	if err != nil {
-		return err
-	}
-	output, err := GetOutputFormat(cmd)
 	if err != nil {
 		return err
 	}
@@ -94,7 +100,7 @@ func (c *GetJobCommand) Run(cmd *cobra.Command, args []string) error {
 		jobs = append(jobs, job)
 	}
 
-	return c.PrintJobs(output, jobs)
+	return c.PrintJobs(c.output, jobs)
 }
 
 func (c *GetJobCommand) PrintJobs(output printer.OutputFormat, jobs []*execution.Job) error {
