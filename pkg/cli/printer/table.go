@@ -47,7 +47,9 @@ func (p *TablePrinter) Print(header []string, rows [][]string) {
 	style.Box.PaddingRight = ""
 	style.Box.MiddleVertical = "   "
 	t.SetStyle(style)
-	t.AppendHeader(p.makeTableRow(header))
+	if len(header) > 0 {
+		t.AppendHeader(p.makeTableRow(header))
+	}
 	t.AppendRows(p.makeTableRows(rows))
 	t.Render()
 }

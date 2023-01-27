@@ -65,6 +65,25 @@ func TestListJobCommand(t *testing.T) {
 			Now:      testutils.Mktime("2021-02-09T04:05:00Z"),
 			Stdout: runtimetesting.Output{
 				ContainsAll: []string{
+					"NAME",
+					"PHASE",
+					jobRunning.GetName(),
+					string(jobRunning.Status.Phase),
+					"3m", // create time
+				},
+			},
+		},
+		{
+			Name:     "list job, print table with no headers",
+			Args:     []string{"list", "job", "--no-headers"},
+			Fixtures: []runtime.Object{jobRunning},
+			Now:      testutils.Mktime("2021-02-09T04:05:00Z"),
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
+					"NAME",
+					"PHASE",
+				},
+				ContainsAll: []string{
 					jobRunning.GetName(),
 					string(jobRunning.Status.Phase),
 					"3m", // create time

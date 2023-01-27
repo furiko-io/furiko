@@ -44,6 +44,7 @@ var (
 type ListJobCommand struct {
 	streams   *streams.Streams
 	jobConfig string
+	noHeaders bool
 }
 
 func NewListJobCommand(streams *streams.Streams) *cobra.Command {
@@ -80,6 +81,10 @@ func (c *ListJobCommand) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	output, err := GetOutputFormat(cmd)
+	if err != nil {
+		return err
+	}
+	c.noHeaders, err = GetNoHeaders(cmd)
 	if err != nil {
 		return err
 	}
@@ -140,7 +145,11 @@ func (c *ListJobCommand) makeJobHeader() []string {
 
 func (c *ListJobCommand) prettyPrint(jobs []execution.Job) {
 	p := printer.NewTablePrinter(c.streams.Out)
-	p.Print(c.makeJobHeader(), c.makeJobRows(jobs))
+	var headers []string
+	if !c.noHeaders {
+		headers = c.makeJobHeader()
+	}
+	p.Print(headers, c.makeJobRows(jobs))
 }
 
 func (c *ListJobCommand) makeJobRows(jobs []execution.Job) [][]string {

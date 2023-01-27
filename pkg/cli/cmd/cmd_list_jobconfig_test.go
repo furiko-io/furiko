@@ -59,11 +59,28 @@ func TestListJobConfigCommand(t *testing.T) {
 			},
 		},
 		{
-			Name:     "list jobconfig table",
+			Name:     "list jobconfig, print table",
 			Args:     []string{"list", "jobconfig"},
 			Fixtures: []runtime.Object{periodicJobConfig},
 			Stdout: runtimetesting.Output{
 				// We expect some important information to be printed in the output.
+				ContainsAll: []string{
+					"NAME",
+					"STATE",
+					string(periodicJobConfig.Status.State),
+					"H/5 * * * *",
+				},
+			},
+		},
+		{
+			Name:     "list jobconfig, print table with no headers",
+			Args:     []string{"list", "jobconfig", "--no-headers"},
+			Fixtures: []runtime.Object{periodicJobConfig},
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
+					"NAME",
+					"STATE",
+				},
 				ContainsAll: []string{
 					string(periodicJobConfig.Status.State),
 					"H/5 * * * *",
