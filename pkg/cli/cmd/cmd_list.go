@@ -35,6 +35,8 @@ func NewListCommand(streams *streams.Streams) *cobra.Command {
 	// Add common flags
 	cmd.PersistentFlags().StringP("output", "o", string(printer.OutputFormatPretty),
 		fmt.Sprintf("Output format. One of: %v", strings.Join(printer.GetAllOutputFormatStrings(), "|")))
+	cmd.PersistentFlags().Bool("no-headers", false,
+		"When using the default or custom-column output format, don't print headers (default print headers).")
 
 	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
 		{FlagName: "output", CompletionFunc: (&CompletionHelper{}).FromSlice(printer.AllOutputFormats)},

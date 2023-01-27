@@ -141,6 +141,15 @@ func GetOutputFormat(cmd *cobra.Command) (printer.OutputFormat, error) {
 	return output, nil
 }
 
+// GetNoHeaders returns whether the output should not have headers.
+func GetNoHeaders(cmd *cobra.Command) (bool, error) {
+	v, err := cmd.Flags().GetBool("no-headers")
+	if err != nil {
+		return false, err
+	}
+	return v, nil
+}
+
 // PrepareExample replaces the root command name and indents all lines.
 func PrepareExample(example string) string {
 	example = strings.TrimPrefix(example, "\n")

@@ -99,6 +99,12 @@ type Output struct {
 
 	// If specified, expects the output to match all of the given regular expressions.
 	MatchesAll []*regexp.Regexp
+
+	// If specified, expects that the output to NOT contain the given string.
+	Excludes string
+
+	// If specified, expects that the output to NOT contain any of the given strings.
+	ExcludesAll []string
 }
 
 func (c *CommandTest) Run(t *testing.T) {
@@ -170,7 +176,7 @@ func (c *CommandTest) runCommand(t *testing.T, iostreams genericclioptions.IOStr
 	return false
 }
 
-func (c *CommandTest) checkOutput(t *testing.T, name, s string, output Output) {
+func (c *CommandTest) checkOutput(t *testing.T, name, s string, output Output) { // nolint:gocognit
 	// Replace all CRLF from PTY back to normal LF.
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 
@@ -186,6 +192,18 @@ func (c *CommandTest) checkOutput(t *testing.T, name, s string, output Output) {
 		for _, contains := range output.ContainsAll {
 			if !strings.Contains(s, contains) {
 				t.Errorf(`Output in %v did not contain expected string "%v", got: %v`, name, contains, s)
+			}
+		}
+	}
+
+	if output.Excludes != "" && strings.Contains(s, output.Excludes) {
+		t.Errorf(`Output in %v contains unexpected string "%v", got: %v`, name, output.Excludes, s)
+	}
+
+	if len(output.ExcludesAll) > 0 {
+		for _, excludes := range output.ExcludesAll {
+			if strings.Contains(s, excludes) {
+				t.Errorf(`Output in %v contains unexpected string "%v", got: %v`, name, excludes, s)
 			}
 		}
 	}
