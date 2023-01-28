@@ -56,6 +56,7 @@ type RunCommand struct {
 	name              string
 	generateName      string
 	noInteractive     bool
+	optionValues      map[string]interface{}
 	useDefaultOptions bool
 	startAfter        time.Time
 	concurrencyPolicy string
@@ -91,6 +92,10 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 	cmd.Flags().BoolVar(&c.noInteractive, "no-interactive", false,
 		"If specified, will not show an interactive prompt. This may result in an error when certain values are "+
 			"required but not provided.")
+	cmd.Flags().StringP("option-values", "O", "",
+		"Option values to be used for executing the job, in JSON format. "+
+			"Commonly used in conjunction with --no-interactive in order to execute a new job without prompts. "+
+			"If --use-default-options is also specified, any matching keys in --option-values will override the default option values.")
 	cmd.Flags().BoolVar(&c.useDefaultOptions, "use-default-options", false,
 		"If specified, options with default values defined and will not show an interactive prompt. "+
 			"Any options without default values will still show one, unless --no-interactive is set.")
@@ -145,6 +150,13 @@ func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
 			return errors.Wrapf(err, "invalid value for --after: cannot parse %v as duration", after)
 		}
 		c.startAfter = ktime.Now().Add(duration)
+	}
+
+	// Handle --option-values.
+	if optionValues := GetFlagString(cmd, "option-values"); optionValues != "" {
+		if err := json.Unmarshal([]byte(optionValues), &c.optionValues); err != nil {
+			return errors.Wrapf(err, "invalid value for --option-values: cannot unmarshal as JSON")
+		}
 	}
 
 	return nil
@@ -281,9 +293,14 @@ func (c *RunCommand) makeJobOptionValues(jobConfig *execution.JobConfig) (string
 }
 
 func (c *RunCommand) makeJobOptionValue(option execution.Option) (interface{}, error) {
-	var hasDefaultValue bool
+	// If the option is already defined via --option-values, use the value instead.
+	// This helps to suppress unnecessary prompts.
+	if value, ok := c.optionValues[option.Name]; ok {
+		return value, nil
+	}
 
 	// If flag is defined to use default options, first check if we can use default value.
+	var hasDefaultValue bool
 	if c.useDefaultOptions {
 		ok, err := c.checkOptionValueHasDefault(option)
 		if err != nil {

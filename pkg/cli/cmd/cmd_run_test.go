@@ -424,5 +424,68 @@ func TestRunCommand(t *testing.T) {
 				Matches: regexp.MustCompile(`Job \S+ created`),
 			},
 		},
+		{
+			Name:      "cannot parse --option-values as JSON",
+			Args:      []string{"run", "parameterizable-jobconfig", "--use-default-options", "--option-values", `{"invalid`},
+			Fixtures:  []runtime.Object{parameterizableJobConfigWithRequired},
+			WantError: assert.Error,
+		},
+		{
+			Name:     "don't prompt stdin input if required option is passed via --option-values",
+			Args:     []string{"run", "parameterizable-jobconfig", "--use-default-options", "--option-values", `{"name": "John Smith"}`},
+			Fixtures: []runtime.Object{parameterizableJobConfigWithRequired},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, parameterizableJobCreatedWithCustomOptionValues),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
+					"Please input option values.",
+					"Full Name",
+				},
+				Matches: regexp.MustCompile(`Job \S+ created`),
+			},
+		},
+		{
+			Name:     "override default values from --use-default-options with --option-values",
+			Args:     []string{"run", "parameterizable-jobconfig", "--use-default-options", "--option-values", `{"name": "John Smith"}`},
+			Fixtures: []runtime.Object{parameterizableJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, parameterizableJobCreatedWithCustomOptionValues),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
+					"Please input option values.",
+					"Full Name",
+				},
+				Matches: regexp.MustCompile(`Job \S+ created`),
+			},
+		},
+		{
+			Name:     "did not match any options from key in --option-values",
+			Args:     []string{"run", "parameterizable-jobconfig", "--use-default-options", "--option-values", `{"mismatched": "value"}`},
+			Fixtures: []runtime.Object{parameterizableJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, parameterizableJobCreatedWithDefaultOptionValues),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
+					"Please input option values.",
+					"Full Name",
+				},
+				Matches: regexp.MustCompile(`Job \S+ created`),
+			},
+		},
 	})
 }
