@@ -35,6 +35,7 @@ import (
 )
 
 const (
+	currentTime    = "2021-02-09T04:00:00Z"
 	startTime      = "2021-02-09T04:02:00Z"
 	taskCreateTime = "2021-02-09T04:02:01Z"
 	taskLaunchTime = "2021-02-09T04:02:05Z"
@@ -323,6 +324,20 @@ func TestGetJobCommand(t *testing.T) {
 			Name:      "get job does not exist",
 			Args:      []string{"get", "job", "job-running"},
 			WantError: testutils.AssertErrorIsNotFound(),
+		},
+		{
+			Name: "get multiple jobs",
+			Args: []string{"get", "job", "job-running", "job-parallel", "-o", "name"},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				jobParallel,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					"job.execution.furiko.io/job-running",
+					"job.execution.furiko.io/job-parallel",
+				},
+			},
 		},
 	})
 }

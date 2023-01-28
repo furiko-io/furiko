@@ -170,5 +170,19 @@ func TestGetJobConfigCommand(t *testing.T) {
 			Args:      []string{"get", "jobconfig", "periodic-jobconfig"},
 			WantError: testutils.AssertErrorIsNotFound(),
 		},
+		{
+			Name: "get multiple jobconfigs",
+			Args: []string{"get", "jobconfig", "periodic-jobconfig", "adhoc-jobconfig", "-o", "name"},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					"jobconfig.execution.furiko.io/periodic-jobconfig",
+					"jobconfig.execution.furiko.io/adhoc-jobconfig",
+				},
+			},
+		},
 	})
 }

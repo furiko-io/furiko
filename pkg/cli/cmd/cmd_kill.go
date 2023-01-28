@@ -47,11 +47,10 @@ var (
 )
 
 type KillCommand struct {
-	streams   *streams.Streams
-	name      string
-	override  bool
-	killAt    string
-	killAfter time.Duration
+	streams  *streams.Streams
+	name     string
+	override bool
+	killAt   time.Time
 }
 
 func NewKillCommand(streams *streams.Streams) *cobra.Command {
@@ -67,17 +66,59 @@ func NewKillCommand(streams *streams.Streams) *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		PreRunE:           common.PrerunWithKubeconfig,
 		ValidArgsFunction: completion.CompleterToCobraCompletionFunc(&completion.ListJobsCompleter{Filter: jobutil.IsActive}),
-		RunE:              c.Run,
+		RunE: common.RunAllE(
+			c.Complete,
+			c.Validate,
+			c.Run,
+		),
 	}
 
 	cmd.Flags().BoolVar(&c.override, "override", false,
 		"If the Job already has a kill timestamp, specifying this flag allows overriding the previous value.")
-	cmd.Flags().StringVarP(&c.killAt, "at", "t", "",
+	cmd.Flags().StringP("at", "t", "",
 		"Specify an explicit timestamp to kill the job at, in RFC3339 format.")
-	cmd.Flags().DurationVarP(&c.killAfter, "after", "p", 0,
+	cmd.Flags().StringP("after", "p", "",
 		"Specify a duration relative to the current time that the job should be killed.")
 
 	return cmd
+}
+
+func (c *KillCommand) Complete(cmd *cobra.Command, args []string) error {
+	// Parse --at as timestamp.
+	if at := common.GetFlagString(cmd, "at"); at != "" {
+		parsed, err := time.Parse(time.RFC3339, at)
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for --at: cannot parse %v as RFC3339 timestamp", at)
+		}
+		c.killAt = parsed
+	}
+
+	// Handle --after shorthand flag.
+	if after := common.GetFlagString(cmd, "after"); after != "" {
+		if !c.killAt.IsZero() {
+			return fmt.Errorf("cannot specify both --after and --at together")
+		}
+		duration, err := time.ParseDuration(after)
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for --after: cannot parse %v as duration", after)
+		}
+		c.killAt = ktime.Now().Add(duration)
+	}
+
+	return nil
+}
+
+func (c *KillCommand) Validate(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return errors.New("job name must be specified")
+	}
+
+	// Don't allow to specify --at with time in the past.
+	if !c.killAt.IsZero() && c.killAt.Before(ktime.Now().Time) {
+		return fmt.Errorf("cannot specify to kill job after a time in the past: %v", c.killAt)
+	}
+
+	return nil
 }
 
 func (c *KillCommand) Run(cmd *cobra.Command, args []string) error {
@@ -88,30 +129,11 @@ func (c *KillCommand) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(args) == 0 {
-		return errors.New("job name must be specified")
-	}
 	name := args[0]
 
-	// Validate flags.
-	if c.killAt != "" && c.killAfter != 0 {
-		return errors.Wrapf(err, "cannot only specify at most one of: --at, --after")
-	}
-	if c.killAfter < 0 {
-		return fmt.Errorf("must be a positive duration: %v", c.killAfter)
-	}
-
 	killAt := ktime.Now()
-	if len(c.killAt) > 0 {
-		parsed, err := time.Parse(time.RFC3339, c.killAt)
-		if err != nil {
-			return errors.Wrapf(err, "cannot parse kill timestamp: %v", c.killAt)
-		}
-		mt := metav1.NewTime(parsed)
-		killAt = &mt
-	}
-	if c.killAfter > 0 {
-		mt := metav1.NewTime(ktime.Now().Add(c.killAfter))
+	if !c.killAt.IsZero() {
+		mt := metav1.NewTime(c.killAt)
 		killAt = &mt
 	}
 

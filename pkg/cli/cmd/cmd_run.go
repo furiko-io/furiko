@@ -110,10 +110,10 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 	cmd.Flags().BoolVar(&c.useDefaultOptions, "use-default-options", false,
 		"If specified, options with default values defined and will not show an interactive prompt. "+
 			"Any options without default values will still show one, unless --no-interactive is set.")
-	cmd.Flags().String("at", "",
+	cmd.Flags().StringP("at", "t", "",
 		"RFC3339-formatted datetime to specify the time to run the job at. "+
 			"Implies --concurrency-policy=Enqueue unless explicitly specified.")
-	cmd.Flags().String("after", "",
+	cmd.Flags().StringP("after", "p", "",
 		"Duration from current time that the job should be scheduled to be started at. "+
 			"Must be formatted as a Golang duration string, e.g. 5m, 3h, etc. "+
 			"Shorthand for --at=[now() + after]. Implies --concurrency-policy=Enqueue unless explicitly specified.")
@@ -151,7 +151,7 @@ func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
 	if at := common.GetFlagString(cmd, "at"); at != "" {
 		parsed, err := time.Parse(time.RFC3339, at)
 		if err != nil {
-			return errors.Wrapf(err, "invalid value for --at: cannot parse %v as RFC3339 timestamp", c.startAfter)
+			return errors.Wrapf(err, "invalid value for --at: cannot parse %v as RFC3339 timestamp", at)
 		}
 		c.startAfter = parsed
 	}
@@ -192,6 +192,11 @@ func (c *RunCommand) Validate(cmd *cobra.Command, args []string) error {
 	// Validate --concurrency-policy.
 	if c.concurrencyPolicy != "" && !c.concurrencyPolicy.IsValid() {
 		return fmt.Errorf("invalid value for --concurrency-policy, valid values: %v", execution.ConcurrencyPoliciesAll)
+	}
+
+	// Don't allow to specify --at with time in the past.
+	if !c.startAfter.IsZero() && c.startAfter.Before(ktime.Now().Time) {
+		return fmt.Errorf("cannot execute a job to start after a time in the past: %v", c.startAfter)
 	}
 
 	return nil
