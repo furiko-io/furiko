@@ -31,6 +31,8 @@ import (
 	"k8s.io/klog/v2"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/prompt"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/core/options"
@@ -38,7 +40,7 @@ import (
 )
 
 var (
-	RunExample = PrepareExample(`
+	RunExample = common.PrepareExample(`
 # Execute a new Job from an existing JobConfig.
 {{.CommandName}} run daily-send-email
 
@@ -85,9 +87,9 @@ func NewRunCommand(streams *streams.Streams) *cobra.Command {
 If the JobConfig has some options defined, an interactive prompt will be shown.`,
 		Example:           RunExample,
 		Args:              cobra.ExactArgs(1),
-		PreRunE:           PrerunWithKubeconfig,
-		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
-		RunE: RunAllE(
+		PreRunE:           common.PrerunWithKubeconfig,
+		ValidArgsFunction: completion.CompleterToCobraCompletionFunc(&completion.ListJobConfigsCompleter{}),
+		RunE: common.RunAllE(
 			c.Complete,
 			c.Validate,
 			c.Run,
@@ -122,10 +124,10 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 		"Enqueues the job to be executed, which will only start after other ongoing jobs. "+
 			"Shorthand for --concurrency-policy=Enqueue.")
 
-	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
-		{FlagName: "concurrency-policy", CompletionFunc: (&CompletionHelper{}).FromSlice(execution.ConcurrencyPoliciesAll)},
+	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
+		{FlagName: "concurrency-policy", Completer: completion.NewSliceCompleter(execution.ConcurrencyPoliciesAll)},
 	}); err != nil {
-		Fatal(err, DefaultErrorExitCode)
+		common.Fatal(err, common.DefaultErrorExitCode)
 	}
 
 	return cmd
@@ -133,12 +135,12 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 
 func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
 	// Handle --concurrency-policy.
-	if concurrencyPolicy := GetFlagString(cmd, "concurrency-policy"); concurrencyPolicy != "" {
+	if concurrencyPolicy := common.GetFlagString(cmd, "concurrency-policy"); concurrencyPolicy != "" {
 		c.concurrencyPolicy = execution.ConcurrencyPolicy(concurrencyPolicy)
 	}
 
 	// Handle --enqueue shorthand flag.
-	if GetFlagBool(cmd, "enqueue") {
+	if common.GetFlagBool(cmd, "enqueue") {
 		if c.concurrencyPolicy != "" {
 			return fmt.Errorf("cannot specify both --enqueue and --concurrency-policy together")
 		}
@@ -146,7 +148,7 @@ func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse --at as timestamp.
-	if at := GetFlagString(cmd, "at"); at != "" {
+	if at := common.GetFlagString(cmd, "at"); at != "" {
 		parsed, err := time.Parse(time.RFC3339, at)
 		if err != nil {
 			return errors.Wrapf(err, "invalid value for --at: cannot parse %v as RFC3339 timestamp", c.startAfter)
@@ -155,7 +157,7 @@ func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Handle --after shorthand flag.
-	if after := GetFlagString(cmd, "after"); after != "" {
+	if after := common.GetFlagString(cmd, "after"); after != "" {
 		if !c.startAfter.IsZero() {
 			return fmt.Errorf("cannot specify both --after and --at together")
 		}
@@ -172,7 +174,7 @@ func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Handle --option-values.
-	if optionValues := GetFlagString(cmd, "option-values"); optionValues != "" {
+	if optionValues := common.GetFlagString(cmd, "option-values"); optionValues != "" {
 		if err := json.Unmarshal([]byte(optionValues), &c.optionValues); err != nil {
 			return errors.Wrapf(err, "invalid value for --option-values: cannot unmarshal as JSON")
 		}
@@ -197,8 +199,8 @@ func (c *RunCommand) Validate(cmd *cobra.Command, args []string) error {
 
 func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
-	namespace, err := GetNamespace(cmd)
+	client := common.GetCtrlContext().Clientsets().Furiko().ExecutionV1alpha1()
+	namespace, err := common.GetNamespace(cmd)
 	if err != nil {
 		return err
 	}

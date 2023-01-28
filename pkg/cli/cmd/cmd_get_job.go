@@ -25,6 +25,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
@@ -34,7 +36,7 @@ import (
 )
 
 var (
-	GetJobExample = PrepareExample(`
+	GetJobExample = common.PrepareExample(`
 # Get a single Job in the current namespace.
 {{.CommandName}} get job job-sample-l6dc6
 
@@ -61,10 +63,10 @@ func NewGetJobCommand(streams *streams.Streams) *cobra.Command {
 		Aliases:           []string{"jobs"},
 		Short:             "Displays information about one or more Jobs.",
 		Example:           GetJobExample,
-		PreRunE:           PrerunWithKubeconfig,
+		PreRunE:           common.PrerunWithKubeconfig,
 		Args:              cobra.MinimumNArgs(1),
-		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobs()),
-		RunE: RunAllE(
+		ValidArgsFunction: completion.CompleterToCobraCompletionFunc(&completion.ListJobsCompleter{}),
+		RunE: common.RunAllE(
 			c.Complete,
 			c.Run,
 		),
@@ -74,14 +76,14 @@ func NewGetJobCommand(streams *streams.Streams) *cobra.Command {
 }
 
 func (c *GetJobCommand) Complete(cmd *cobra.Command, args []string) error {
-	c.output = GetOutputFormat(cmd)
+	c.output = common.GetOutputFormat(cmd)
 	return nil
 }
 
 func (c *GetJobCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
-	namespace, err := GetNamespace(cmd)
+	client := common.GetCtrlContext().Clientsets().Furiko().ExecutionV1alpha1()
+	namespace, err := common.GetNamespace(cmd)
 	if err != nil {
 		return err
 	}

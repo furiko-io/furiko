@@ -25,13 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
 
 var (
-	ListJobConfigExample = PrepareExample(`
+	ListJobConfigExample = common.PrepareExample(`
 # List all JobConfigs in current namespace.
 {{.CommandName}} list jobconfig
 
@@ -56,9 +57,9 @@ func NewListJobConfigCommand(streams *streams.Streams) *cobra.Command {
 		Aliases: []string{"jobconfigs"},
 		Short:   "Displays information about multiple JobConfigs.",
 		Example: ListJobConfigExample,
-		PreRunE: PrerunWithKubeconfig,
+		PreRunE: common.PrerunWithKubeconfig,
 		Args:    cobra.ExactArgs(0),
-		RunE: RunAllE(
+		RunE: common.RunAllE(
 			c.Complete,
 			c.Run,
 		),
@@ -68,16 +69,16 @@ func NewListJobConfigCommand(streams *streams.Streams) *cobra.Command {
 }
 
 func (c *ListJobConfigCommand) Complete(cmd *cobra.Command, args []string) error {
-	c.output = GetOutputFormat(cmd)
-	c.noHeaders = GetFlagBool(cmd, "no-headers")
-	c.watch = GetFlagBool(cmd, "watch")
+	c.output = common.GetOutputFormat(cmd)
+	c.noHeaders = common.GetFlagBool(cmd, "no-headers")
+	c.watch = common.GetFlagBool(cmd, "watch")
 	return nil
 }
 
 func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
-	namespace, err := GetNamespace(cmd)
+	client := common.GetCtrlContext().Clientsets().Furiko().ExecutionV1alpha1()
+	namespace, err := common.GetNamespace(cmd)
 	if err != nil {
 		return err
 	}

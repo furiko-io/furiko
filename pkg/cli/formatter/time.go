@@ -98,5 +98,5 @@ func FormatTimeWithTimeAgo(t *metav1.Time) string {
 	if t.IsZero() {
 		return ""
 	}
-	return fmt.Sprintf("%v (%v)", FormatTime(t), standardTimeAgoFormatter.Format(t.Time))
+	return fmt.Sprintf("%v (%v)", FormatTime(t), standardTimeAgoFormatter.FormatReference(t.Time, ktime.Now().Time))
 }

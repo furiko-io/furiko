@@ -21,13 +21,10 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/utils/logging"
-)
-
-const (
-	// CommandName is the expected entrypoint of the root command.
-	CommandName = "furiko"
 )
 
 type RootCommand struct {
@@ -47,7 +44,7 @@ func NewRootCommand(streams *streams.Streams) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:               CommandName,
+		Use:               common.CommandName,
 		Short:             "Command-line utility to manage Furiko.",
 		PersistentPreRunE: c.PersistentPreRunE,
 
@@ -69,10 +66,10 @@ func NewRootCommand(streams *streams.Streams) *cobra.Command {
 		"Overrides the namespace of the dynamic cluster config.")
 	flags.IntVarP(&c.verbosity, "v", "v", 0, "Sets the log level verbosity.")
 
-	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
-		{FlagName: "namespace", CompletionFunc: (&CompletionHelper{}).ListNamespaces()},
+	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
+		{FlagName: "namespace", Completer: &completion.ListNamespacesCompleter{}},
 	}); err != nil {
-		Fatal(err, DefaultErrorExitCode)
+		common.Fatal(err, common.DefaultErrorExitCode)
 	}
 
 	cmd.AddCommand(NewGetCommand(streams))

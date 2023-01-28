@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cmd
+package common
 
 import (
 	"context"
@@ -86,6 +86,11 @@ func SetupCtrlContext(cmd *cobra.Command) error {
 	}
 	ctrlContext = newContext
 	return nil
+}
+
+// GetCtrlContext retrieves the common context.
+func GetCtrlContext() controllercontext.Context {
+	return ctrlContext
 }
 
 // SetCtrlContext explicitly sets the common context.

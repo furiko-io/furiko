@@ -29,6 +29,8 @@ import (
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
@@ -37,7 +39,7 @@ import (
 )
 
 var (
-	GetJobConfigExample = PrepareExample(`
+	GetJobConfigExample = common.PrepareExample(`
 # Get a single JobConfig in the current namespace.
 {{.CommandName}} get jobconfig daily-send-email
 
@@ -64,10 +66,10 @@ func NewGetJobConfigCommand(streams *streams.Streams) *cobra.Command {
 		Aliases:           []string{"jobconfigs"},
 		Short:             "Displays information about one or more JobConfigs.",
 		Example:           GetJobConfigExample,
-		PreRunE:           PrerunWithKubeconfig,
+		PreRunE:           common.PrerunWithKubeconfig,
 		Args:              cobra.MinimumNArgs(1),
-		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
-		RunE: RunAllE(
+		ValidArgsFunction: completion.CompleterToCobraCompletionFunc(&completion.ListJobConfigsCompleter{}),
+		RunE: common.RunAllE(
 			c.Complete,
 			c.Run,
 		),
@@ -77,14 +79,14 @@ func NewGetJobConfigCommand(streams *streams.Streams) *cobra.Command {
 }
 
 func (c *GetJobConfigCommand) Complete(cmd *cobra.Command, args []string) error {
-	c.output = GetOutputFormat(cmd)
+	c.output = common.GetOutputFormat(cmd)
 	return nil
 }
 
 func (c *GetJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
-	namespace, err := GetNamespace(cmd)
+	client := common.GetCtrlContext().Clientsets().Furiko().ExecutionV1alpha1()
+	namespace, err := common.GetNamespace(cmd)
 	if err != nil {
 		return err
 	}
@@ -240,7 +242,7 @@ func (c *GetJobConfigCommand) prettyPrintNextSchedule(
 	{
 		newCfg := &configv1alpha1.CronExecutionConfig{}
 		cfgName := configv1alpha1.CronExecutionConfigName
-		if err := GetDynamicConfig(ctx, cmd, cfgName, cfg); err != nil {
+		if err := common.GetDynamicConfig(ctx, cmd, cfgName, cfg); err != nil {
 			klog.ErrorS(err, "cannot fetch dynamic config, falling back to default", "name", cfgName)
 		}
 		cfg = newCfg

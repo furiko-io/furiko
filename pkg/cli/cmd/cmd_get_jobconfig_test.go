@@ -19,6 +19,7 @@ package cmd_test
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,6 +120,20 @@ func TestGetJobConfigCommand(t *testing.T) {
 			Name:      "need an argument",
 			Args:      []string{"get", "jobconfig"},
 			WantError: assert.Error,
+		},
+		{
+			Name: "completion",
+			Args: []string{cobra.ShellCompRequestCmd, "get", "jobconfig", ""},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					periodicJobConfig.Name,
+					adhocJobConfig.Name,
+				},
+			},
 		},
 		{
 			Name:     "get a single jobconfig",

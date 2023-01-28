@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -115,8 +116,24 @@ func TestKillCommand(t *testing.T) {
 		},
 		{
 			Name:      "job does not exist",
-			Args:      []string{"run", "running-job"},
+			Args:      []string{"kill", "running-job"},
 			WantError: testutils.AssertErrorIsNotFound(),
+		},
+		{
+			Name: "completion only show running jobs",
+			Args: []string{cobra.ShellCompRequestCmd, "kill", ""},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				jobFinished,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					jobRunning.Name,
+				},
+				ExcludesAll: []string{
+					jobFinished.Name,
+				},
+			},
 		},
 		{
 			Name:     "kill running job",
