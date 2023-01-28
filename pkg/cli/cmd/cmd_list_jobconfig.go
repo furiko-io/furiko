@@ -88,7 +88,7 @@ func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "cannot list job configs")
 	}
 
-	if len(jobConfigList.Items) == 0 {
+	if len(jobConfigList.Items) == 0 && !c.watch {
 		c.streams.Printf("No job configs found in %v namespace.\n", namespace)
 		return nil
 	}

@@ -70,6 +70,9 @@ type CommandTest struct {
 	// Output rules for standard error.
 	Stderr Output
 
+	// Procedure for running custom assertions.
+	Procedure func(t *testing.T, rc RunContext)
+
 	// Whether an error is expected, and if so, specifies a function to check if the
 	// error is equal.
 	WantError assert.ErrorAssertionFunc
@@ -107,10 +110,39 @@ type Output struct {
 	ExcludesAll []string
 }
 
+type RunContext struct {
+	// Console to interact with the TTY.
+	Console *console.Console
+
+	// CtrlContext to interact with clientsets.
+	CtrlContext *mock.Context
+
+	// Context for the command. It will be canceled on interrupt.
+	Context context.Context
+
+	// Cancel the Context. Exposed to allow tests to interrupt the command midway.
+	Cancel context.CancelFunc
+}
+
 func (c *CommandTest) Run(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	done := make(chan struct{})
+	go func() {
+		c.run(ctx, t)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-ctx.Done():
+		t.Errorf("test did not complete: %v", ctx.Err())
+	}
+}
+
+func (c *CommandTest) run(ctx context.Context, t *testing.T) {
 	// Override the shared context.
 	ctrlContext := mock.NewContext()
 	cmd.SetCtrlContext(ctrlContext)
@@ -127,7 +159,7 @@ func (c *CommandTest) Run(t *testing.T) {
 
 	// Run command with I/O.
 	iostreams, _, stdout, stderr := genericclioptions.NewTestIOStreams()
-	if c.runCommand(t, iostreams) {
+	if c.runCommand(ctx, t, ctrlContext, iostreams) {
 		return
 	}
 
@@ -136,8 +168,7 @@ func (c *CommandTest) Run(t *testing.T) {
 	c.checkOutput(t, "stderr", stderr.String(), c.Stderr)
 
 	// Compare actions.
-	CompareActions(t, c.WantActions.Kubernetes, client.KubernetesMock().Actions())
-	CompareActions(t, c.WantActions.Furiko, client.FurikoMock().Actions())
+	c.WantActions.Compare(t, client)
 }
 
 // runCommand will execute the command, setting up all I/O streams and blocking
@@ -145,7 +176,10 @@ func (c *CommandTest) Run(t *testing.T) {
 //
 // Reference:
 // https://github.com/AlecAivazis/survey/blob/93657ef69381dd1ffc7a4a9cfe5a2aefff4ca4ad/survey_posix_test.go#L15
-func (c *CommandTest) runCommand(t *testing.T, iostreams genericclioptions.IOStreams) bool {
+func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext *mock.Context, iostreams genericclioptions.IOStreams) bool {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	console, err := console.NewConsole(iostreams.Out)
 	if err != nil {
 		t.Fatalf("failed to create console: %v", err)
@@ -156,11 +190,22 @@ func (c *CommandTest) runCommand(t *testing.T, iostreams genericclioptions.IOStr
 	command := cmd.NewRootCommand(streams.NewTTYStreams(console.Tty()))
 	command.SetArgs(c.Args)
 
-	// Pass input to the pty.
-	done := console.Run(c.Stdin.Procedure)
+	var done <-chan struct{}
+
+	// Run procedure if specified.
+	if c.Procedure != nil {
+		done = c.runProcedure(t, c.Procedure, RunContext{
+			Console:     console,
+			Context:     ctx,
+			Cancel:      cancel,
+			CtrlContext: ctrlContext,
+		})
+	} else {
+		done = console.Run(c.Stdin.Procedure)
+	}
 
 	// Execute command.
-	if testutils.WantError(t, c.WantError, command.Execute(), fmt.Sprintf("Run error with args: %v", c.Args)) {
+	if testutils.WantError(t, c.WantError, command.ExecuteContext(ctx), fmt.Sprintf("Run error with args: %v", c.Args)) {
 		return true
 	}
 
@@ -174,6 +219,20 @@ func (c *CommandTest) runCommand(t *testing.T, iostreams genericclioptions.IOStr
 	<-done
 
 	return false
+}
+
+func (c *CommandTest) runProcedure(t *testing.T, procedure func(t *testing.T, rc RunContext), rc RunContext) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		// Run the procedure.
+		procedure(t, rc)
+
+		// Waits for the TTY to be closed.
+		_, _ = rc.Console.ExpectEOF()
+	}()
+	return done
 }
 
 func (c *CommandTest) checkOutput(t *testing.T, name, s string, output Output) { // nolint:gocognit
