@@ -26,13 +26,34 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
 
+type GetCommand struct {
+	streams *streams.Streams
+}
+
 func NewGetCommand(streams *streams.Streams) *cobra.Command {
+	c := &GetCommand{
+		streams: streams,
+	}
+
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "Get one or more resources by name.",
 	}
 
-	// Add common flags
+	c.AddSubcommand(cmd, NewGetJobCommand(streams))
+	c.AddSubcommand(cmd, NewGetJobConfigCommand(streams))
+
+	return cmd
+}
+
+// AddSubcommand will register subcommand flags and add it to the parent command.
+func (c *GetCommand) AddSubcommand(cmd, subCommand *cobra.Command) {
+	c.RegisterFlags(subCommand)
+	cmd.AddCommand(subCommand)
+}
+
+// RegisterFlags will register flags for the given subcommand.
+func (c *GetCommand) RegisterFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("output", "o", string(printer.OutputFormatPretty),
 		fmt.Sprintf("Output format. One of: %v", strings.Join(printer.GetAllOutputFormatStrings(), "|")))
 
@@ -41,9 +62,4 @@ func NewGetCommand(streams *streams.Streams) *cobra.Command {
 	}); err != nil {
 		Fatal(err, DefaultErrorExitCode)
 	}
-
-	cmd.AddCommand(NewGetJobCommand(streams))
-	cmd.AddCommand(NewGetJobConfigCommand(streams))
-
-	return cmd
 }

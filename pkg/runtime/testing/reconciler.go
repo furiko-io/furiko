@@ -133,6 +133,19 @@ type CombinedActions struct {
 
 	// List of actions that are expected on the furiko clientset.
 	Furiko ActionTest
+
+	// If true, all actions will be ignored.
+	Ignore bool
+}
+
+// Compare the expected actions against that received by the mock clientsets.
+func (c *CombinedActions) Compare(t testinginterface.T, client *mock.Clientsets) {
+	if c.Ignore {
+		return
+	}
+
+	CompareActions(t, c.Kubernetes, client.KubernetesMock().Actions())
+	CompareActions(t, c.Furiko, client.FurikoMock().Actions())
 }
 
 type SyncTarget struct {
@@ -312,8 +325,7 @@ func (r *ReconcilerTest) assertResult(
 	recorder *FakeRecorder,
 ) {
 	// Compare actions.
-	CompareActions(t, tt.WantActions.Kubernetes, client.KubernetesMock().Actions())
-	CompareActions(t, tt.WantActions.Furiko, client.FurikoMock().Actions())
+	tt.WantActions.Compare(t, client)
 
 	// Compare recorded events.
 	r.compareEvents(t, recorder.GetEvents(), tt.WantEvents)

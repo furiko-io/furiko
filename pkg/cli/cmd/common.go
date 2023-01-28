@@ -43,15 +43,17 @@ var (
 	ctrlContext controllercontext.Context
 )
 
-// Runner knows how to run a command.
-type Runner interface {
-	Run(ctx context.Context, cmd *cobra.Command, args []string) error
-}
+type RunEFunc func(cmd *cobra.Command, args []string) error
 
-// ToRunE converts a Runner with a context to a RunE func.
-func ToRunE(ctx context.Context, executor Runner) func(cmd *cobra.Command, args []string) error {
+// RunAllE composes multiple RunEFunc together.
+func RunAllE(funcs ...RunEFunc) RunEFunc {
 	return func(cmd *cobra.Command, args []string) error {
-		return executor.Run(ctx, cmd, args)
+		for _, f := range funcs {
+			if err := f(cmd, args); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 }
 
@@ -131,23 +133,23 @@ func GetDynamicConfig(ctx context.Context, cmd *cobra.Command, name configv1alph
 }
 
 // GetOutputFormat returns the output format as parsed by the flag.
-func GetOutputFormat(cmd *cobra.Command) (printer.OutputFormat, error) {
+func GetOutputFormat(cmd *cobra.Command) printer.OutputFormat {
 	v, err := cmd.Flags().GetString("output")
 	if err != nil {
-		return "", err
+		klog.Fatalf("error accessing flag %s for command %s: %v", "output", cmd.Name(), err)
 	}
 	output := printer.OutputFormat(v)
 	klog.V(4).InfoS("using output format", "format", output)
-	return output, nil
+	return output
 }
 
-// GetNoHeaders returns whether the output should not have headers.
-func GetNoHeaders(cmd *cobra.Command) (bool, error) {
-	v, err := cmd.Flags().GetBool("no-headers")
+// GetFlagBool gets the boolean value of a flag.
+func GetFlagBool(cmd *cobra.Command, flag string) bool {
+	b, err := cmd.Flags().GetBool(flag)
 	if err != nil {
-		return false, err
+		klog.Fatalf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
 	}
-	return v, nil
+	return b
 }
 
 // PrepareExample replaces the root command name and indents all lines.

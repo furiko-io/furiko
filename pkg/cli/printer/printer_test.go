@@ -18,6 +18,7 @@ package printer_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -39,27 +40,24 @@ spec:
   containers: null
 status: {}`
 	mockPodListYAML = `apiVersion: v1
-items:
-- apiVersion: v1
-  kind: Pod
-  metadata:
-    creationTimestamp: null
-    name: pod-1
-    namespace: test
-  spec:
-    containers: null
-  status: {}
-- apiVersion: v1
-  kind: Pod
-  metadata:
-    creationTimestamp: null
-    name: pod-2
-    namespace: test
-  spec:
-    containers: null
-  status: {}
-kind: List
-metadata: {}`
+kind: Pod
+metadata:
+  creationTimestamp: null
+  name: pod-1
+  namespace: test
+spec:
+  containers: null
+status: {}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  name: pod-2
+  namespace: test
+spec:
+  containers: null
+status: {}`
 	mockPod1JSON = `{
     "kind": "Pod",
     "apiVersion": "v1",
@@ -74,37 +72,30 @@ metadata: {}`
     "status": {}
 }`
 	mockPodListJSON = `{
-    "kind": "List",
+    "kind": "Pod",
     "apiVersion": "v1",
-    "metadata": {},
-    "items": [
-        {
-            "kind": "Pod",
-            "apiVersion": "v1",
-            "metadata": {
-                "name": "pod-1",
-                "namespace": "test",
-                "creationTimestamp": null
-            },
-            "spec": {
-                "containers": null
-            },
-            "status": {}
-        },
-        {
-            "kind": "Pod",
-            "apiVersion": "v1",
-            "metadata": {
-                "name": "pod-2",
-                "namespace": "test",
-                "creationTimestamp": null
-            },
-            "spec": {
-                "containers": null
-            },
-            "status": {}
-        }
-    ]
+    "metadata": {
+        "name": "pod-1",
+        "namespace": "test",
+        "creationTimestamp": null
+    },
+    "spec": {
+        "containers": null
+    },
+    "status": {}
+}
+{
+    "kind": "Pod",
+    "apiVersion": "v1",
+    "metadata": {
+        "name": "pod-2",
+        "namespace": "test",
+        "creationTimestamp": null
+    },
+    "spec": {
+        "containers": null
+    },
+    "status": {}
 }`
 	mockPod1Name    = `pod/pod-1`
 	mockPodListName = `pod/pod-1
@@ -221,9 +212,15 @@ func TestPrintObject(t *testing.T) {
 				return
 			}
 
+			gotOut := out.String()
+
 			// We always expect a trailing newline, we don't add it in the test fixtures for cleanliness
 			wantOut := tt.wantOut + "\n"
-			if gotOut := out.String(); gotOut != wantOut {
+
+			// In case of the YAML printer, strip the leading "---" if any.
+			gotOut = strings.TrimPrefix(gotOut, "---\n")
+
+			if gotOut != wantOut {
 				t.Errorf("PrintObject() not equal\ndiff = %v", cmp.Diff(wantOut, gotOut))
 			}
 		})
@@ -376,9 +373,15 @@ func TestPrintObjects(t *testing.T) {
 				return
 			}
 
+			gotOut := out.String()
+
 			// We always expect a trailing newline, we don't add it in the test fixtures for cleanliness
 			wantOut := tt.wantOut + "\n"
-			if gotOut := out.String(); gotOut != wantOut {
+
+			// In case of the YAML printer, strip the leading "---" if any.
+			gotOut = strings.TrimPrefix(gotOut, "---\n")
+
+			if gotOut != wantOut {
 				t.Errorf("PrintObjects() not equal\ndiff = %v", cmp.Diff(wantOut, gotOut))
 			}
 		})

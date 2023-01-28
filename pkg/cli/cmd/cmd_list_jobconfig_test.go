@@ -18,9 +18,13 @@ package cmd_test
 
 import (
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
@@ -110,6 +114,92 @@ func TestListJobConfigCommand(t *testing.T) {
 					"9h", // last scheduled
 					"7h", // last executed
 				},
+			},
+		},
+		{
+			Name: "watch does not print headers with no job configs",
+			Args: []string{"list", "jobconfig", "-w"},
+			Procedure: func(t *testing.T, rc runtimetesting.RunContext) {
+				// Wait for a bit before cancelling the context.
+				time.Sleep(time.Millisecond * 250)
+				rc.Cancel()
+
+				// Consume entire buffer.
+				output, _ := rc.Console.ExpectEOF()
+				assert.Len(t, output, 0)
+			},
+		},
+		{
+			Name: "watch with no job configs initially will print rows after creation",
+			Args: []string{"list", "jobconfig", "-w"},
+			Procedure: func(t *testing.T, rc runtimetesting.RunContext) {
+				// Create a new JobConfig.
+				_, err := rc.CtrlContext.Clientsets().Furiko().ExecutionV1alpha1().JobConfigs(adhocJobConfig.Namespace).Create(rc.Context, adhocJobConfig, metav1.CreateOptions{})
+				assert.NoError(t, err)
+
+				// Expect that headers and rows are printed.
+				rc.Console.ExpectString("NAME")
+				rc.Console.ExpectString(adhocJobConfig.Name)
+
+				// Cancel watch.
+				rc.Cancel()
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Ignore: true,
+			},
+		},
+		{
+			Name: "watch for new jobconfigs",
+			Args: []string{"list", "jobconfig", "-w"},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+			},
+			Procedure: func(t *testing.T, rc runtimetesting.RunContext) {
+				// Expect that initial output contains the specified job config.
+				rc.Console.ExpectString(periodicJobConfig.Name)
+				rc.Console.ExpectString(string(v1alpha1.JobConfigReadyEnabled))
+
+				// Create a new JobConfig.
+				_, err := rc.CtrlContext.Clientsets().Furiko().ExecutionV1alpha1().JobConfigs(adhocJobConfig.Namespace).Create(rc.Context, adhocJobConfig, metav1.CreateOptions{})
+				assert.NoError(t, err)
+
+				// Wait for the console to print updates.
+				rc.Console.ExpectString(adhocJobConfig.Name)
+				rc.Console.ExpectString(string(v1alpha1.JobConfigReady))
+
+				// Cancel watch.
+				rc.Cancel()
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Ignore: true,
+			},
+		},
+		{
+			Name: "watch jobconfigs for updates",
+			Args: []string{"list", "jobconfig", "-w"},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+			},
+			Procedure: func(t *testing.T, rc runtimetesting.RunContext) {
+				// Expect that initial output contains the specified job config.
+				rc.Console.ExpectString(periodicJobConfig.Name)
+				rc.Console.ExpectString(string(v1alpha1.JobConfigReadyEnabled))
+
+				// Update the JobConfig's state.
+				newJobConfig := periodicJobConfig.DeepCopy()
+				newJobConfig.Status.State = v1alpha1.JobConfigExecuting
+				_, err := rc.CtrlContext.Clientsets().Furiko().ExecutionV1alpha1().JobConfigs(newJobConfig.Namespace).Update(rc.Context, newJobConfig, metav1.UpdateOptions{})
+				assert.NoError(t, err)
+
+				// Wait for the console to print updates.
+				rc.Console.ExpectString(periodicJobConfig.Name)
+				rc.Console.ExpectString(string(v1alpha1.JobConfigExecuting))
+
+				// Cancel watch.
+				rc.Cancel()
+			},
+			WantActions: runtimetesting.CombinedActions{
+				Ignore: true,
 			},
 		},
 	})

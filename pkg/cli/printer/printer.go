@@ -21,7 +21,6 @@ import (
 	"io"
 	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	runtimeprinters "k8s.io/cli-runtime/pkg/printers"
@@ -34,7 +33,23 @@ type Object interface {
 	runtime.Object
 }
 
-// GetPrinter returns the ResourcePrinter associated with output. Most
+// Initialize printers once at startup, otherwise multiple GetPrinter calls will
+// lose internal state.
+var (
+	// Don't show managed fields by default for YAML.
+	yamlPrinter = &runtimeprinters.OmitManagedFieldsPrinter{
+		Delegate: &runtimeprinters.YAMLPrinter{},
+	}
+
+	// Don't show managed fields by default for JSON.
+	jsonPrinter = &runtimeprinters.OmitManagedFieldsPrinter{
+		Delegate: &runtimeprinters.JSONPrinter{},
+	}
+
+	namePrinter = NewNamePrinter()
+)
+
+// GetPrinter returns the ResourcePrinter associated with the given output format. Most
 // implementations are taken from cli-runtime itself, so we don't need to really
 // implement too much.
 func GetPrinter(output OutputFormat) (printers.ResourcePrinter, error) {
@@ -42,21 +57,14 @@ func GetPrinter(output OutputFormat) (printers.ResourcePrinter, error) {
 
 	switch output {
 	case OutputFormatYAML:
-		printer = &runtimeprinters.YAMLPrinter{}
+		printer = yamlPrinter
 	case OutputFormatJSON:
-		printer = &runtimeprinters.JSONPrinter{}
+		printer = jsonPrinter
 	case OutputFormatName:
-		printer = NewNamePrinter()
+		printer = namePrinter
 	default:
 		return nil, fmt.Errorf("invalid format %v specified, must be one of: %v",
 			output, strings.Join(GetAllOutputFormatStrings(), ","))
-	}
-
-	// Don't show managed fields by default for JSON and YAML.
-	if output == OutputFormatYAML || output == OutputFormatJSON {
-		printer = &runtimeprinters.OmitManagedFieldsPrinter{
-			Delegate: printer,
-		}
 	}
 
 	return printer, nil
@@ -78,40 +86,12 @@ func PrintObject(gvk schema.GroupVersionKind, output OutputFormat, out io.Writer
 	return p.PrintObj(object, out)
 }
 
-// PrintObjects takes the list of items and converts it to a single List, before
-// printing it with PrintObject.
+// PrintObjects will print all objects individually.
 func PrintObjects(gvk schema.GroupVersionKind, output OutputFormat, out io.Writer, objs []Object) error {
-	var obj Object
-
-	// Set the GVK of all individual items first.
 	for _, obj := range objs {
-		obj.SetGroupVersionKind(gvk)
+		if err := PrintObject(gvk, output, out, obj); err != nil {
+			return err
+		}
 	}
-
-	// Convert to a list unless we only have a single object to print.
-	if len(objs) == 1 {
-		obj = objs[0]
-	} else {
-		obj = toList(objs)
-		gvk = metav1.Unversioned.WithKind("List")
-	}
-
-	return PrintObject(gvk, output, out, obj)
-}
-
-func toList(objs []Object) *metav1.List {
-	// Use a List to print multiple objects instead.
-	extensions := make([]runtime.RawExtension, 0, len(objs))
-	for _, item := range objs {
-		extensions = append(extensions, runtime.RawExtension{
-			Object: item,
-		})
-	}
-
-	return &metav1.List{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: metav1.SchemeGroupVersion.Version,
-		},
-		Items: extensions,
-	}
+	return nil
 }

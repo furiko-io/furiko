@@ -17,57 +17,45 @@
 package printer
 
 import (
+	"fmt"
 	"io"
+	"strings"
 
-	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/liggitt/tabwriter"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/printers"
 
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 )
 
 // TablePrinter prints tables with header and body rows.
-// TODO(irvinlim): Maybe we could use printers.TablePrinter instead of rolling our own.
 type TablePrinter struct {
-	out io.Writer
+	writer         *tabwriter.Writer
+	headersPrinted bool
 }
 
 func NewTablePrinter(out io.Writer) *TablePrinter {
-	return &TablePrinter{out: out}
+	return &TablePrinter{
+		writer: printers.GetNewTabWriter(out),
+	}
 }
 
 // Print the header and each row to standard output.
+// By default, headers are printed at most once.
 func (p *TablePrinter) Print(header []string, rows [][]string) {
-	t := table.NewWriter()
-	t.SetOutputMirror(p.out)
-	style := table.StyleLight
-	style.Options = table.Options{
-		SeparateColumns: true,
+	if len(header) > 0 && !p.headersPrinted {
+		p.printRow(header)
+		p.headersPrinted = true
 	}
-	style.Box.PaddingLeft = ""
-	style.Box.PaddingRight = ""
-	style.Box.MiddleVertical = "   "
-	t.SetStyle(style)
-	if len(header) > 0 {
-		t.AppendHeader(p.makeTableRow(header))
-	}
-	t.AppendRows(p.makeTableRows(rows))
-	t.Render()
-}
-
-func (p *TablePrinter) makeTableRows(rows [][]string) []table.Row {
-	output := make([]table.Row, 0, len(rows))
 	for _, row := range rows {
-		output = append(output, p.makeTableRow(row))
+		p.printRow(row)
 	}
-	return output
+	p.writer.Flush()
 }
 
-func (p *TablePrinter) makeTableRow(cells []string) table.Row {
-	output := make(table.Row, 0, len(cells))
-	for _, cell := range cells {
-		output = append(output, cell)
-	}
-	return output
+func (p *TablePrinter) printRow(cols []string) {
+	fmt.Fprint(p.writer, strings.Join(cols, "\t"))
+	_, _ = p.writer.Write([]byte("\n"))
 }
 
 // MaybeAppendTimeAgo is a helper that appends a key-value description pair to

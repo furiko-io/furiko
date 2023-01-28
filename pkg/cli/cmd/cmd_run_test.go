@@ -286,7 +286,7 @@ func TestRunCommand(t *testing.T) {
 					"Please input option values.",
 					"Full Name",
 				},
-				Matches: regexp.MustCompile(`Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`Job \S+ created`),
 			},
 		},
 		{
@@ -311,7 +311,7 @@ func TestRunCommand(t *testing.T) {
 					"Please input option values.",
 					"Full Name",
 				},
-				Matches: regexp.MustCompile(`Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`Job \S+ created`),
 			},
 		},
 	})

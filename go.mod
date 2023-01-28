@@ -15,6 +15,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/kr/text v0.2.0
+	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de
 	github.com/mitchellh/go-testing-interface v1.0.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.3
@@ -63,7 +64,6 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
-	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
