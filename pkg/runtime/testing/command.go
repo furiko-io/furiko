@@ -31,6 +31,7 @@ import (
 	fakeclock "k8s.io/utils/clock/testing"
 
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
+	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/console"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
@@ -145,7 +146,7 @@ func (c *CommandTest) Run(t *testing.T) {
 func (c *CommandTest) run(ctx context.Context, t *testing.T) {
 	// Override the shared context.
 	ctrlContext := mock.NewContext()
-	cmd.SetCtrlContext(ctrlContext)
+	common.SetCtrlContext(ctrlContext)
 	client := ctrlContext.MockClientsets()
 	assert.NoError(t, InitFixtures(ctx, client, c.Fixtures))
 	client.ClearActions()

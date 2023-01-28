@@ -22,6 +22,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
@@ -57,9 +59,9 @@ func (c *GetCommand) RegisterFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("output", "o", string(printer.OutputFormatPretty),
 		fmt.Sprintf("Output format. One of: %v", strings.Join(printer.GetAllOutputFormatStrings(), "|")))
 
-	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
-		{FlagName: "output", CompletionFunc: (&CompletionHelper{}).FromSlice(printer.AllOutputFormats)},
+	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
+		{FlagName: "output", Completer: completion.NewSliceCompleter(printer.AllOutputFormats)},
 	}); err != nil {
-		Fatal(err, DefaultErrorExitCode)
+		common.Fatal(err, common.DefaultErrorExitCode)
 	}
 }

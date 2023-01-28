@@ -26,13 +26,16 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
+	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 var (
-	KillExample = PrepareExample(`
+	KillExample = common.PrepareExample(`
 # Request to kill an ongoing Job.
 {{.CommandName}} kill job-sample-1653825000
 
@@ -62,8 +65,8 @@ func NewKillCommand(streams *streams.Streams) *cobra.Command {
 		Long:              `Kills an ongoing Job that is currently running or pending.`,
 		Example:           KillExample,
 		Args:              cobra.ExactArgs(1),
-		PreRunE:           PrerunWithKubeconfig,
-		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobs()),
+		PreRunE:           common.PrerunWithKubeconfig,
+		ValidArgsFunction: completion.CompleterToCobraCompletionFunc(&completion.ListJobsCompleter{Filter: jobutil.IsActive}),
 		RunE:              c.Run,
 	}
 
@@ -79,8 +82,8 @@ func NewKillCommand(streams *streams.Streams) *cobra.Command {
 
 func (c *KillCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
-	namespace, err := GetNamespace(cmd)
+	client := common.GetCtrlContext().Clientsets().Furiko().ExecutionV1alpha1()
+	namespace, err := common.GetNamespace(cmd)
 	if err != nil {
 		return err
 	}

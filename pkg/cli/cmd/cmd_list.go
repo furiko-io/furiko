@@ -22,6 +22,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
@@ -61,9 +63,9 @@ func (c *ListCommand) RegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP("watch", "w", false,
 		"After listing the requested object(s), watch for changes and print them to the standard output.")
 
-	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
-		{FlagName: "output", CompletionFunc: (&CompletionHelper{}).FromSlice(printer.AllOutputFormats)},
+	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
+		{FlagName: "output", Completer: completion.NewSliceCompleter(printer.AllOutputFormats)},
 	}); err != nil {
-		Fatal(err, DefaultErrorExitCode)
+		common.Fatal(err, common.DefaultErrorExitCode)
 	}
 }

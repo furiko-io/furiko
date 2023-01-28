@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
@@ -31,7 +33,7 @@ import (
 )
 
 var (
-	ListJobExample = PrepareExample(`
+	ListJobExample = common.PrepareExample(`
 # List all Jobs in current namespace.
 {{.CommandName}} list job
 
@@ -60,9 +62,9 @@ func NewListJobCommand(streams *streams.Streams) *cobra.Command {
 		Aliases: []string{"jobs"},
 		Short:   "Displays information about multiple Jobs.",
 		Example: ListJobExample,
-		PreRunE: PrerunWithKubeconfig,
+		PreRunE: common.PrerunWithKubeconfig,
 		Args:    cobra.ExactArgs(0),
-		RunE: RunAllE(
+		RunE: common.RunAllE(
 			c.Complete,
 			c.Run,
 		),
@@ -70,26 +72,26 @@ func NewListJobCommand(streams *streams.Streams) *cobra.Command {
 
 	cmd.Flags().StringVar(&c.jobConfig, "for", "", "Return only jobs for the given job config.")
 
-	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
-		{FlagName: "for", CompletionFunc: (&CompletionHelper{}).ListJobConfigs()},
+	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
+		{FlagName: "for", Completer: &completion.ListJobConfigsCompleter{}},
 	}); err != nil {
-		Fatal(err, DefaultErrorExitCode)
+		common.Fatal(err, common.DefaultErrorExitCode)
 	}
 
 	return cmd
 }
 
 func (c *ListJobCommand) Complete(cmd *cobra.Command, args []string) error {
-	c.output = GetOutputFormat(cmd)
-	c.noHeaders = GetFlagBool(cmd, "no-headers")
-	c.watch = GetFlagBool(cmd, "watch")
+	c.output = common.GetOutputFormat(cmd)
+	c.noHeaders = common.GetFlagBool(cmd, "no-headers")
+	c.watch = common.GetFlagBool(cmd, "watch")
 	return nil
 }
 
 func (c *ListJobCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
-	namespace, err := GetNamespace(cmd)
+	client := common.GetCtrlContext().Clientsets().Furiko().ExecutionV1alpha1()
+	namespace, err := common.GetNamespace(cmd)
 	if err != nil {
 		return err
 	}

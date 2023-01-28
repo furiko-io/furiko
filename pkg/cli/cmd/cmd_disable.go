@@ -25,11 +25,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
+	"github.com/furiko-io/furiko/pkg/cli/common"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 )
 
 var (
-	DisableExample = PrepareExample(`
+	DisableExample = common.PrepareExample(`
 # Disable scheduling for the JobConfig.
 {{.CommandName}} disable send-weekly-report`)
 )
@@ -53,8 +55,8 @@ If the specified JobConfig does not have a schedule, then an error will be throw
 If the specified JobConfig is already disabled, then this is a no-op.`,
 		Example:           DisableExample,
 		Args:              cobra.ExactArgs(1),
-		PreRunE:           PrerunWithKubeconfig,
-		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
+		PreRunE:           common.PrerunWithKubeconfig,
+		ValidArgsFunction: completion.CompleterToCobraCompletionFunc(&completion.ListJobConfigsCompleter{}),
 		RunE:              c.Run,
 	}
 
@@ -63,8 +65,8 @@ If the specified JobConfig is already disabled, then this is a no-op.`,
 
 func (c *DisableCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
-	namespace, err := GetNamespace(cmd)
+	client := common.GetCtrlContext().Clientsets().Furiko().ExecutionV1alpha1()
+	namespace, err := common.GetNamespace(cmd)
 	if err != nil {
 		return err
 	}
