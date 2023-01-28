@@ -303,6 +303,9 @@ func UpdateJobStatusFromTaskRefs(rj *execution.Job) (*execution.Job, error) {
 	}
 	newRj.Status.Condition = condition
 
+	// Update state for Job.
+	newRj.Status.State = getJobStateFromCondition(condition)
+
 	// If job is being deleted and is not properly finished (e.g. being deleted midway),
 	// we use Killed as the final result for the job.
 	// This ensures that the final status before the job is finalized (during deletion) is terminal.

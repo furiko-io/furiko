@@ -157,6 +157,7 @@ var (
 	fakeJobWithDeletionTimestampAndKilledPods = func() *execution.Job {
 		newJob := fakeJobWithDeletionTimestamp.DeepCopy()
 		newJob.Status.Phase = execution.JobKilled
+		newJob.Status.State = execution.JobStateFinished
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
 				LatestCreationTimestamp: testutils.Mkmtimep(createTime),
@@ -179,6 +180,7 @@ var (
 		newJob := fakeJobWithDeletionTimestamp.DeepCopy()
 		newJob.Finalizers = meta.RemoveFinalizer(newJob.Finalizers, executiongroup.DeleteDependentsFinalizer)
 		newJob.Status.Phase = execution.JobFailed
+		newJob.Status.State = execution.JobStateFinished
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
 				LatestCreationTimestamp: testutils.Mkmtimep(createTime),
@@ -239,6 +241,7 @@ var (
 	fakeJobPodDeleted = func() *execution.Job {
 		newJob := fakeJobPodDeleting.DeepCopy()
 		newJob.Status.Phase = execution.JobKilled
+		newJob.Status.State = execution.JobStateFinished
 		newJob.Status.Condition = execution.JobCondition{
 			Finished: &execution.JobConditionFinished{
 				LatestCreationTimestamp: testutils.Mkmtimep(createTime),

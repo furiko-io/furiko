@@ -289,6 +289,10 @@ type JobStatus struct {
 	// Phase stores the high-level description of a Job's state.
 	Phase JobPhase `json:"phase"`
 
+	// State stores the high-level state of the Job's current condition.
+	// Must be one of: Queued, Waiting, Running, Finished.
+	State JobState `json:"state"`
+
 	// Condition stores details about the Job's current condition.
 	Condition JobCondition `json:"condition"`
 
@@ -400,6 +404,41 @@ func (p JobPhase) IsTerminal() bool {
 	default:
 		return false
 	}
+}
+
+// JobState is a simplified representation of the state of a Job.
+// All JobPhase values can be distilled into exactly one of four JobState values.
+type JobState string
+
+const (
+	// JobStateQueued means that the job is not yet started.
+	JobStateQueued JobState = "Queued"
+
+	// JobStateWaiting means that the job is started, but not all tasks are running yet.
+	// The job may also be in a retrying state, and is waiting for some failed tasks to start running again.
+	JobStateWaiting JobState = "Waiting"
+
+	// JobStateRunning means that all tasks have started running, and it is not yet finished.
+	JobStateRunning JobState = "Running"
+
+	// JobStateFinished means that all tasks have started running, and it is not yet finished.
+	JobStateFinished JobState = "Finished"
+)
+
+func (s JobState) IsValid() bool {
+	for _, state := range JobStatesAll {
+		if s == state {
+			return true
+		}
+	}
+	return false
+}
+
+var JobStatesAll = []JobState{
+	JobStateQueued,
+	JobStateWaiting,
+	JobStateRunning,
+	JobStateFinished,
 }
 
 // JobCondition holds a possible condition of a Job.

@@ -207,6 +207,7 @@ func (c *GetJobCommand) prettyPrintJobInfo(job *execution.Job) [][]string {
 
 func (c *GetJobCommand) prettyPrintJobStatus(job *execution.Job) [][]string {
 	result := [][]string{
+		{"State", string(job.Status.State)},
 		{"Phase", string(job.Status.Phase)},
 	}
 	result = printer.MaybeAppendTimeAgo(result, "Started", job.Status.StartTime)

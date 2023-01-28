@@ -112,3 +112,19 @@ func shouldKillJobForParallel(rj *execution.Job) bool {
 	// Unhandled completion strategy
 	return false
 }
+
+func getJobStateFromCondition(condition execution.JobCondition) execution.JobState {
+	switch {
+	case condition.Queueing != nil:
+		return execution.JobStateQueued
+	case condition.Waiting != nil:
+		return execution.JobStateWaiting
+	case condition.Running != nil:
+		return execution.JobStateRunning
+	case condition.Finished != nil:
+		return execution.JobStateFinished
+	}
+
+	// If condition is empty, then we assume that it is an empty job that is not yet started
+	return execution.JobStateQueued
+}

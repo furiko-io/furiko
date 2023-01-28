@@ -296,6 +296,9 @@ spec:
                   description: StartTime specifies the time that the Job was started by the controller. If nil, it means that the Job is Queued. Cannot be changed once set.
                   format: date-time
                   type: string
+                state:
+                  description: 'State stores the high-level state of the Job''s current condition. Must be one of: Queued, Waiting, Running, Finished.'
+                  type: string
                 tasks:
                   description: Tasks contains a list of tasks created by the controller. The controller updates this field when it creates a task, which helps to guard against recreating tasks after they were deleted, and also stores necessary task data for reconciliation in case tasks are deleted.
                   items:
@@ -415,6 +418,7 @@ spec:
                 - createdTasks
                 - phase
                 - runningTasks
+                - state
               type: object
           type: object
       served: true
