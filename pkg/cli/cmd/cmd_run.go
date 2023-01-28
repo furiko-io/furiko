@@ -34,6 +34,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/prompt"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/core/options"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 var (
@@ -55,7 +56,7 @@ type RunCommand struct {
 	name              string
 	noInteractive     bool
 	useDefaultOptions bool
-	startAfter        string
+	startAfter        time.Time
 	concurrencyPolicy string
 	displayIntro      sync.Once
 }
@@ -75,7 +76,10 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 		Args:              cobra.ExactArgs(1),
 		PreRunE:           PrerunWithKubeconfig,
 		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
-		RunE:              c.Run,
+		RunE: RunAllE(
+			c.Complete,
+			c.Run,
+		),
 	}
 
 	cmd.Flags().StringVar(&c.name, "name", "",
@@ -86,12 +90,19 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 	cmd.Flags().BoolVar(&c.useDefaultOptions, "use-default-options", false,
 		"If specified, options with default values defined and will not show an interactive prompt. "+
 			"Any options without default values will still show one, unless --no-interactive is set.")
-	cmd.Flags().StringVar(&c.startAfter, "at", "",
+	cmd.Flags().String("at", "",
 		"RFC3339-formatted datetime to specify the time to run the job at. "+
 			"Implies --concurrency-policy=Enqueue unless explicitly specified.")
+	cmd.Flags().String("after", "",
+		"Duration from current time that the job should be scheduled to be started at. "+
+			"Must be formatted as a Golang duration string, e.g. 5m, 3h, etc. "+
+			"Shorthand for --at=[now() + after]. Implies --concurrency-policy=Enqueue unless explicitly specified.")
 	cmd.Flags().StringVar(&c.concurrencyPolicy, "concurrency-policy", "",
 		"Specify an explicit concurrency policy to use for the job, overriding the "+
 			"JobConfig's concurrency policy.")
+	cmd.Flags().Bool("enqueue", false,
+		"Enqueues the job to be executed, which will only start after other ongoing jobs. "+
+			"Shorthand for --concurrency-policy=Enqueue.")
 
 	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
 		{FlagName: "concurrency-policy", CompletionFunc: (&CompletionHelper{}).FromSlice(execution.ConcurrencyPoliciesAll)},
@@ -100,6 +111,39 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 	}
 
 	return cmd
+}
+
+func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
+	// Handle --enqueue shorthand flag.
+	if GetFlagBool(cmd, "enqueue") {
+		if c.concurrencyPolicy != "" {
+			return fmt.Errorf("cannot specify both --enqueue and --concurrency-policy together")
+		}
+		c.concurrencyPolicy = string(execution.ConcurrencyPolicyEnqueue)
+	}
+
+	// Parse --at as timestamp.
+	if at := GetFlagString(cmd, "at"); at != "" {
+		parsed, err := time.Parse(time.RFC3339, at)
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for --at: cannot parse %v as RFC3339 timestamp", c.startAfter)
+		}
+		c.startAfter = parsed
+	}
+
+	// Handle --after shorthand flag.
+	if after := GetFlagString(cmd, "after"); after != "" {
+		if !c.startAfter.IsZero() {
+			return fmt.Errorf("cannot specify both --after and --at together")
+		}
+		duration, err := time.ParseDuration(after)
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for --after: cannot parse %v as duration", after)
+		}
+		c.startAfter = ktime.Now().Add(duration)
+	}
+
+	return nil
 }
 
 func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
@@ -179,12 +223,8 @@ func (c *RunCommand) makeJobStartPolicy() (*execution.StartPolicySpec, error) {
 	}
 
 	// Set startAfter.
-	if c.startAfter != "" {
-		parsed, err := time.Parse(time.RFC3339, c.startAfter)
-		if err != nil {
-			return nil, errors.Wrapf(err, "invalid time: %v", c.startAfter)
-		}
-		startAfterTime := metav1.NewTime(parsed)
+	if !c.startAfter.IsZero() {
+		startAfterTime := metav1.NewTime(c.startAfter)
 		startPolicy.StartAfter = &startAfterTime
 
 		// Use Enqueue when using --at by default.

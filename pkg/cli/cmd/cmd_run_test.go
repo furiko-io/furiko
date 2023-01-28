@@ -19,6 +19,7 @@ package cmd_test
 import (
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -195,7 +196,7 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
 		},
 		{
@@ -210,11 +211,32 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
 		},
 		{
-			Name:     "created job with start after",
+			Name:     "created job with enqueue",
+			Args:     []string{"run", "adhoc-jobconfig", "--enqueue"},
+			Fixtures: []runtime.Object{adhocJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, adhocJobCreatedWithConcurrencyPolicy),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches: regexp.MustCompile(`^Job \S+ created`),
+			},
+		},
+		{
+			Name:      "cannot specify both --concurrency-policy and --enqueue",
+			Args:      []string{"run", "adhoc-jobconfig", "--enqueue", "--concurrency-policy", "Allow"},
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:     "created job with --at",
 			Args:     []string{"run", "adhoc-jobconfig", "--at", startTime},
 			Fixtures: []runtime.Object{adhocJobConfig},
 			WantActions: runtimetesting.CombinedActions{
@@ -225,17 +247,17 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
 		},
 		{
-			Name:      "created job with invalid start after",
+			Name:      "cannot create job with invalid --at",
 			Args:      []string{"run", "adhoc-jobconfig", "--at", "1234"},
 			Fixtures:  []runtime.Object{adhocJobConfig},
 			WantError: assert.Error,
 		},
 		{
-			Name:     "created job with start after and concurrency policy",
+			Name:     "created job with --at and --concurrency-policy",
 			Args:     []string{"run", "adhoc-jobconfig", "--at", startTime, "--concurrency-policy", "Allow"},
 			Fixtures: []runtime.Object{adhocJobConfig},
 			WantActions: runtimetesting.CombinedActions{
@@ -246,8 +268,38 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
+		},
+		{
+			Name:     "created job with --after",
+			Args:     []string{"run", "adhoc-jobconfig", "--after", "3h"},
+			Now:      testutils.Mktime(startTime).Add(-3 * time.Hour),
+			Fixtures: []runtime.Object{adhocJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, adhocJobCreatedWithStartAfter),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches: regexp.MustCompile(`^Job \S+ created`),
+			},
+		},
+		{
+			Name:      "cannot create job with invalid --after",
+			Args:      []string{"run", "adhoc-jobconfig", "--after", "abcd"},
+			Now:       testutils.Mktime(startTime).Add(-3 * time.Hour),
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:      "cannot specify both --at and --after",
+			Args:      []string{"run", "adhoc-jobconfig", "--at", startTime, "--after", "3h"},
+			Now:       testutils.Mktime(startTime).Add(-3 * time.Hour),
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
 		},
 		{
 			Name:     "created job with default option values",
@@ -261,7 +313,7 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
 		},
 		{

@@ -134,10 +134,7 @@ func GetDynamicConfig(ctx context.Context, cmd *cobra.Command, name configv1alph
 
 // GetOutputFormat returns the output format as parsed by the flag.
 func GetOutputFormat(cmd *cobra.Command) printer.OutputFormat {
-	v, err := cmd.Flags().GetString("output")
-	if err != nil {
-		klog.Fatalf("error accessing flag %s for command %s: %v", "output", cmd.Name(), err)
-	}
+	v := GetFlagString(cmd, "output")
 	output := printer.OutputFormat(v)
 	klog.V(4).InfoS("using output format", "format", output)
 	return output
@@ -150,6 +147,15 @@ func GetFlagBool(cmd *cobra.Command, flag string) bool {
 		klog.Fatalf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
 	}
 	return b
+}
+
+// GetFlagString gets the string value of a flag.
+func GetFlagString(cmd *cobra.Command, flag string) string {
+	v, err := cmd.Flags().GetString(flag)
+	if err != nil {
+		klog.Fatalf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
+	}
+	return v
 }
 
 // PrepareExample replaces the root command name and indents all lines.
