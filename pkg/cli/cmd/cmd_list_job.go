@@ -93,6 +93,7 @@ func NewListJobCommand(streams *streams.Streams) *cobra.Command {
 
 	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
 		{FlagName: "for", Completer: &completion.ListJobConfigsCompleter{}},
+		{FlagName: "states", Completer: completion.NewSliceCompleter(execution.JobStatesAll)},
 	}); err != nil {
 		common.Fatal(err, common.DefaultErrorExitCode)
 	}
@@ -296,7 +297,6 @@ func (c *ListJobCommand) FilterJobs(jobs []execution.Job) []*execution.Job {
 			filtered = append(filtered, job)
 		}
 	}
-
 	return filtered
 }
 

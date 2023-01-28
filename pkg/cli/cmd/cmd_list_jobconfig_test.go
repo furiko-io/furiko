@@ -105,6 +105,86 @@ func TestListJobConfigCommand(t *testing.T) {
 			},
 		},
 		{
+			Name: "list jobconfig with --selector",
+			Args: []string{"list", "jobconfig", "-o", "name", "-l", "labels.furiko.io/test=value"},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					periodicJobConfig.GetName(),
+				},
+				ExcludesAll: []string{
+					adhocJobConfig.GetName(),
+				},
+			},
+		},
+		{
+			Name: "list scheduled jobconfigs with --scheduled",
+			Args: []string{"list", "jobconfig", "-o", "name", "--scheduled"},
+			Fixtures: []runtime.Object{
+				disabledJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					disabledJobConfig.GetName(),
+				},
+				ExcludesAll: []string{
+					adhocJobConfig.GetName(),
+				},
+			},
+		},
+		{
+			Name: "don't list disabled jobconfigs with --schedule-enabled",
+			Args: []string{"list", "jobconfig", "-o", "name", "--schedule-enabled"},
+			Fixtures: []runtime.Object{
+				disabledJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
+					disabledJobConfig.GetName(),
+					adhocJobConfig.GetName(),
+				},
+			},
+		},
+		{
+			Name: "list adhoc-only jobconfigs with --adhoc-only",
+			Args: []string{"list", "jobconfig", "-o", "name", "--adhoc-only"},
+			Fixtures: []runtime.Object{
+				disabledJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					adhocJobConfig.GetName(),
+				},
+				ExcludesAll: []string{
+					disabledJobConfig.GetName(),
+				},
+			},
+		},
+		{
+			Name: "cannot specify both --scheduled and --adhoc-only together",
+			Args: []string{"list", "jobconfig", "-o", "name", "--scheduled", "--adhoc-only"},
+			Fixtures: []runtime.Object{
+				disabledJobConfig,
+				adhocJobConfig,
+			},
+			WantError: assert.Error,
+		},
+		{
+			Name: "cannot specify both --schedule-enabled and --adhoc-only together",
+			Args: []string{"list", "jobconfig", "-o", "name", "--schedule-enabled", "--adhoc-only"},
+			Fixtures: []runtime.Object{
+				disabledJobConfig,
+				adhocJobConfig,
+			},
+			WantError: assert.Error,
+		},
+		{
 			Name:     "show LastExecuted and LastScheduled",
 			Args:     []string{"list", "jobconfig"},
 			Fixtures: []runtime.Object{jobConfigLastScheduled},
