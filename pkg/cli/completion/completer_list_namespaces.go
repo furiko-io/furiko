@@ -21,7 +21,6 @@ import (
 	"sort"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -34,16 +33,16 @@ type ListNamespacesCompleter struct {
 	Sort func(a, b *corev1.Namespace) bool
 
 	// If specified, filters out job configs that should not appear in completions.
-	Filter func(job *corev1.Namespace) bool
+	Filter func(ns *corev1.Namespace) bool
 
 	// If specified, overrides the text formatted in the completion.
 	// Use \t to add labels for the completion values.
-	Format func(job *corev1.Namespace) string
+	Format func(ns *corev1.Namespace) string
 }
 
 var _ Completer = (*ListNamespacesCompleter)(nil)
 
-func (c *ListNamespacesCompleter) Complete(ctx context.Context, ctrlContext controllercontext.Context, cmd *cobra.Command) ([]string, error) {
+func (c *ListNamespacesCompleter) Complete(ctx context.Context, ctrlContext controllercontext.Context, _ string) ([]string, error) {
 	client := ctrlContext.Clientsets().Kubernetes().CoreV1()
 	lst, err := client.Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {

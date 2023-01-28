@@ -14,57 +14,50 @@
  * limitations under the License.
  */
 
-package completion
+package completion_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/furiko-io/furiko/pkg/utils/testutils"
+	"github.com/furiko-io/furiko/pkg/cli/completion"
+	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 )
 
 type testEnum string
 
-func Test_sliceToStrings(t *testing.T) {
-	tests := []struct {
-		name    string
-		slice   any
-		want    []string
-		wantErr assert.ErrorAssertionFunc
-	}{
+func TestSliceCompleter(t *testing.T) {
+	runtimetesting.RunCompleterTests(t, []runtimetesting.CompleterTest{
 		{
-			name:    "nil will panic",
-			wantErr: assert.Error,
+			Name:      "nil will panic",
+			Completer: completion.NewSliceCompleter(nil),
+			WantError: assert.Error,
 		},
 		{
-			name:    "not a slice",
-			slice:   "123",
-			wantErr: assert.Error,
+			Name:      "not a slice",
+			Completer: completion.NewSliceCompleter("123"),
+			WantError: assert.Error,
 		},
 		{
-			name:  "slice of string",
-			slice: []string{"123", "456"},
-			want:  []string{"123", "456"},
+			Name:      "no items",
+			Completer: completion.NewSliceCompleter([]string{}),
+			Want:      []string{},
 		},
 		{
-			name:  "slice of int",
-			slice: []int{123, 456},
-			want:  []string{"123", "456"},
+			Name:      "slice of string",
+			Completer: completion.NewSliceCompleter([]string{"123", "456"}),
+			Want:      []string{"123", "456"},
 		},
 		{
-			name:  "slice of enum",
-			slice: []testEnum{"a", "b"},
-			want:  []string{"a", "b"},
+			Name:      "slice of int",
+			Completer: completion.NewSliceCompleter([]int{123, 456}),
+			Want:      []string{"123", "456"},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := sliceToStrings(tt.slice)
-			if testutils.WantError(t, tt.wantErr, err) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "sliceToStrings(%v) not equal", tt.slice)
-		})
-	}
+		{
+			Name:      "slice of enum",
+			Completer: completion.NewSliceCompleter([]testEnum{"a", "b"}),
+			Want:      []string{"a", "b"},
+		},
+	})
 }

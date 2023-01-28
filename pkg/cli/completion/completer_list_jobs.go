@@ -23,11 +23,9 @@ import (
 	"sort"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
@@ -47,11 +45,7 @@ type ListJobsCompleter struct {
 
 var _ Completer = (*ListJobsCompleter)(nil)
 
-func (c *ListJobsCompleter) Complete(ctx context.Context, ctrlContext controllercontext.Context, cmd *cobra.Command) ([]string, error) {
-	namespace, err := common.GetNamespace(cmd)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get namespace")
-	}
+func (c *ListJobsCompleter) Complete(ctx context.Context, ctrlContext controllercontext.Context, namespace string) ([]string, error) {
 	lst, err := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1().Jobs(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, `cannot list jobs in namespace "%v"`, namespace)
@@ -96,5 +90,15 @@ func (c *ListJobsCompleter) defaultSort(a, b *execution.Job) bool {
 
 // Format to print phase and creationTimestamp as part of the completion label.
 func (c *ListJobsCompleter) defaultFormat(job *execution.Job) string {
-	return fmt.Sprintf("%v\t%v, created %v", job.Name, job.Status.Phase, formatter.FormatTimeWithTimeAgo(&job.CreationTimestamp))
+	var timestamp string
+
+	if finishCondition := job.Status.Condition.Finished; finishCondition != nil && !finishCondition.FinishTimestamp.IsZero() {
+		timestamp = fmt.Sprintf("finished %v", formatter.FormatTimeWithTimeAgo(&finishCondition.FinishTimestamp))
+	} else if !job.Status.StartTime.IsZero() {
+		timestamp = fmt.Sprintf("started %v", formatter.FormatTimeWithTimeAgo(job.Status.StartTime))
+	} else {
+		timestamp = fmt.Sprintf("created %v", formatter.FormatTimeWithTimeAgo(&job.CreationTimestamp))
+	}
+
+	return fmt.Sprintf("%v\t%v, %v", job.Name, job.Status.Phase, timestamp)
 }

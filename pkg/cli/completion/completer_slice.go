@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/spf13/cobra"
-
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
 
@@ -39,7 +37,7 @@ func NewSliceCompleter(items any) Completer {
 	}
 }
 
-func (c *sliceCompleter) Complete(_ context.Context, _ controllercontext.Context, _ *cobra.Command) ([]string, error) {
+func (c *sliceCompleter) Complete(_ context.Context, _ controllercontext.Context, _ string) ([]string, error) {
 	return sliceToStrings(c.items)
 }
 

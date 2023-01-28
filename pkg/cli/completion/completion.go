@@ -28,11 +28,11 @@ import (
 )
 
 // Func is a completion func, that knows how to return completions.
-type Func func(ctx context.Context, ctrlContext controllercontext.Context, cmd *cobra.Command) ([]string, error)
+type Func func(ctx context.Context, ctrlContext controllercontext.Context, namespace string) ([]string, error)
 
 // Completer is the interface of Func.
 type Completer interface {
-	Complete(ctx context.Context, ctrlContext controllercontext.Context, cmd *cobra.Command) ([]string, error)
+	Complete(ctx context.Context, ctrlContext controllercontext.Context, namespace string) ([]string, error)
 }
 
 // FlagCompletion defines a single flag completion entry.
@@ -75,7 +75,11 @@ func MakeCobraCompletionFunc(f Func) func(cmd *cobra.Command, args []string, toC
 		if err := common.SetupCtrlContext(cmd); err != nil {
 			common.Fatal(errors.Wrap(err, "cannot set up context"), common.DefaultErrorExitCode)
 		}
-		completions, err := f(ctx, common.GetCtrlContext(), cmd)
+		namespace, err := common.GetNamespace(cmd)
+		if err != nil {
+			common.Fatal(errors.Wrap(err, "cannot get namespace"), common.DefaultErrorExitCode)
+		}
+		completions, err := f(ctx, common.GetCtrlContext(), namespace)
 		if err != nil {
 			common.Fatal(err, common.DefaultErrorExitCode)
 			return nil, cobra.ShellCompDirectiveError

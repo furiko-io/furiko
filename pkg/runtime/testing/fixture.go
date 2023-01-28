@@ -18,6 +18,7 @@ package testing
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -45,12 +46,16 @@ func InitFixtures(ctx context.Context, client controllercontext.Clientsets, fixt
 func InitFixture(ctx context.Context, client controllercontext.Clientsets, fixture runtime.Object) error {
 	var err error
 	switch f := fixture.(type) {
+	case *corev1.Namespace:
+		_, err = client.Kubernetes().CoreV1().Namespaces().Create(ctx, f, metav1.CreateOptions{})
 	case *corev1.Pod:
 		_, err = client.Kubernetes().CoreV1().Pods(f.Namespace).Create(ctx, f, metav1.CreateOptions{})
 	case *execution.Job:
 		_, err = client.Furiko().ExecutionV1alpha1().Jobs(f.Namespace).Create(ctx, f, metav1.CreateOptions{})
 	case *execution.JobConfig:
 		_, err = client.Furiko().ExecutionV1alpha1().JobConfigs(f.Namespace).Create(ctx, f, metav1.CreateOptions{})
+	default:
+		panic(fmt.Sprintf("unhandled fixture type, please add to InitFixtures: %T", fixture))
 	}
 	return err
 }

@@ -23,11 +23,9 @@ import (
 	"sort"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
@@ -47,11 +45,7 @@ type ListJobConfigsCompleter struct {
 
 var _ Completer = (*ListJobConfigsCompleter)(nil)
 
-func (c *ListJobConfigsCompleter) Complete(ctx context.Context, ctrlContext controllercontext.Context, cmd *cobra.Command) ([]string, error) {
-	namespace, err := common.GetNamespace(cmd)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get namespace")
-	}
+func (c *ListJobConfigsCompleter) Complete(ctx context.Context, ctrlContext controllercontext.Context, namespace string) ([]string, error) {
 	lst, err := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1().JobConfigs(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, `cannot list job configs in namespace "%v"`, namespace)

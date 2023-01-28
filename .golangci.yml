@@ -6,6 +6,7 @@ linters-settings:
   gocritic:
     disabled-checks:
       - singleCaseSwitch
+      - ifElseChain
 
 issues:
   exclude-rules:
