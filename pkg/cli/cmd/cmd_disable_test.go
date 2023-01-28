@@ -19,6 +19,7 @@ package cmd_test
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -43,7 +44,7 @@ func TestDisableCommand(t *testing.T) {
 		},
 		{
 			Name:      "job config does not exist",
-			Args:      []string{"run", "periodic-jobconfig"},
+			Args:      []string{"disable", "periodic-jobconfig"},
 			WantError: testutils.AssertErrorIsNotFound(),
 		},
 		{
@@ -52,6 +53,20 @@ func TestDisableCommand(t *testing.T) {
 			Fixtures: []runtime.Object{disabledJobConfig},
 			Stdout: runtimetesting.Output{
 				Contains: "is already disabled",
+			},
+		},
+		{
+			Name: "completion",
+			Args: []string{cobra.ShellCompRequestCmd, "disable", ""},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					periodicJobConfig.Name,
+					adhocJobConfig.Name,
+				},
 			},
 		},
 		{

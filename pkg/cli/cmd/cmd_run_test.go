@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -205,6 +206,20 @@ func TestRunCommand(t *testing.T) {
 			Name:      "jobconfig does not exist",
 			Args:      []string{"run", "adhoc-jobconfig"},
 			WantError: testutils.AssertErrorIsNotFound(),
+		},
+		{
+			Name: "completion",
+			Args: []string{cobra.ShellCompRequestCmd, "run", ""},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					periodicJobConfig.Name,
+					adhocJobConfig.Name,
+				},
+			},
 		},
 		{
 			Name:     "created job",

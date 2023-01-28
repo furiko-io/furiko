@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -218,6 +219,20 @@ func TestGetJobCommand(t *testing.T) {
 			Name:      "need an argument",
 			Args:      []string{"get", "job"},
 			WantError: assert.Error,
+		},
+		{
+			Name: "completion",
+			Args: []string{cobra.ShellCompRequestCmd, "get", "job", ""},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				jobFinished,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					jobRunning.Name,
+					jobFinished.Name,
+				},
+			},
 		},
 		{
 			Name:     "get a single job",

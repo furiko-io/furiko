@@ -19,6 +19,7 @@ package cmd_test
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -43,8 +44,22 @@ func TestEnableCommand(t *testing.T) {
 		},
 		{
 			Name:      "job config does not exist",
-			Args:      []string{"run", "periodic-jobconfig"},
+			Args:      []string{"enable", "periodic-jobconfig"},
 			WantError: testutils.AssertErrorIsNotFound(),
+		},
+		{
+			Name: "completion",
+			Args: []string{cobra.ShellCompRequestCmd, "enable", ""},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				adhocJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					periodicJobConfig.Name,
+					adhocJobConfig.Name,
+				},
+			},
 		},
 		{
 			Name:     "successfully enabled",
