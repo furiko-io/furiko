@@ -89,7 +89,7 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 	cmd.Flags().StringVar(&c.generateName, "generate-name", "",
 		"Specifies a name prefix (i.e. generateName) to use for the created Job, otherwise it defaults to the job config's name.")
 	cmd.Flags().BoolVar(&c.noInteractive, "no-interactive", false,
-		"If specified, will not show an interactive  prompt. This may result in an error when certain values are "+
+		"If specified, will not show an interactive prompt. This may result in an error when certain values are "+
 			"required but not provided.")
 	cmd.Flags().BoolVar(&c.useDefaultOptions, "use-default-options", false,
 		"If specified, options with default values defined and will not show an interactive prompt. "+
