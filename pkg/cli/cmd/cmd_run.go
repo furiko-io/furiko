@@ -54,6 +54,7 @@ var (
 type RunCommand struct {
 	streams           *streams.Streams
 	name              string
+	generateName      string
 	noInteractive     bool
 	useDefaultOptions bool
 	startAfter        time.Time
@@ -78,12 +79,15 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
 		RunE: RunAllE(
 			c.Complete,
+			c.Validate,
 			c.Run,
 		),
 	}
 
 	cmd.Flags().StringVar(&c.name, "name", "",
 		"Specifies a name to use for the created Job, otherwise it will be generated based on the job config's name.")
+	cmd.Flags().StringVar(&c.generateName, "generate-name", "",
+		"Specifies a name prefix (i.e. generateName) to use for the created Job, otherwise it defaults to the job config's name.")
 	cmd.Flags().BoolVar(&c.noInteractive, "no-interactive", false,
 		"If specified, will not show an interactive  prompt. This may result in an error when certain values are "+
 			"required but not provided.")
@@ -146,6 +150,15 @@ func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func (c *RunCommand) Validate(cmd *cobra.Command, args []string) error {
+	// Both --name and --generate-name cannot be specified together.
+	if c.name != "" && c.generateName != "" {
+		return fmt.Errorf("cannot specify both --name and --generate-name together")
+	}
+
+	return nil
+}
+
 func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	client := ctrlContext.Clientsets().Furiko().ExecutionV1alpha1()
@@ -177,8 +190,9 @@ func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 	// Create a new job using configName.
 	newJob := &execution.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.name,
-			Namespace: jobConfig.Namespace,
+			Name:         c.name,
+			GenerateName: c.generateName,
+			Namespace:    jobConfig.Namespace,
 		},
 		Spec: execution.JobSpec{
 			ConfigName:   name,
@@ -187,8 +201,8 @@ func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	// Generate name from JobConfig's name if not specified./
-	if newJob.Name == "" {
+	// Generate name from JobConfig's name if not specified.
+	if newJob.Name == "" && newJob.GenerateName == "" {
 		newJob.GenerateName = name + "-"
 	}
 

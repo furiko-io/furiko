@@ -100,6 +100,28 @@ var (
 		},
 	}
 
+	adhocJobCreatedWithCustomName = &execution.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "adhoc-run-xyz",
+			Namespace: DefaultNamespace,
+		},
+		Spec: execution.JobSpec{
+			ConfigName:  "adhoc-jobconfig",
+			StartPolicy: &execution.StartPolicySpec{},
+		},
+	}
+
+	adhocJobCreatedWithCustomGenerateName = &execution.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "adhoc-run-",
+			Namespace:    DefaultNamespace,
+		},
+		Spec: execution.JobSpec{
+			ConfigName:  "adhoc-jobconfig",
+			StartPolicy: &execution.StartPolicySpec{},
+		},
+	}
+
 	adhocJobCreatedWithConcurrencyPolicy = &execution.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "adhoc-jobconfig-",
@@ -198,6 +220,42 @@ func TestRunCommand(t *testing.T) {
 			Stdout: runtimetesting.Output{
 				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
+		},
+		{
+			Name:     "created job with custom name",
+			Args:     []string{"run", "adhoc-jobconfig", "--name", adhocJobCreatedWithCustomName.Name},
+			Fixtures: []runtime.Object{adhocJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, adhocJobCreatedWithCustomName),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches: regexp.MustCompile(`^Job \S+ created`),
+			},
+		},
+		{
+			Name:     "created job with custom generateName",
+			Args:     []string{"run", "adhoc-jobconfig", "--generate-name", adhocJobCreatedWithCustomGenerateName.GenerateName},
+			Fixtures: []runtime.Object{adhocJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, adhocJobCreatedWithCustomGenerateName),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches: regexp.MustCompile(`^Job \S+ created`),
+			},
+		},
+		{
+			Name:      "cannot specify --name and --generate-name together",
+			Args:      []string{"run", "adhoc-jobconfig", "--name", adhocJobCreatedWithCustomName.Name, "--generate-name", adhocJobCreatedWithCustomGenerateName.GenerateName},
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
 		},
 		{
 			Name:     "created job with concurrency policy",
