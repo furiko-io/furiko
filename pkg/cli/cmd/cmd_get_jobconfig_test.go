@@ -35,6 +35,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "periodic-jobconfig",
 			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("periodic-jobconfig"),
 		},
 		Spec: execution.JobConfigSpec{
 			Concurrency: execution.ConcurrencySpec{
@@ -56,6 +57,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "periodic-jobconfig",
 			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("periodic-jobconfig"),
 		},
 		Spec: execution.JobConfigSpec{
 			Concurrency: execution.ConcurrencySpec{
@@ -78,6 +80,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "adhoc-jobconfig",
 			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("adhoc-jobconfig"),
 		},
 		Spec: execution.JobConfigSpec{
 			Concurrency: execution.ConcurrencySpec{
@@ -93,6 +96,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "jobconfig-last-scheduled",
 			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("jobconfig-last-scheduled"),
 		},
 		Spec: execution.JobConfigSpec{
 			Concurrency: execution.ConcurrencySpec{

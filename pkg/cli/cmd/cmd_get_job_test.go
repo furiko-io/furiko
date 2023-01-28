@@ -29,6 +29,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
@@ -47,9 +48,14 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "job-running",
 			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("job-running"),
+			Labels: map[string]string{
+				jobconfig.LabelKeyJobConfigUID: string(adhocJobConfig.UID),
+			},
 		},
 		Status: execution.JobStatus{
 			Phase: execution.JobRunning,
+			State: execution.JobStateRunning,
 			Condition: execution.JobCondition{
 				Running: &execution.JobConditionRunning{
 					LatestCreationTimestamp: testutils.Mkmtime(taskCreateTime),
@@ -75,9 +81,11 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "job-finished",
 			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("job-finished"),
 		},
 		Status: execution.JobStatus{
 			Phase: execution.JobFailed,
+			State: execution.JobStateFinished,
 			Condition: execution.JobCondition{
 				Finished: &execution.JobConditionFinished{
 					LatestCreationTimestamp: testutils.Mkmtimep(taskCreateTime),
@@ -111,9 +119,11 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "job-queued",
 			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("job-queued"),
 		},
 		Status: execution.JobStatus{
 			Phase: execution.JobQueued,
+			State: execution.JobStateQueued,
 			Condition: execution.JobCondition{
 				Queueing: &execution.JobConditionQueueing{
 					Reason:  "NotYetDue",
@@ -127,6 +137,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "job-parallel",
 			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("job-parallel"),
 		},
 		Spec: execution.JobSpec{
 			Template: &execution.JobTemplate{
@@ -138,6 +149,7 @@ var (
 		},
 		Status: execution.JobStatus{
 			Phase: execution.JobRunning,
+			State: execution.JobStateRunning,
 			Condition: execution.JobCondition{
 				Running: &execution.JobConditionRunning{
 					LatestCreationTimestamp: testutils.Mkmtime(taskCreateTime),
