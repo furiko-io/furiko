@@ -298,7 +298,7 @@ func (m *Mutator) evaluateOptionValues(rj *v1alpha1.Job, rjc *v1alpha1.JobConfig
 // MutateJobTemplateSpec mutates a JobTemplate in-place.
 func (m *Mutator) MutateJobTemplateSpec(
 	spec *v1alpha1.JobTemplate,
-	taskTemplate bool,
+	mutateTaskTemplate bool,
 	fldPath *field.Path,
 ) *webhook.Result {
 	result := webhook.NewResult()
@@ -306,10 +306,18 @@ func (m *Mutator) MutateJobTemplateSpec(
 	if spec.MaxAttempts == nil {
 		spec.MaxAttempts = pointer.Int64(1)
 	}
+	if spec.TaskPendingTimeoutSeconds == nil {
+		cfg, err := m.ctrlContext.Configs().Jobs()
+		if err != nil {
+			result.Errors = append(result.Errors, field.InternalError(field.NewPath(""), errors.Wrapf(err, "cannot load dynamic configuration")))
+		} else {
+			spec.TaskPendingTimeoutSeconds = cfg.DefaultPendingTimeoutSeconds
+		}
+	}
 	if spec.Parallelism != nil {
 		result.Merge(m.MutateParallelismSpec(spec.Parallelism, fldPath.Child("parallelism")))
 	}
-	if taskTemplate {
+	if mutateTaskTemplate {
 		result.Merge(m.MutateTaskTemplate(&spec.TaskTemplate, fldPath.Child("taskTemplate")))
 	}
 

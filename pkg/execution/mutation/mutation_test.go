@@ -167,7 +167,8 @@ var (
 			TaskTemplate: v1alpha1.TaskTemplate{
 				Pod: &podTemplateSpecBasic,
 			},
-			MaxAttempts: pointer.Int64(1),
+			TaskPendingTimeoutSeconds: pointer.Int64(900),
+			MaxAttempts:               pointer.Int64(1),
 		},
 	}
 
@@ -221,6 +222,7 @@ var (
 func TestMutator_MutateJobConfig(t *testing.T) {
 	tests := []struct {
 		name         string
+		cfgs         map[configv1alpha1.ConfigName]runtime.Object
 		rjc          *v1alpha1.JobConfig
 		want         *v1alpha1.JobConfig
 		wantErrors   string
@@ -245,7 +247,8 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 							TaskTemplate: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecBare,
 							},
-							MaxAttempts: pointer.Int64(1),
+							MaxAttempts:               pointer.Int64(1),
+							TaskPendingTimeoutSeconds: pointer.Int64(900),
 						},
 					},
 				},
@@ -276,7 +279,8 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 							TaskTemplate: v1alpha1.TaskTemplate{
 								Pod: &podTemplateSpecBare,
 							},
-							MaxAttempts: pointer.Int64(1),
+							MaxAttempts:               pointer.Int64(1),
+							TaskPendingTimeoutSeconds: pointer.Int64(900),
 							Parallelism: &v1alpha1.ParallelismSpec{
 								WithCount:          pointer.Int64(3),
 								CompletionStrategy: v1alpha1.AllSuccessful,
@@ -324,7 +328,7 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			mutator := mutation.NewMutator(mock.NewContext())
+			mutator := setup(t, tt.cfgs, nil)
 			newRjc := tt.rjc.DeepCopy()
 			resp := mutator.MutateJobConfig(newRjc)
 
@@ -686,7 +690,8 @@ func TestMutator_MutateJob(t *testing.T) {
 						TaskTemplate: v1alpha1.TaskTemplate{
 							Pod: &podTemplateSpecBasic,
 						},
-						MaxAttempts: pointer.Int64(1),
+						MaxAttempts:               pointer.Int64(1),
+						TaskPendingTimeoutSeconds: pointer.Int64(900),
 					},
 					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,
 				},
@@ -702,7 +707,8 @@ func TestMutator_MutateJob(t *testing.T) {
 						TaskTemplate: v1alpha1.TaskTemplate{
 							Pod: &podTemplateSpecBasic,
 						},
-						MaxAttempts: pointer.Int64(1),
+						MaxAttempts:               pointer.Int64(1),
+						TaskPendingTimeoutSeconds: pointer.Int64(900),
 					},
 					TTLSecondsAfterFinished: config.DefaultJobExecutionConfig.DefaultTTLSecondsAfterFinished,
 				},
