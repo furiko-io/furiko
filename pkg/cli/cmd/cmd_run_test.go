@@ -19,6 +19,7 @@ package cmd_test
 import (
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,6 +92,28 @@ var (
 	adhocJobCreated = &execution.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "adhoc-jobconfig-",
+			Namespace:    DefaultNamespace,
+		},
+		Spec: execution.JobSpec{
+			ConfigName:  "adhoc-jobconfig",
+			StartPolicy: &execution.StartPolicySpec{},
+		},
+	}
+
+	adhocJobCreatedWithCustomName = &execution.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "adhoc-run-xyz",
+			Namespace: DefaultNamespace,
+		},
+		Spec: execution.JobSpec{
+			ConfigName:  "adhoc-jobconfig",
+			StartPolicy: &execution.StartPolicySpec{},
+		},
+	}
+
+	adhocJobCreatedWithCustomGenerateName = &execution.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "adhoc-run-",
 			Namespace:    DefaultNamespace,
 		},
 		Spec: execution.JobSpec{
@@ -195,11 +218,47 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
 		},
 		{
-			Name:     "created job with concurrency policy",
+			Name:     "created job with custom name",
+			Args:     []string{"run", "adhoc-jobconfig", "--name", adhocJobCreatedWithCustomName.Name},
+			Fixtures: []runtime.Object{adhocJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, adhocJobCreatedWithCustomName),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches: regexp.MustCompile(`^Job \S+ created`),
+			},
+		},
+		{
+			Name:     "created job with custom generateName",
+			Args:     []string{"run", "adhoc-jobconfig", "--generate-name", adhocJobCreatedWithCustomGenerateName.GenerateName},
+			Fixtures: []runtime.Object{adhocJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, adhocJobCreatedWithCustomGenerateName),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches: regexp.MustCompile(`^Job \S+ created`),
+			},
+		},
+		{
+			Name:      "cannot specify --name and --generate-name together",
+			Args:      []string{"run", "adhoc-jobconfig", "--name", adhocJobCreatedWithCustomName.Name, "--generate-name", adhocJobCreatedWithCustomGenerateName.GenerateName},
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:     "created job with --concurrency-policy",
 			Args:     []string{"run", "adhoc-jobconfig", "--concurrency-policy", "Enqueue"},
 			Fixtures: []runtime.Object{adhocJobConfig},
 			WantActions: runtimetesting.CombinedActions{
@@ -210,11 +269,38 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
 		},
 		{
-			Name:     "created job with start after",
+			Name:      "cannot create job with invalid --concurrency-policy",
+			Args:      []string{"run", "adhoc-jobconfig", "--concurrency-policy", "Invalid"},
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:     "created job with --enqueue",
+			Args:     []string{"run", "adhoc-jobconfig", "--enqueue"},
+			Fixtures: []runtime.Object{adhocJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, adhocJobCreatedWithConcurrencyPolicy),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches: regexp.MustCompile(`^Job \S+ created`),
+			},
+		},
+		{
+			Name:      "cannot specify both --concurrency-policy and --enqueue",
+			Args:      []string{"run", "adhoc-jobconfig", "--enqueue", "--concurrency-policy", "Allow"},
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:     "created job with --at",
 			Args:     []string{"run", "adhoc-jobconfig", "--at", startTime},
 			Fixtures: []runtime.Object{adhocJobConfig},
 			WantActions: runtimetesting.CombinedActions{
@@ -225,17 +311,17 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
 		},
 		{
-			Name:      "created job with invalid start after",
+			Name:      "cannot create job with invalid --at",
 			Args:      []string{"run", "adhoc-jobconfig", "--at", "1234"},
 			Fixtures:  []runtime.Object{adhocJobConfig},
 			WantError: assert.Error,
 		},
 		{
-			Name:     "created job with start after and concurrency policy",
+			Name:     "created job with --at and --concurrency-policy",
 			Args:     []string{"run", "adhoc-jobconfig", "--at", startTime, "--concurrency-policy", "Allow"},
 			Fixtures: []runtime.Object{adhocJobConfig},
 			WantActions: runtimetesting.CombinedActions{
@@ -246,8 +332,38 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
+		},
+		{
+			Name:     "created job with --after",
+			Args:     []string{"run", "adhoc-jobconfig", "--after", "3h"},
+			Now:      testutils.Mktime(startTime).Add(-3 * time.Hour),
+			Fixtures: []runtime.Object{adhocJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, adhocJobCreatedWithStartAfter),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				Matches: regexp.MustCompile(`^Job \S+ created`),
+			},
+		},
+		{
+			Name:      "cannot create job with invalid --after",
+			Args:      []string{"run", "adhoc-jobconfig", "--after", "abcd"},
+			Now:       testutils.Mktime(startTime).Add(-3 * time.Hour),
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:      "cannot specify both --at and --after",
+			Args:      []string{"run", "adhoc-jobconfig", "--at", startTime, "--after", "3h"},
+			Now:       testutils.Mktime(startTime).Add(-3 * time.Hour),
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
 		},
 		{
 			Name:     "created job with default option values",
@@ -261,7 +377,7 @@ func TestRunCommand(t *testing.T) {
 				},
 			},
 			Stdout: runtimetesting.Output{
-				Matches: regexp.MustCompile(`^Job [^\s]+ created`),
+				Matches: regexp.MustCompile(`^Job \S+ created`),
 			},
 		},
 		{
@@ -308,6 +424,69 @@ func TestRunCommand(t *testing.T) {
 			},
 			Stdout: runtimetesting.Output{
 				ContainsAll: []string{
+					"Please input option values.",
+					"Full Name",
+				},
+				Matches: regexp.MustCompile(`Job \S+ created`),
+			},
+		},
+		{
+			Name:      "cannot parse --option-values as JSON",
+			Args:      []string{"run", "parameterizable-jobconfig", "--use-default-options", "--option-values", `{"invalid`},
+			Fixtures:  []runtime.Object{parameterizableJobConfigWithRequired},
+			WantError: assert.Error,
+		},
+		{
+			Name:     "don't prompt stdin input if required option is passed via --option-values",
+			Args:     []string{"run", "parameterizable-jobconfig", "--use-default-options", "--option-values", `{"name": "John Smith"}`},
+			Fixtures: []runtime.Object{parameterizableJobConfigWithRequired},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, parameterizableJobCreatedWithCustomOptionValues),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
+					"Please input option values.",
+					"Full Name",
+				},
+				Matches: regexp.MustCompile(`Job \S+ created`),
+			},
+		},
+		{
+			Name:     "override default values from --use-default-options with --option-values",
+			Args:     []string{"run", "parameterizable-jobconfig", "--use-default-options", "--option-values", `{"name": "John Smith"}`},
+			Fixtures: []runtime.Object{parameterizableJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, parameterizableJobCreatedWithCustomOptionValues),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
+					"Please input option values.",
+					"Full Name",
+				},
+				Matches: regexp.MustCompile(`Job \S+ created`),
+			},
+		},
+		{
+			Name:     "did not match any options from key in --option-values",
+			Args:     []string{"run", "parameterizable-jobconfig", "--use-default-options", "--option-values", `{"mismatched": "value"}`},
+			Fixtures: []runtime.Object{parameterizableJobConfig},
+			WantActions: runtimetesting.CombinedActions{
+				Furiko: runtimetesting.ActionTest{
+					Actions: []runtimetesting.Action{
+						runtimetesting.NewCreateJobAction(DefaultNamespace, parameterizableJobCreatedWithDefaultOptionValues),
+					},
+				},
+			},
+			Stdout: runtimetesting.Output{
+				ExcludesAll: []string{
 					"Please input option values.",
 					"Full Name",
 				},

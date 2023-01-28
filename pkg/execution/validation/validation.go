@@ -259,21 +259,17 @@ func (v *Validator) ValidateCronSchedule(spec *v1alpha1.CronSchedule, fldPath *f
 // ValidateConcurrencyPolicy validates a v1alpha1.ConcurrencyPolicy.
 func (v *Validator) ValidateConcurrencyPolicy(concurrencyPolicy v1alpha1.ConcurrencyPolicy, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	switch concurrencyPolicy {
-	case v1alpha1.ConcurrencyPolicyAllow,
-		v1alpha1.ConcurrencyPolicyForbid,
-		v1alpha1.ConcurrencyPolicyEnqueue:
-		break
-	case "":
+
+	if concurrencyPolicy == "" {
 		allErrs = append(allErrs, field.Required(fldPath, ""))
-	default:
-		validValues := []string{
-			string(v1alpha1.ConcurrencyPolicyAllow),
-			string(v1alpha1.ConcurrencyPolicyForbid),
-			string(v1alpha1.ConcurrencyPolicyEnqueue),
+	} else if !concurrencyPolicy.IsValid() {
+		validValues := make([]string, 0, len(v1alpha1.ConcurrencyPoliciesAll))
+		for _, policy := range v1alpha1.ConcurrencyPoliciesAll {
+			validValues = append(validValues, string(policy))
 		}
 		allErrs = append(allErrs, field.NotSupported(fldPath, concurrencyPolicy, validValues))
 	}
+
 	return allErrs
 }
 

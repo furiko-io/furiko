@@ -34,18 +34,28 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/prompt"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/core/options"
+	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
 var (
 	RunExample = PrepareExample(`
-# Start a new Job from an existing JobConfig.
+# Execute a new Job from an existing JobConfig.
 {{.CommandName}} run daily-send-email
 
-# Start a new Job only after the specified time.
+# Execute a new Job only after the specified time.
 {{.CommandName}} run daily-send-email --at 2021-01-01T00:00:00+08:00
 
-# Start a new Job, and use all default options.
-{{.CommandName}} run daily-send-email --use-default-options`)
+# Execute a new Job only after the specified duration.
+{{.CommandName}} run daily-send-email --after 15m
+
+# Execute a new Job, and use all default options.
+{{.CommandName}} run daily-send-email --use-default-options
+
+# Execute a new Job with the specified option values in JSON format.
+{{.CommandName}} run daily-send-email -O '{"dest_email": "team-leads@listserv.acme.org"}'
+
+# Queue a new Job to be executed after other Jobs are finished.
+{{.CommandName}} run process-payments --enqueue`)
 
 	groupResourceJob = execution.Resource("job")
 )
@@ -53,10 +63,12 @@ var (
 type RunCommand struct {
 	streams           *streams.Streams
 	name              string
+	generateName      string
 	noInteractive     bool
+	optionValues      map[string]interface{}
 	useDefaultOptions bool
-	startAfter        string
-	concurrencyPolicy string
+	startAfter        time.Time
+	concurrencyPolicy execution.ConcurrencyPolicy
 	displayIntro      sync.Once
 }
 
@@ -75,23 +87,40 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 		Args:              cobra.ExactArgs(1),
 		PreRunE:           PrerunWithKubeconfig,
 		ValidArgsFunction: MakeCobraCompletionFunc((&CompletionHelper{}).ListJobConfigs()),
-		RunE:              c.Run,
+		RunE: RunAllE(
+			c.Complete,
+			c.Validate,
+			c.Run,
+		),
 	}
 
 	cmd.Flags().StringVar(&c.name, "name", "",
 		"Specifies a name to use for the created Job, otherwise it will be generated based on the job config's name.")
+	cmd.Flags().StringVar(&c.generateName, "generate-name", "",
+		"Specifies a name prefix (i.e. generateName) to use for the created Job, otherwise it defaults to the job config's name.")
 	cmd.Flags().BoolVar(&c.noInteractive, "no-interactive", false,
-		"If specified, will not show an interactive  prompt. This may result in an error when certain values are "+
+		"If specified, will not show an interactive prompt. This may result in an error when certain values are "+
 			"required but not provided.")
+	cmd.Flags().StringP("option-values", "O", "",
+		"Option values to be used for executing the job, in JSON format. "+
+			"Commonly used in conjunction with --no-interactive in order to execute a new job without prompts. "+
+			"If --use-default-options is also specified, any matching keys in --option-values will override the default option values.")
 	cmd.Flags().BoolVar(&c.useDefaultOptions, "use-default-options", false,
 		"If specified, options with default values defined and will not show an interactive prompt. "+
 			"Any options without default values will still show one, unless --no-interactive is set.")
-	cmd.Flags().StringVar(&c.startAfter, "at", "",
+	cmd.Flags().String("at", "",
 		"RFC3339-formatted datetime to specify the time to run the job at. "+
 			"Implies --concurrency-policy=Enqueue unless explicitly specified.")
-	cmd.Flags().StringVar(&c.concurrencyPolicy, "concurrency-policy", "",
+	cmd.Flags().String("after", "",
+		"Duration from current time that the job should be scheduled to be started at. "+
+			"Must be formatted as a Golang duration string, e.g. 5m, 3h, etc. "+
+			"Shorthand for --at=[now() + after]. Implies --concurrency-policy=Enqueue unless explicitly specified.")
+	cmd.Flags().String("concurrency-policy", "",
 		"Specify an explicit concurrency policy to use for the job, overriding the "+
 			"JobConfig's concurrency policy.")
+	cmd.Flags().Bool("enqueue", false,
+		"Enqueues the job to be executed, which will only start after other ongoing jobs. "+
+			"Shorthand for --concurrency-policy=Enqueue.")
 
 	if err := RegisterFlagCompletions(cmd, []FlagCompletion{
 		{FlagName: "concurrency-policy", CompletionFunc: (&CompletionHelper{}).FromSlice(execution.ConcurrencyPoliciesAll)},
@@ -100,6 +129,70 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 	}
 
 	return cmd
+}
+
+func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
+	// Handle --concurrency-policy.
+	if concurrencyPolicy := GetFlagString(cmd, "concurrency-policy"); concurrencyPolicy != "" {
+		c.concurrencyPolicy = execution.ConcurrencyPolicy(concurrencyPolicy)
+	}
+
+	// Handle --enqueue shorthand flag.
+	if GetFlagBool(cmd, "enqueue") {
+		if c.concurrencyPolicy != "" {
+			return fmt.Errorf("cannot specify both --enqueue and --concurrency-policy together")
+		}
+		c.concurrencyPolicy = execution.ConcurrencyPolicyEnqueue
+	}
+
+	// Parse --at as timestamp.
+	if at := GetFlagString(cmd, "at"); at != "" {
+		parsed, err := time.Parse(time.RFC3339, at)
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for --at: cannot parse %v as RFC3339 timestamp", c.startAfter)
+		}
+		c.startAfter = parsed
+	}
+
+	// Handle --after shorthand flag.
+	if after := GetFlagString(cmd, "after"); after != "" {
+		if !c.startAfter.IsZero() {
+			return fmt.Errorf("cannot specify both --after and --at together")
+		}
+		duration, err := time.ParseDuration(after)
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for --after: cannot parse %v as duration", after)
+		}
+		c.startAfter = ktime.Now().Add(duration)
+	}
+
+	// Use Enqueue if --after or --at is specified by default.
+	if !c.startAfter.IsZero() && c.concurrencyPolicy == "" {
+		c.concurrencyPolicy = execution.ConcurrencyPolicyEnqueue
+	}
+
+	// Handle --option-values.
+	if optionValues := GetFlagString(cmd, "option-values"); optionValues != "" {
+		if err := json.Unmarshal([]byte(optionValues), &c.optionValues); err != nil {
+			return errors.Wrapf(err, "invalid value for --option-values: cannot unmarshal as JSON")
+		}
+	}
+
+	return nil
+}
+
+func (c *RunCommand) Validate(cmd *cobra.Command, args []string) error {
+	// Both --name and --generate-name cannot be specified together.
+	if c.name != "" && c.generateName != "" {
+		return fmt.Errorf("cannot specify both --name and --generate-name together")
+	}
+
+	// Validate --concurrency-policy.
+	if c.concurrencyPolicy != "" && !c.concurrencyPolicy.IsValid() {
+		return fmt.Errorf("invalid value for --concurrency-policy, valid values: %v", execution.ConcurrencyPoliciesAll)
+	}
+
+	return nil
 }
 
 func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
@@ -133,8 +226,9 @@ func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 	// Create a new job using configName.
 	newJob := &execution.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.name,
-			Namespace: jobConfig.Namespace,
+			Name:         c.name,
+			GenerateName: c.generateName,
+			Namespace:    jobConfig.Namespace,
 		},
 		Spec: execution.JobSpec{
 			ConfigName:   name,
@@ -143,8 +237,8 @@ func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	// Generate name from JobConfig's name if not specified./
-	if newJob.Name == "" {
+	// Generate name from JobConfig's name if not specified.
+	if newJob.Name == "" && newJob.GenerateName == "" {
 		newJob.GenerateName = name + "-"
 	}
 
@@ -171,26 +265,14 @@ func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *RunCommand) makeJobStartPolicy() (*execution.StartPolicySpec, error) {
-	startPolicy := &execution.StartPolicySpec{}
-
-	// Set concurrencyPolicy.
-	if c.concurrencyPolicy != "" {
-		startPolicy.ConcurrencyPolicy = execution.ConcurrencyPolicy(c.concurrencyPolicy)
+	startPolicy := &execution.StartPolicySpec{
+		ConcurrencyPolicy: c.concurrencyPolicy,
 	}
 
 	// Set startAfter.
-	if c.startAfter != "" {
-		parsed, err := time.Parse(time.RFC3339, c.startAfter)
-		if err != nil {
-			return nil, errors.Wrapf(err, "invalid time: %v", c.startAfter)
-		}
-		startAfterTime := metav1.NewTime(parsed)
+	if !c.startAfter.IsZero() {
+		startAfterTime := metav1.NewTime(c.startAfter)
 		startPolicy.StartAfter = &startAfterTime
-
-		// Use Enqueue when using --at by default.
-		if startPolicy.ConcurrencyPolicy == "" {
-			startPolicy.ConcurrencyPolicy = execution.ConcurrencyPolicyEnqueue
-		}
 	}
 
 	return startPolicy, nil
@@ -227,9 +309,14 @@ func (c *RunCommand) makeJobOptionValues(jobConfig *execution.JobConfig) (string
 }
 
 func (c *RunCommand) makeJobOptionValue(option execution.Option) (interface{}, error) {
-	var hasDefaultValue bool
+	// If the option is already defined via --option-values, use the value instead.
+	// This helps to suppress unnecessary prompts.
+	if value, ok := c.optionValues[option.Name]; ok {
+		return value, nil
+	}
 
 	// If flag is defined to use default options, first check if we can use default value.
+	var hasDefaultValue bool
 	if c.useDefaultOptions {
 		ok, err := c.checkOptionValueHasDefault(option)
 		if err != nil {
