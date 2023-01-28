@@ -39,14 +39,23 @@ import (
 
 var (
 	RunExample = PrepareExample(`
-# Start a new Job from an existing JobConfig.
+# Execute a new Job from an existing JobConfig.
 {{.CommandName}} run daily-send-email
 
-# Start a new Job only after the specified time.
+# Execute a new Job only after the specified time.
 {{.CommandName}} run daily-send-email --at 2021-01-01T00:00:00+08:00
 
-# Start a new Job, and use all default options.
-{{.CommandName}} run daily-send-email --use-default-options`)
+# Execute a new Job only after the specified duration.
+{{.CommandName}} run daily-send-email --after 15m
+
+# Execute a new Job, and use all default options.
+{{.CommandName}} run daily-send-email --use-default-options
+
+# Execute a new Job with the specified option values in JSON format.
+{{.CommandName}} run daily-send-email -O '{"dest_email": "team-leads@listserv.acme.org"}'
+
+# Queue a new Job to be executed after other Jobs are finished.
+{{.CommandName}} run process-payments --enqueue`)
 
 	groupResourceJob = execution.Resource("job")
 )
