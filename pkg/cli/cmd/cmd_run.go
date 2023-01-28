@@ -68,7 +68,7 @@ type RunCommand struct {
 	optionValues      map[string]interface{}
 	useDefaultOptions bool
 	startAfter        time.Time
-	concurrencyPolicy string
+	concurrencyPolicy execution.ConcurrencyPolicy
 	displayIntro      sync.Once
 }
 
@@ -115,7 +115,7 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 		"Duration from current time that the job should be scheduled to be started at. "+
 			"Must be formatted as a Golang duration string, e.g. 5m, 3h, etc. "+
 			"Shorthand for --at=[now() + after]. Implies --concurrency-policy=Enqueue unless explicitly specified.")
-	cmd.Flags().StringVar(&c.concurrencyPolicy, "concurrency-policy", "",
+	cmd.Flags().String("concurrency-policy", "",
 		"Specify an explicit concurrency policy to use for the job, overriding the "+
 			"JobConfig's concurrency policy.")
 	cmd.Flags().Bool("enqueue", false,
@@ -132,12 +132,17 @@ If the JobConfig has some options defined, an interactive prompt will be shown.`
 }
 
 func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
+	// Handle --concurrency-policy.
+	if concurrencyPolicy := GetFlagString(cmd, "concurrency-policy"); concurrencyPolicy != "" {
+		c.concurrencyPolicy = execution.ConcurrencyPolicy(concurrencyPolicy)
+	}
+
 	// Handle --enqueue shorthand flag.
 	if GetFlagBool(cmd, "enqueue") {
 		if c.concurrencyPolicy != "" {
 			return fmt.Errorf("cannot specify both --enqueue and --concurrency-policy together")
 		}
-		c.concurrencyPolicy = string(execution.ConcurrencyPolicyEnqueue)
+		c.concurrencyPolicy = execution.ConcurrencyPolicyEnqueue
 	}
 
 	// Parse --at as timestamp.
@@ -161,6 +166,11 @@ func (c *RunCommand) Complete(cmd *cobra.Command, args []string) error {
 		c.startAfter = ktime.Now().Add(duration)
 	}
 
+	// Use Enqueue if --after or --at is specified by default.
+	if !c.startAfter.IsZero() && c.concurrencyPolicy == "" {
+		c.concurrencyPolicy = execution.ConcurrencyPolicyEnqueue
+	}
+
 	// Handle --option-values.
 	if optionValues := GetFlagString(cmd, "option-values"); optionValues != "" {
 		if err := json.Unmarshal([]byte(optionValues), &c.optionValues); err != nil {
@@ -175,6 +185,11 @@ func (c *RunCommand) Validate(cmd *cobra.Command, args []string) error {
 	// Both --name and --generate-name cannot be specified together.
 	if c.name != "" && c.generateName != "" {
 		return fmt.Errorf("cannot specify both --name and --generate-name together")
+	}
+
+	// Validate --concurrency-policy.
+	if c.concurrencyPolicy != "" && !c.concurrencyPolicy.IsValid() {
+		return fmt.Errorf("invalid value for --concurrency-policy, valid values: %v", execution.ConcurrencyPoliciesAll)
 	}
 
 	return nil
@@ -250,22 +265,14 @@ func (c *RunCommand) Run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *RunCommand) makeJobStartPolicy() (*execution.StartPolicySpec, error) {
-	startPolicy := &execution.StartPolicySpec{}
-
-	// Set concurrencyPolicy.
-	if c.concurrencyPolicy != "" {
-		startPolicy.ConcurrencyPolicy = execution.ConcurrencyPolicy(c.concurrencyPolicy)
+	startPolicy := &execution.StartPolicySpec{
+		ConcurrencyPolicy: c.concurrencyPolicy,
 	}
 
 	// Set startAfter.
 	if !c.startAfter.IsZero() {
 		startAfterTime := metav1.NewTime(c.startAfter)
 		startPolicy.StartAfter = &startAfterTime
-
-		// Use Enqueue when using --at by default.
-		if startPolicy.ConcurrencyPolicy == "" {
-			startPolicy.ConcurrencyPolicy = execution.ConcurrencyPolicyEnqueue
-		}
 	}
 
 	return startPolicy, nil

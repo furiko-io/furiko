@@ -258,7 +258,7 @@ func TestRunCommand(t *testing.T) {
 			WantError: assert.Error,
 		},
 		{
-			Name:     "created job with concurrency policy",
+			Name:     "created job with --concurrency-policy",
 			Args:     []string{"run", "adhoc-jobconfig", "--concurrency-policy", "Enqueue"},
 			Fixtures: []runtime.Object{adhocJobConfig},
 			WantActions: runtimetesting.CombinedActions{
@@ -273,7 +273,13 @@ func TestRunCommand(t *testing.T) {
 			},
 		},
 		{
-			Name:     "created job with enqueue",
+			Name:      "cannot create job with invalid --concurrency-policy",
+			Args:      []string{"run", "adhoc-jobconfig", "--concurrency-policy", "Invalid"},
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:     "created job with --enqueue",
 			Args:     []string{"run", "adhoc-jobconfig", "--enqueue"},
 			Fixtures: []runtime.Object{adhocJobConfig},
 			WantActions: runtimetesting.CombinedActions{

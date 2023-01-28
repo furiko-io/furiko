@@ -160,6 +160,15 @@ const (
 	ConcurrencyPolicyEnqueue ConcurrencyPolicy = "Enqueue"
 )
 
+func (p ConcurrencyPolicy) IsValid() bool {
+	for _, o := range ConcurrencyPoliciesAll {
+		if o == p {
+			return true
+		}
+	}
+	return false
+}
+
 var ConcurrencyPoliciesAll = []ConcurrencyPolicy{
 	ConcurrencyPolicyAllow,
 	ConcurrencyPolicyForbid,
