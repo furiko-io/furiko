@@ -36,6 +36,9 @@ var (
 			Name:      "periodic-jobconfig",
 			Namespace: DefaultNamespace,
 			UID:       testutils.MakeUID("periodic-jobconfig"),
+			Labels: map[string]string{
+				"labels.furiko.io/test": "value",
+			},
 		},
 		Spec: execution.JobConfigSpec{
 			Concurrency: execution.ConcurrencySpec{
@@ -58,6 +61,9 @@ var (
 			Name:      "periodic-jobconfig",
 			Namespace: DefaultNamespace,
 			UID:       testutils.MakeUID("periodic-jobconfig"),
+			Labels: map[string]string{
+				"labels.furiko.io/test": "value",
+			},
 		},
 		Spec: execution.JobConfigSpec{
 			Concurrency: execution.ConcurrencySpec{

@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/completion"
@@ -62,10 +64,50 @@ func (c *ListCommand) RegisterFlags(cmd *cobra.Command) {
 		"When using the default or custom-column output format, don't print headers (default print headers).")
 	cmd.Flags().BoolP("watch", "w", false,
 		"After listing the requested object(s), watch for changes and print them to the standard output.")
+	cmd.Flags().StringP("selector", "l", "",
+		"Selector (label query) to filter on, supports '=', '==', and '!=' (e.g. -l key1=value1,key2=value2). "+
+			"Matching objects must satisfy all of the specified label constraints.")
+	cmd.Flags().String("field-selector", "",
+		"Selector (field query) to filter on, supports '=', '==', and '!=' (e.g. --field-selector key1=value1,key2=value2). "+
+			"The server only supports a limited number of field queries per type.")
 
 	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
 		{FlagName: "output", Completer: completion.NewSliceCompleter(printer.AllOutputFormats)},
 	}); err != nil {
 		common.Fatal(err, common.DefaultErrorExitCode)
 	}
+}
+
+type baseListCommand struct {
+	labelSelector labels.Selector
+	fieldSelector labels.Selector
+}
+
+func newBaseListCommand() *baseListCommand {
+	return &baseListCommand{
+		labelSelector: labels.NewSelector(),
+		fieldSelector: labels.NewSelector(),
+	}
+}
+
+func (c *baseListCommand) Complete(cmd *cobra.Command, args []string) error {
+	// Parse --label-selector.
+	if labelSelector := common.GetFlagString(cmd, "selector"); labelSelector != "" {
+		selector, err := labels.Parse(labelSelector)
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for --selector: cannot parse %v as selector", labelSelector)
+		}
+		c.labelSelector = selector
+	}
+
+	// Parse --field-selector.
+	if fieldSelector := common.GetFlagString(cmd, "field-selector"); fieldSelector != "" {
+		selector, err := labels.Parse(fieldSelector)
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for --field-selector: cannot parse %v as selector", fieldSelector)
+		}
+		c.fieldSelector = selector
+	}
+
+	return nil
 }

@@ -27,10 +27,10 @@ import (
 )
 
 // WatchAndPrint will block on the given watch.Interface, and print all results
-// using the provided handler, and returns once the context is done. The handler
-// should return true if it was successfully handled, otherwise it will fall
+// using the provided handler, and returns once the context is done. If the
+// received object's type does not match the generic type T, it will fall
 // through to other default handlers.
-func WatchAndPrint(ctx context.Context, watcher watch.Interface, handler func(obj runtime.Object) (bool, error)) error {
+func WatchAndPrint[T runtime.Object](ctx context.Context, watcher watch.Interface, filter func(obj T) bool, handler func(obj T) error) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -43,14 +43,20 @@ func WatchAndPrint(ctx context.Context, watcher watch.Interface, handler func(ob
 				return nil
 			}
 
-			handled, err := handler(result.Object)
-			if err != nil {
-				return err
-			}
-			if handled {
+			// Print the object if it matches the type T.
+			if obj, ok := result.Object.(T); ok {
+				if filter != nil && !filter(obj) {
+					continue
+				}
+
+				if err := handler(obj); err != nil {
+					return err
+				}
+
 				continue
 			}
 
+			// Fall through to default logging handlers.
 			switch obj := result.Object.(type) {
 			case *metav1.Status:
 				// Don't print Status which may contain network error information, simply write to logs.

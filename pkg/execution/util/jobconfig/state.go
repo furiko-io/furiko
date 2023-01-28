@@ -39,3 +39,9 @@ func GetState(rjc *execution.JobConfig) execution.JobConfigState {
 
 	return execution.JobConfigReady
 }
+
+// IsScheduleEnabled returns true if the JobConfig has a schedule and is enabled.
+func IsScheduleEnabled(jobConfig *execution.JobConfig) bool {
+	scheduleSpec := jobConfig.Spec.Schedule
+	return scheduleSpec != nil && !scheduleSpec.Disabled
+}

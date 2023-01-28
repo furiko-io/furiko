@@ -17,18 +17,20 @@
 package cmd
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
+	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
+	"github.com/furiko-io/furiko/pkg/utils/sets"
 )
 
 var (
@@ -41,15 +43,27 @@ var (
 )
 
 type ListJobConfigCommand struct {
-	streams   *streams.Streams
-	output    printer.OutputFormat
-	noHeaders bool
-	watch     bool
+	*baseListCommand
+
+	streams         *streams.Streams
+	output          printer.OutputFormat
+	noHeaders       bool
+	scheduled       bool
+	adhocOnly       bool
+	scheduleEnabled bool
+	watch           bool
+
+	// Cached set of job UIDs that were previously filtered in.
+	// If it was displayed before, we don't want to filter it out afterwards.
+	// This is mostly useful for --watch.
+	cachedFiltered sets.String
 }
 
 func NewListJobConfigCommand(streams *streams.Streams) *cobra.Command {
 	c := &ListJobConfigCommand{
-		streams: streams,
+		baseListCommand: newBaseListCommand(),
+		streams:         streams,
+		cachedFiltered:  sets.NewString(),
 	}
 
 	cmd := &cobra.Command{
@@ -61,17 +75,38 @@ func NewListJobConfigCommand(streams *streams.Streams) *cobra.Command {
 		Args:    cobra.ExactArgs(0),
 		RunE: common.RunAllE(
 			c.Complete,
+			c.Validate,
 			c.Run,
 		),
 	}
+
+	cmd.Flags().BoolVar(&c.scheduled, "scheduled", false, "Only return job configs with a schedule.")
+	cmd.Flags().BoolVar(&c.scheduleEnabled, "schedule-enabled", false, "Only return job configs with a schedule and are enabled.")
+	cmd.Flags().BoolVar(&c.adhocOnly, "adhoc-only", false, "Only return job configs without a schedule (i.e. adhoc-only job configs).")
 
 	return cmd
 }
 
 func (c *ListJobConfigCommand) Complete(cmd *cobra.Command, args []string) error {
+	if err := c.baseListCommand.Complete(cmd, args); err != nil {
+		return err
+	}
+
 	c.output = common.GetOutputFormat(cmd)
 	c.noHeaders = common.GetFlagBool(cmd, "no-headers")
 	c.watch = common.GetFlagBool(cmd, "watch")
+
+	return nil
+}
+
+func (c *ListJobConfigCommand) Validate(cmd *cobra.Command, args []string) error {
+	if c.scheduled && c.adhocOnly {
+		return fmt.Errorf("cannot specify --scheduled and --adhoc-only together")
+	}
+	if c.scheduleEnabled && c.adhocOnly {
+		return fmt.Errorf("cannot specify --schedule-enabled and --adhoc-only together")
+	}
+
 	return nil
 }
 
@@ -84,20 +119,31 @@ func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	var options metav1.ListOptions
+
+	// Add selectors.
+	if c.labelSelector != nil {
+		options.LabelSelector = c.labelSelector.String()
+	}
+	if c.fieldSelector != nil {
+		options.FieldSelector = c.fieldSelector.String()
+	}
+
 	jobConfigList, err := client.JobConfigs(namespace).List(ctx, options)
 	if err != nil {
 		return errors.Wrapf(err, "cannot list job configs")
 	}
 
-	if len(jobConfigList.Items) == 0 && !c.watch {
+	items := c.FilterJobConfigs(jobConfigList.Items)
+
+	if len(items) == 0 && !c.watch {
 		c.streams.Printf("No job configs found in %v namespace.\n", namespace)
 		return nil
 	}
 
 	p := printer.NewTablePrinter(c.streams.Out)
 
-	if len(jobConfigList.Items) > 0 {
-		if err := c.PrintJobConfigs(p, jobConfigList); err != nil {
+	if len(items) > 0 {
+		if err := c.PrintJobConfigs(p, items); err != nil {
 			return errors.Wrapf(err, "cannot print jobconfigs")
 		}
 	}
@@ -110,29 +156,25 @@ func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 			return errors.Wrapf(err, "cannot watch jobconfigs")
 		}
 
-		return WatchAndPrint(ctx, watch, func(obj runtime.Object) (bool, error) {
-			if jobConfig, ok := obj.(*execution.JobConfig); ok {
-				return true, c.PrintJobConfig(p, jobConfig)
-			}
-			return false, nil
+		return WatchAndPrint(ctx, watch, nil, func(jobConfig *execution.JobConfig) error {
+			return c.PrintJobConfig(p, jobConfig)
 		})
 	}
 
 	return nil
 }
 
-func (c *ListJobConfigCommand) PrintJobConfigs(p *printer.TablePrinter, jobConfigList *execution.JobConfigList) error {
+func (c *ListJobConfigCommand) PrintJobConfigs(p *printer.TablePrinter, jobConfigs []*execution.JobConfig) error {
 	// Handle pretty print as a special case.
 	if c.output == printer.OutputFormatPretty {
-		c.prettyPrint(p, jobConfigList.Items)
+		c.prettyPrint(p, jobConfigs)
 		return nil
 	}
 
 	// Extract list.
-	items := make([]printer.Object, 0, len(jobConfigList.Items))
-	for _, job := range jobConfigList.Items {
-		job := job
-		items = append(items, &job)
+	items := make([]printer.Object, 0, len(jobConfigs))
+	for _, job := range jobConfigs {
+		items = append(items, job)
 	}
 
 	return printer.PrintObjects(execution.GVKJobConfig, c.output, c.streams.Out, items)
@@ -141,15 +183,14 @@ func (c *ListJobConfigCommand) PrintJobConfigs(p *printer.TablePrinter, jobConfi
 func (c *ListJobConfigCommand) PrintJobConfig(p *printer.TablePrinter, jobConfig *execution.JobConfig) error {
 	// Handle pretty print as a special case.
 	if c.output == printer.OutputFormatPretty {
-		jobConfigList := []execution.JobConfig{*jobConfig}
-		c.prettyPrint(p, jobConfigList)
+		c.prettyPrint(p, []*execution.JobConfig{jobConfig})
 		return nil
 	}
 
 	return printer.PrintObject(execution.GVKJobConfig, c.output, c.streams.Out, jobConfig)
 }
 
-func (c *ListJobConfigCommand) prettyPrint(p *printer.TablePrinter, jobConfigs []execution.JobConfig) {
+func (c *ListJobConfigCommand) prettyPrint(p *printer.TablePrinter, jobConfigs []*execution.JobConfig) {
 	var headers []string
 	if !c.noHeaders {
 		headers = c.makeJobHeader()
@@ -169,11 +210,10 @@ func (c *ListJobConfigCommand) makeJobHeader() []string {
 	}
 }
 
-func (c *ListJobConfigCommand) makeJobRows(jobConfigs []execution.JobConfig) [][]string {
+func (c *ListJobConfigCommand) makeJobRows(jobConfigs []*execution.JobConfig) [][]string {
 	rows := make([][]string, 0, len(jobConfigs))
 	for _, jobConfig := range jobConfigs {
-		jobConfig := jobConfig
-		rows = append(rows, c.makeJobRow(&jobConfig))
+		rows = append(rows, c.makeJobRow(jobConfig))
 	}
 	return rows
 }
@@ -202,4 +242,47 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 		lastScheduled,
 		cronSchedule,
 	}
+}
+
+// FilterJobConfigs returns a filtered list of job configs.
+func (c *ListJobConfigCommand) FilterJobConfigs(jobConfigs []execution.JobConfig) []*execution.JobConfig {
+	filtered := make([]*execution.JobConfig, 0, len(jobConfigs))
+	for _, jobConfig := range jobConfigs {
+		jobConfig := jobConfig.DeepCopy()
+		if c.FilterJobConfig(jobConfig) {
+			filtered = append(filtered, jobConfig)
+		}
+	}
+	return filtered
+}
+
+// FilterJobConfig returns true if the job config is retained in the filter.
+func (c *ListJobConfigCommand) FilterJobConfig(jobConfig *execution.JobConfig) bool {
+	// Check if filtered in, and store in the filter cache.
+	if c.filterJobConfig(jobConfig) {
+		c.cachedFiltered.Insert(string(jobConfig.UID))
+	}
+
+	// Look up exclusively in the filter cache.
+	// If a job config was previously filtered in, we will always allow it to pass in subsequent calls.
+	return c.cachedFiltered.Has(string(jobConfig.UID))
+}
+
+func (c *ListJobConfigCommand) filterJobConfig(jobConfig *execution.JobConfig) bool {
+	// Filter out job configs which are not scheduled.
+	if c.scheduled && jobConfig.Spec.Schedule == nil {
+		return false
+	}
+
+	// Filter out job configs which are scheduled.
+	if c.adhocOnly && jobConfig.Spec.Schedule != nil {
+		return false
+	}
+
+	// Filter out job configs which are not scheduled or are disabled.
+	if c.scheduleEnabled && !jobconfig.IsScheduleEnabled(jobConfig) {
+		return false
+	}
+
+	return true
 }

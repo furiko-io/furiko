@@ -217,6 +217,21 @@ var (
 			},
 		},
 	}
+
+	jobWithLabel = &execution.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "job-with-label",
+			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("job-with-label"),
+			Labels: map[string]string{
+				"labels.furiko.io/test": "value",
+			},
+		},
+		Status: execution.JobStatus{
+			Phase: execution.JobQueued,
+			State: execution.JobStateQueued,
+		},
+	}
 )
 
 func TestGetJobCommand(t *testing.T) {

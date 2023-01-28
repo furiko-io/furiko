@@ -109,6 +109,9 @@ type Output struct {
 
 	// If specified, expects that the output to NOT contain any of the given strings.
 	ExcludesAll []string
+
+	// If non-nil, expects that the number of lines printed matches.
+	NumLines *int
 }
 
 type RunContext struct {
@@ -279,6 +282,16 @@ func (c *CommandTest) checkOutput(t *testing.T, name, s string, output Output) {
 			if !regex.MatchString(s) {
 				t.Errorf(`Output in %v did not match regex "%v", got: %v`, name, regex, s)
 			}
+		}
+	}
+
+	if output.NumLines != nil {
+		numLines := strings.Count(s, "\n")
+		if len(s) > 0 && s[len(s)-1] != '\n' {
+			numLines++
+		}
+		if *output.NumLines != numLines {
+			t.Errorf("Output in %v did not match expected number of lines, wanted %v, got %v: %v", name, *output.NumLines, numLines, s)
 		}
 	}
 }
