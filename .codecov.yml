@@ -1,6 +1,11 @@
 codecov:
   require_ci_to_pass: true
 
+ignore:
+  # Ignore generated files
+  - "pkg/generated"
+  - "**/zz_generated.*.go"
+
 coverage:
   status:
     project:
