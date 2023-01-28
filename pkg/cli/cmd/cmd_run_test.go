@@ -317,6 +317,7 @@ func TestRunCommand(t *testing.T) {
 		{
 			Name:     "created job with --at",
 			Args:     []string{"run", "adhoc-jobconfig", "--at", startTime},
+			Now:      testutils.Mktime(currentTime),
 			Fixtures: []runtime.Object{adhocJobConfig},
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
@@ -332,6 +333,7 @@ func TestRunCommand(t *testing.T) {
 		{
 			Name:      "cannot create job with invalid --at",
 			Args:      []string{"run", "adhoc-jobconfig", "--at", "1234"},
+			Now:       testutils.Mktime(currentTime),
 			Fixtures:  []runtime.Object{adhocJobConfig},
 			WantError: assert.Error,
 		},
@@ -339,6 +341,7 @@ func TestRunCommand(t *testing.T) {
 			Name:     "created job with --at and --concurrency-policy",
 			Args:     []string{"run", "adhoc-jobconfig", "--at", startTime, "--concurrency-policy", "Allow"},
 			Fixtures: []runtime.Object{adhocJobConfig},
+			Now:      testutils.Mktime(currentTime),
 			WantActions: runtimetesting.CombinedActions{
 				Furiko: runtimetesting.ActionTest{
 					Actions: []runtimetesting.Action{
@@ -376,7 +379,21 @@ func TestRunCommand(t *testing.T) {
 		{
 			Name:      "cannot specify both --at and --after",
 			Args:      []string{"run", "adhoc-jobconfig", "--at", startTime, "--after", "3h"},
-			Now:       testutils.Mktime(startTime).Add(-3 * time.Hour),
+			Now:       testutils.Mktime(currentTime),
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:      "cannot specify --at in the past",
+			Args:      []string{"run", "adhoc-jobconfig", "--at", startTime},
+			Now:       testutils.Mktime(taskFinishTime),
+			Fixtures:  []runtime.Object{adhocJobConfig},
+			WantError: assert.Error,
+		},
+		{
+			Name:      "cannot specify --after with negative value",
+			Args:      []string{"run", "adhoc-jobconfig", "--after", "-15m"},
+			Now:       testutils.Mktime(taskFinishTime),
 			Fixtures:  []runtime.Object{adhocJobConfig},
 			WantError: assert.Error,
 		},

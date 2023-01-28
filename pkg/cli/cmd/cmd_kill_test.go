@@ -210,5 +210,25 @@ func TestKillCommand(t *testing.T) {
 				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime2)),
 			},
 		},
+		{
+			Name:      "cannot specify both --at and --after",
+			Args:      []string{"kill", "running-job", "--at", startTime, "--after", "3h"},
+			Fixtures:  []runtime.Object{runningJob},
+			WantError: assert.Error,
+		},
+		{
+			Name:      "cannot specify --at in the past",
+			Args:      []string{"kill", "running-job", "--at", startTime},
+			Now:       testutils.Mktime(taskFinishTime),
+			Fixtures:  []runtime.Object{runningJob},
+			WantError: assert.Error,
+		},
+		{
+			Name:      "cannot specify --after with negative value",
+			Args:      []string{"kill", "running-job", "--after", "-15m"},
+			Now:       testutils.Mktime(taskFinishTime),
+			Fixtures:  []runtime.Object{runningJob},
+			WantError: assert.Error,
+		},
 	})
 }
