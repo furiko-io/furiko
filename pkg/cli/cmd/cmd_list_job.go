@@ -17,11 +17,13 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/common"
@@ -30,6 +32,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
+	"github.com/furiko-io/furiko/pkg/utils/sets"
 )
 
 var (
@@ -45,16 +48,27 @@ var (
 )
 
 type ListJobCommand struct {
+	*baseListCommand
+
 	streams   *streams.Streams
 	jobConfig string
+	states    sets.Set[execution.JobState]
 	output    printer.OutputFormat
 	noHeaders bool
 	watch     bool
+
+	// Cached set of job UIDs that were previously filtered in.
+	// If it was displayed before, we don't want to filter it out afterwards.
+	// This is mostly useful for --watch.
+	cachedFiltered sets.String
 }
 
 func NewListJobCommand(streams *streams.Streams) *cobra.Command {
 	c := &ListJobCommand{
-		streams: streams,
+		baseListCommand: newBaseListCommand(),
+		streams:         streams,
+		states:          sets.New[execution.JobState](),
+		cachedFiltered:  sets.NewString(),
 	}
 
 	cmd := &cobra.Command{
@@ -66,11 +80,16 @@ func NewListJobCommand(streams *streams.Streams) *cobra.Command {
 		Args:    cobra.ExactArgs(0),
 		RunE: common.RunAllE(
 			c.Complete,
+			c.Validate,
 			c.Run,
 		),
 	}
 
 	cmd.Flags().StringVar(&c.jobConfig, "for", "", "Return only jobs for the given job config.")
+	cmd.Flags().Bool("active", false, "Show active jobs (i.e. Waiting/Running), otherwise show all states by default.")
+	cmd.Flags().Bool("running", false, "Show running jobs, otherwise show all states by default.")
+	cmd.Flags().Bool("finished", false, "Show finished jobs, otherwise show all states by default.")
+	cmd.Flags().String("states", "", "Specify a comma-separated list of states to filter jobs by.")
 
 	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
 		{FlagName: "for", Completer: &completion.ListJobConfigsCompleter{}},
@@ -82,9 +101,49 @@ func NewListJobCommand(streams *streams.Streams) *cobra.Command {
 }
 
 func (c *ListJobCommand) Complete(cmd *cobra.Command, args []string) error {
+	if err := c.baseListCommand.Complete(cmd, args); err != nil {
+		return err
+	}
+
 	c.output = common.GetOutputFormat(cmd)
 	c.noHeaders = common.GetFlagBool(cmd, "no-headers")
 	c.watch = common.GetFlagBool(cmd, "watch")
+
+	// Handle --states.
+	if v := common.GetFlagString(cmd, "states"); v != "" {
+		flagStates := strings.Split(v, ",")
+		for _, state := range flagStates {
+			c.states.Insert(execution.JobState(strings.TrimSpace(state)))
+		}
+	}
+
+	// Handle state boolean flags.
+	if common.GetFlagBool(cmd, "active") {
+		c.states.Insert(execution.JobStateWaiting, execution.JobStateRunning)
+	}
+	if common.GetFlagBool(cmd, "running") {
+		c.states.Insert(execution.JobStateRunning)
+	}
+	if common.GetFlagBool(cmd, "finished") {
+		c.states.Insert(execution.JobStateFinished)
+	}
+
+	// Add default states if empty.
+	if c.states.Len() == 0 {
+		c.states.Insert(execution.JobStatesAll...)
+	}
+
+	return nil
+}
+
+func (c *ListJobCommand) Validate(cmd *cobra.Command, args []string) error {
+	// Validate states.
+	for _, state := range c.states.UnsortedList() {
+		if !state.IsValid() {
+			return fmt.Errorf("invalid value for --states: %v is not valid, must be one of %v", state, execution.JobStatesAll)
+		}
+	}
+
 	return nil
 }
 
@@ -104,10 +163,19 @@ func (c *ListJobCommand) Run(cmd *cobra.Command, args []string) error {
 			return errors.Wrapf(err, "cannot get job config %v", c.jobConfig)
 		}
 
-		// Fetch by label.
-		options.LabelSelector = labels.SelectorFromSet(labels.Set{
+		// Add to label selector.
+		requirements, _ := labels.SelectorFromSet(labels.Set{
 			jobconfig.LabelKeyJobConfigUID: string(jobConfig.UID),
-		}).String()
+		}).Requirements()
+		c.labelSelector = c.labelSelector.Add(requirements...)
+	}
+
+	// Add selectors.
+	if c.labelSelector != nil {
+		options.LabelSelector = c.labelSelector.String()
+	}
+	if c.fieldSelector != nil {
+		options.FieldSelector = c.fieldSelector.String()
 	}
 
 	jobList, err := client.Jobs(namespace).List(ctx, options)
@@ -115,15 +183,17 @@ func (c *ListJobCommand) Run(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "cannot list jobs")
 	}
 
-	if len(jobList.Items) == 0 && !c.watch {
+	items := c.FilterJobs(jobList.Items)
+
+	if len(items) == 0 && !c.watch {
 		c.streams.Printf("No jobs found in %v namespace.\n", namespace)
 		return nil
 	}
 
 	p := printer.NewTablePrinter(c.streams.Out)
 
-	if len(jobList.Items) > 0 {
-		if err := c.PrintJobs(p, jobList); err != nil {
+	if len(items) > 0 {
+		if err := c.PrintJobs(p, items); err != nil {
 			return errors.Wrapf(err, "cannot print jobs")
 		}
 	}
@@ -136,29 +206,25 @@ func (c *ListJobCommand) Run(cmd *cobra.Command, args []string) error {
 			return errors.Wrapf(err, "cannot watch jobs")
 		}
 
-		return WatchAndPrint(ctx, watch, func(obj runtime.Object) (bool, error) {
-			if job, ok := obj.(*execution.Job); ok {
-				return true, c.PrintJob(p, job)
-			}
-			return false, nil
+		return WatchAndPrint(ctx, watch, c.FilterJob, func(job *execution.Job) error {
+			return c.PrintJob(p, job)
 		})
 	}
 
 	return nil
 }
 
-func (c *ListJobCommand) PrintJobs(p *printer.TablePrinter, jobList *execution.JobList) error {
+func (c *ListJobCommand) PrintJobs(p *printer.TablePrinter, jobs []*execution.Job) error {
 	// Handle pretty print as a special case.
 	if c.output == printer.OutputFormatPretty {
-		c.prettyPrint(p, jobList.Items)
+		c.prettyPrint(p, jobs)
 		return nil
 	}
 
 	// Extract list.
-	items := make([]printer.Object, 0, len(jobList.Items))
-	for _, job := range jobList.Items {
-		job := job
-		items = append(items, &job)
+	items := make([]printer.Object, 0, len(jobs))
+	for _, job := range jobs {
+		items = append(items, job)
 	}
 
 	return printer.PrintObjects(execution.GVKJob, c.output, c.streams.Out, items)
@@ -167,7 +233,7 @@ func (c *ListJobCommand) PrintJobs(p *printer.TablePrinter, jobList *execution.J
 func (c *ListJobCommand) PrintJob(p *printer.TablePrinter, job *execution.Job) error {
 	// Handle pretty print as a special case.
 	if c.output == printer.OutputFormatPretty {
-		c.prettyPrint(p, []execution.Job{*job})
+		c.prettyPrint(p, []*execution.Job{job})
 		return nil
 	}
 
@@ -184,7 +250,7 @@ func (c *ListJobCommand) makeJobHeader() []string {
 	}
 }
 
-func (c *ListJobCommand) prettyPrint(p *printer.TablePrinter, jobs []execution.Job) {
+func (c *ListJobCommand) prettyPrint(p *printer.TablePrinter, jobs []*execution.Job) {
 	var headers []string
 	if !c.noHeaders {
 		headers = c.makeJobHeader()
@@ -192,11 +258,10 @@ func (c *ListJobCommand) prettyPrint(p *printer.TablePrinter, jobs []execution.J
 	p.Print(headers, c.makeJobRows(jobs))
 }
 
-func (c *ListJobCommand) makeJobRows(jobs []execution.Job) [][]string {
+func (c *ListJobCommand) makeJobRows(jobs []*execution.Job) [][]string {
 	rows := make([][]string, 0, len(jobs))
 	for _, item := range jobs {
-		item := item
-		rows = append(rows, c.makeJobRow(&item))
+		rows = append(rows, c.makeJobRow(item))
 	}
 	return rows
 }
@@ -220,4 +285,34 @@ func (c *ListJobCommand) makeJobRow(job *execution.Job) []string {
 		runTime,
 		finishTime,
 	}
+}
+
+// FilterJobs returns a filtered list of jobs.
+func (c *ListJobCommand) FilterJobs(jobs []execution.Job) []*execution.Job {
+	filtered := make([]*execution.Job, 0, len(jobs))
+	for _, job := range jobs {
+		job := job.DeepCopy()
+		if c.FilterJob(job) {
+			filtered = append(filtered, job)
+		}
+	}
+
+	return filtered
+}
+
+// FilterJob returns true if the job is retained in the filter.
+func (c *ListJobCommand) FilterJob(job *execution.Job) bool {
+	// Check if filtered in, and store in the filter cache.
+	if c.filterJob(job) {
+		c.cachedFiltered.Insert(string(job.UID))
+	}
+
+	// Look up exclusively in the filter cache.
+	// If a job was previously filtered in, we will always allow it to pass in subsequent calls.
+	return c.cachedFiltered.Has(string(job.UID))
+}
+
+// filterJob contains the actual filter logic, and returns true if the job should be filtered in.
+func (c *ListJobCommand) filterJob(job *execution.Job) bool {
+	return c.states.Has(job.Status.State)
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/common"
@@ -41,6 +40,8 @@ var (
 )
 
 type ListJobConfigCommand struct {
+	*baseListCommand
+
 	streams   *streams.Streams
 	output    printer.OutputFormat
 	noHeaders bool
@@ -49,7 +50,8 @@ type ListJobConfigCommand struct {
 
 func NewListJobConfigCommand(streams *streams.Streams) *cobra.Command {
 	c := &ListJobConfigCommand{
-		streams: streams,
+		baseListCommand: newBaseListCommand(),
+		streams:         streams,
 	}
 
 	cmd := &cobra.Command{
@@ -69,9 +71,14 @@ func NewListJobConfigCommand(streams *streams.Streams) *cobra.Command {
 }
 
 func (c *ListJobConfigCommand) Complete(cmd *cobra.Command, args []string) error {
+	if err := c.baseListCommand.Complete(cmd, args); err != nil {
+		return err
+	}
+
 	c.output = common.GetOutputFormat(cmd)
 	c.noHeaders = common.GetFlagBool(cmd, "no-headers")
 	c.watch = common.GetFlagBool(cmd, "watch")
+
 	return nil
 }
 
@@ -84,6 +91,15 @@ func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	var options metav1.ListOptions
+
+	// Add selectors.
+	if c.labelSelector != nil {
+		options.LabelSelector = c.labelSelector.String()
+	}
+	if c.fieldSelector != nil {
+		options.FieldSelector = c.fieldSelector.String()
+	}
+
 	jobConfigList, err := client.JobConfigs(namespace).List(ctx, options)
 	if err != nil {
 		return errors.Wrapf(err, "cannot list job configs")
@@ -110,11 +126,8 @@ func (c *ListJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 			return errors.Wrapf(err, "cannot watch jobconfigs")
 		}
 
-		return WatchAndPrint(ctx, watch, func(obj runtime.Object) (bool, error) {
-			if jobConfig, ok := obj.(*execution.JobConfig); ok {
-				return true, c.PrintJobConfig(p, jobConfig)
-			}
-			return false, nil
+		return WatchAndPrint(ctx, watch, nil, func(jobConfig *execution.JobConfig) error {
+			return c.PrintJobConfig(p, jobConfig)
 		})
 	}
 
