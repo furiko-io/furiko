@@ -72,12 +72,13 @@ func NewRootCommand(streams *streams.Streams) *cobra.Command {
 		common.Fatal(err, common.DefaultErrorExitCode)
 	}
 
-	cmd.AddCommand(NewGetCommand(streams))
-	cmd.AddCommand(NewListCommand(streams))
-	cmd.AddCommand(NewRunCommand(streams))
-	cmd.AddCommand(NewKillCommand(streams))
-	cmd.AddCommand(NewEnableCommand(streams))
 	cmd.AddCommand(NewDisableCommand(streams))
+	cmd.AddCommand(NewEnableCommand(streams))
+	cmd.AddCommand(NewGetCommand(streams))
+	cmd.AddCommand(NewKillCommand(streams))
+	cmd.AddCommand(NewListCommand(streams))
+	cmd.AddCommand(NewLogsCommand(streams))
+	cmd.AddCommand(NewRunCommand(streams))
 
 	return cmd
 }

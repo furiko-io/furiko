@@ -163,6 +163,15 @@ func GetFlagString(cmd *cobra.Command, flag string) string {
 	return v
 }
 
+// GetFlagInt64 gets the int64 value of a flag.
+func GetFlagInt64(cmd *cobra.Command, flag string) int64 {
+	v, err := cmd.Flags().GetInt64(flag)
+	if err != nil {
+		klog.Fatalf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
+	}
+	return v
+}
+
 // PrepareExample replaces the root command name and indents all lines.
 func PrepareExample(example string) string {
 	example = strings.TrimPrefix(example, "\n")
