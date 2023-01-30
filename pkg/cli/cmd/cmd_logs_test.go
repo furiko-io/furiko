@@ -88,7 +88,7 @@ func TestLogsCommand(t *testing.T) {
 			Name:      "invalid --index",
 			Args:      []string{"logs", "job-parallel", "--index", "{}"},
 			Fixtures:  []runtime.Object{jobParallel},
-			WantError: assert.Error,
+			WantError: testutils.AssertErrorContains("invalid"),
 		},
 		{
 			Name:     "use --index to get logs for a parallel job",
@@ -112,9 +112,9 @@ func TestLogsCommand(t *testing.T) {
 		},
 		{
 			Name:      "invalid --retry-index",
-			Args:      []string{"logs", "job-parallel", "--index", "asd"},
+			Args:      []string{"logs", "job-parallel", "--retry-index", "asd"},
 			Fixtures:  []runtime.Object{jobParallel},
-			WantError: assert.Error,
+			WantError: testutils.AssertErrorContains("invalid"),
 		},
 		{
 			Name:      "cannot get logs when --retry-index is out of range for non-parallel job",
