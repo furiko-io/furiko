@@ -317,6 +317,39 @@ var (
 			LastScheduled: &lastScheduleTime,
 		},
 	}
+
+	multiCronJobConfig = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "multi-cron-job-config",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expressions: []string{
+						"0/5 10-18 * * *",
+						"0 0-9,19-23 * * *",
+					},
+				},
+			},
+		},
+	}
+
+	multiCronJobConfigWithOverlap = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "multi-cron-job-config-with-overlap",
+		},
+		Spec: execution.JobConfigSpec{
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expressions: []string{
+						"0/5 10-18 * * *", // every 5 minutes from 10-18th hour
+						"0 * * * *",       // every hour otherwise, note the overlap with 10:00-18:00 on the 0th minute
+						"0/5 10-18 * * *", // repeated expression
+					},
+				},
+			},
+		},
+	}
 )
 
 type JobConfigSchedule struct {
@@ -677,6 +710,54 @@ func TestSchedule_Sequence(t *testing.T) {
 				testutils.Mktime("2021-02-09T04:07:00Z"),
 				testutils.Mktime("2021-02-09T04:08:00Z"),
 				{}, // no more
+			},
+		},
+		{
+			name:      "Support multiple cron expressions",
+			jobConfig: multiCronJobConfig,
+			fromTime:  testutils.Mktime("2021-02-09T18:47:35Z"),
+			cases: []time.Time{
+				testutils.Mktime("2021-02-09T18:50:00Z"),
+				testutils.Mktime("2021-02-09T18:55:00Z"),
+				testutils.Mktime("2021-02-09T19:00:00Z"),
+				testutils.Mktime("2021-02-09T20:00:00Z"),
+				testutils.Mktime("2021-02-09T21:00:00Z"),
+			},
+		},
+		{
+			name:      "Support multiple cron expressions #2",
+			jobConfig: multiCronJobConfig,
+			fromTime:  testutils.Mktime("2021-02-09T07:59:59Z"),
+			cases: []time.Time{
+				testutils.Mktime("2021-02-09T08:00:00Z"),
+				testutils.Mktime("2021-02-09T09:00:00Z"),
+				testutils.Mktime("2021-02-09T10:00:00Z"),
+				testutils.Mktime("2021-02-09T10:05:00Z"),
+				testutils.Mktime("2021-02-09T10:10:00Z"),
+			},
+		},
+		{
+			name:      "Do not repeat overlapping cron expressions",
+			jobConfig: multiCronJobConfigWithOverlap,
+			fromTime:  testutils.Mktime("2021-02-09T18:47:35Z"),
+			cases: []time.Time{
+				testutils.Mktime("2021-02-09T18:50:00Z"),
+				testutils.Mktime("2021-02-09T18:55:00Z"),
+				testutils.Mktime("2021-02-09T19:00:00Z"),
+				testutils.Mktime("2021-02-09T20:00:00Z"),
+				testutils.Mktime("2021-02-09T21:00:00Z"),
+			},
+		},
+		{
+			name:      "Do not repeat overlapping cron expressions #2",
+			jobConfig: multiCronJobConfigWithOverlap,
+			fromTime:  testutils.Mktime("2021-02-09T07:59:59Z"),
+			cases: []time.Time{
+				testutils.Mktime("2021-02-09T08:00:00Z"),
+				testutils.Mktime("2021-02-09T09:00:00Z"),
+				testutils.Mktime("2021-02-09T10:00:00Z"),
+				testutils.Mktime("2021-02-09T10:05:00Z"),
+				testutils.Mktime("2021-02-09T10:10:00Z"),
 			},
 		},
 	}

@@ -33,7 +33,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/core/options"
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
 	"github.com/furiko-io/furiko/pkg/core/validation"
-	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
+	"github.com/furiko-io/furiko/pkg/execution/util/cron"
 	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	executionlister "github.com/furiko-io/furiko/pkg/generated/listers/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
@@ -247,8 +247,21 @@ func (v *Validator) ValidateScheduleSpec(spec *v1alpha1.ScheduleSpec, fldPath *f
 // ValidateCronSchedule validates a *v1alpha1.CronSchedule.
 func (v *Validator) ValidateCronSchedule(spec *v1alpha1.CronSchedule, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
+	var expressionFields int
 	if len(spec.Expression) > 0 {
+		expressionFields++
 		allErrs = append(allErrs, v.ValidateCronScheduleExpression(spec.Expression, fldPath.Child("expression"))...)
+	}
+	if len(spec.Expressions) > 0 {
+		expressionFields++
+		for i, expression := range spec.Expressions {
+			allErrs = append(allErrs, v.ValidateCronScheduleExpression(expression, fldPath.Child("expressions").Index(i))...)
+		}
+	}
+	if expressionFields == 0 {
+		allErrs = append(allErrs, field.Required(fldPath, "expression is required"))
+	} else if expressionFields > 1 {
+		allErrs = append(allErrs, field.TooMany(fldPath, expressionFields, 1))
 	}
 	if len(spec.Timezone) > 0 {
 		allErrs = append(allErrs, v.ValidateTimezone(spec.Timezone, fldPath.Child("timezone"))...)
@@ -283,7 +296,7 @@ func (v *Validator) ValidateCronScheduleExpression(cronSchedule string, fldPath 
 		allErrs = append(allErrs, field.InternalError(fldPath, errors.Wrapf(err, "cannot load cron config")))
 		return allErrs
 	}
-	parser := cronparser.NewParser(cfg)
+	parser := cron.NewParserFromConfig(cfg)
 
 	// Ok to use an empty hash ID for validation.
 	if _, err := parser.Parse(cronSchedule, ""); err != nil {

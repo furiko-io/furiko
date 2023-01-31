@@ -115,6 +115,31 @@ var (
 			LastExecuted:  testutils.Mkmtimep("2022-01-01T03:14:00Z"),
 		},
 	}
+
+	multiCronJobConfig = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "multicron-jobconfig",
+			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("multicron-jobconfig"),
+		},
+		Spec: execution.JobConfigSpec{
+			Concurrency: execution.ConcurrencySpec{
+				Policy: execution.ConcurrencyPolicyForbid,
+			},
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expressions: []string{
+						"H/5 10-18 * * *",
+						"H 0-9,19-23 * * *",
+					},
+					Timezone: "Asia/Singapore",
+				},
+			},
+		},
+		Status: execution.JobConfigStatus{
+			State: execution.JobConfigReadyEnabled,
+		},
+	}
 )
 
 func TestGetJobConfigCommand(t *testing.T) {
@@ -191,6 +216,19 @@ func TestGetJobConfigCommand(t *testing.T) {
 				ContainsAll: []string{
 					"jobconfig.execution.furiko.io/periodic-jobconfig",
 					"jobconfig.execution.furiko.io/adhoc-jobconfig",
+				},
+			},
+		},
+		{
+			Name: "print multiple cron expressions",
+			Args: []string{"get", "jobconfig", "multicron-jobconfig"},
+			Fixtures: []runtime.Object{
+				multiCronJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					multiCronJobConfig.Spec.Schedule.Cron.Expressions[0],
+					multiCronJobConfig.Spec.Schedule.Cron.Expressions[1],
 				},
 			},
 		},

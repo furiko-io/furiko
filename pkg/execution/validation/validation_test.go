@@ -146,8 +146,10 @@ var (
 		Expression: "H 10 * * *",
 	}
 
+	invalidCronExpression = "500 10 * * *"
+
 	cronScheduleInvalidExpression = v1alpha1.CronSchedule{
-		Expression: "500 10 * * *",
+		Expression: invalidCronExpression,
 		Timezone:   "Asia/Singapore",
 	}
 
@@ -355,6 +357,54 @@ func TestValidateJobConfig(t *testing.T) {
 				},
 			},
 			wantErr: "spec.schedule.cron.expression: Invalid value: \"500 10 * * *\": cannot parse cron schedule",
+		},
+		{
+			name: "invalid schedule.cron.expressions",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Template:    jobTemplateSpecBasic,
+					Concurrency: concurrencySpecBasic,
+					Schedule: &v1alpha1.ScheduleSpec{
+						Cron: &v1alpha1.CronSchedule{
+							Expressions: []string{
+								invalidCronExpression,
+							},
+						},
+					},
+				},
+			},
+			wantErr: "spec.schedule.cron.expressions[0]: Invalid value: \"500 10 * * *\": cannot parse cron schedule",
+		},
+		{
+			name: "no expression specified",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Template:    jobTemplateSpecBasic,
+					Concurrency: concurrencySpecBasic,
+					Schedule: &v1alpha1.ScheduleSpec{
+						Cron: &v1alpha1.CronSchedule{},
+					},
+				},
+			},
+			wantErr: "spec.schedule.cron: Required value: expression is required",
+		},
+		{
+			name: "too many expressions specified",
+			rjc: &v1alpha1.JobConfig{
+				Spec: v1alpha1.JobConfigSpec{
+					Template:    jobTemplateSpecBasic,
+					Concurrency: concurrencySpecBasic,
+					Schedule: &v1alpha1.ScheduleSpec{
+						Cron: &v1alpha1.CronSchedule{
+							Expression: "* * * * *",
+							Expressions: []string{
+								"* * * * *",
+							},
+						},
+					},
+				},
+			},
+			wantErr: "spec.schedule.cron: Too many: 2: must have at most 1 items",
 		},
 		{
 			name: "invalid schedule.cron.timezone",

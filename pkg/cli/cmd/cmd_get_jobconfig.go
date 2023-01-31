@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -35,7 +36,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/config"
-	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
+	"github.com/furiko-io/furiko/pkg/execution/util/cron"
 )
 
 var (
@@ -203,7 +204,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(
 	}
 
 	if cron := schedule.Cron; cron != nil {
-		result = append(result, []string{"Cron Expression", cron.Expression})
+		result = append(result, []string{"Cron Expressions", fmt.Sprintf("%v", cron.GetExpressions())})
 		result = append(result, []string{"Cron Timezone", cron.Timezone})
 	}
 
@@ -215,7 +216,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(
 	// Here we evaluate the next schedule as a convenience to the user. Note that is
 	// very likely just an approximation, since many factors influence the actual
 	// time that the next job is scheduled.
-	if !schedule.Disabled && schedule.Cron != nil && schedule.Cron.Expression != "" {
+	if !schedule.Disabled && schedule.Cron != nil && len(schedule.Cron.GetExpressions()) > 0 {
 		resp, err := c.prettyPrintNextSchedule(ctx, cmd, jobConfig)
 		if err != nil {
 			return nil, err
@@ -253,9 +254,9 @@ func (c *GetJobConfigCommand) prettyPrintNextSchedule(
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get namespaced name")
 	}
-	expr, err := cronparser.NewParser(cfg).Parse(schedule.Cron.Expression, hashID)
+	expr, err := cron.NewExpressionFromCronSchedule(schedule.Cron, cron.NewParserFromConfig(cfg), hashID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot parse cron expression: %v", schedule.Cron.Expression)
+		return nil, errors.Wrapf(err, "cannot parse cron schedule")
 	}
 
 	nextSchedule := "Never"

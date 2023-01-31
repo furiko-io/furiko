@@ -34,6 +34,7 @@ func DurationMin(a, b time.Duration) time.Duration {
 	return b
 }
 
+// Max returns the larger time.
 func Max(a, b time.Time) time.Time {
 	if a.Before(b) {
 		return b
@@ -41,6 +42,7 @@ func Max(a, b time.Time) time.Time {
 	return a
 }
 
+// Min returns the smaller time.
 func Min(a, b time.Time) time.Time {
 	if a.Before(b) {
 		return a
@@ -48,9 +50,15 @@ func Min(a, b time.Time) time.Time {
 	return b
 }
 
+// MinNonZero returns the minimum of two times that are non-zero.
+// That is, if either a or b is zero time, then the other time is returned.
+// If both times are zero times, then the zero time is still returned.
 func MinNonZero(a, b time.Time) time.Time {
 	if a.IsZero() {
 		return b
+	}
+	if b.IsZero() {
+		return a
 	}
 	return Min(a, b)
 }

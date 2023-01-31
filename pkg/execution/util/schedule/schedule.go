@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/furiko-io/cronexpr"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -30,7 +29,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/core/tzutils"
-	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
+	"github.com/furiko-io/furiko/pkg/execution/util/cron"
 	"github.com/furiko-io/furiko/pkg/utils/heap"
 )
 
@@ -65,7 +64,7 @@ func New(jobConfigs []*execution.JobConfig, options ...Option) (*Schedule, error
 	}
 
 	now := sched.clock.Now()
-	parser := cronparser.NewParser(cronCfg)
+	parser := cron.NewParserFromConfig(cronCfg)
 	items := make([]*heap.Item, 0, len(jobConfigs))
 	for _, jobConfig := range jobConfigs {
 		item, err := sched.newItem(jobConfig, cronCfg, parser, now)
@@ -145,7 +144,7 @@ func (s *Schedule) Bump(jobConfig *execution.JobConfig, fromTime time.Time) (tim
 		return next, errors.Wrapf(err, "cannot load cron config")
 	}
 
-	parser := cronparser.NewParser(cronCfg)
+	parser := cron.NewParserFromConfig(cronCfg)
 	expr, timezone, err := s.parseCronAndTimezone(jobConfig, parser)
 	if err != nil {
 		return next, err
@@ -187,7 +186,7 @@ func (s *Schedule) Bump(jobConfig *execution.JobConfig, fromTime time.Time) (tim
 func (s *Schedule) newItem(
 	jobConfig *execution.JobConfig,
 	cfg *configv1alpha1.CronExecutionConfig,
-	parser *cronparser.Parser,
+	parser *cron.Parser,
 	now time.Time,
 ) (*heap.Item, error) {
 	expr, timezone, err := s.parseCronAndTimezone(jobConfig, parser)
@@ -222,10 +221,10 @@ func (s *Schedule) newItem(
 
 func (s *Schedule) parseCronAndTimezone(
 	jobConfig *execution.JobConfig,
-	parser *cronparser.Parser,
-) (*cronexpr.Expression, *time.Location, error) {
+	parser *cron.Parser,
+) (cron.Expression, *time.Location, error) {
 	schedule := jobConfig.Spec.Schedule
-	if schedule == nil || schedule.Disabled || schedule.Cron == nil || schedule.Cron.Expression == "" {
+	if schedule == nil || schedule.Disabled || schedule.Cron == nil {
 		return nil, nil, nil
 	}
 
@@ -239,9 +238,9 @@ func (s *Schedule) parseCronAndTimezone(
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "cannot get namespaced name for jobconfig %v", jobConfig)
 	}
-	expr, err := parser.Parse(schedule.Cron.Expression, name)
+	expr, err := cron.NewExpressionFromCronSchedule(schedule.Cron, parser, name)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "cannot parse cron schedule: %v", schedule.Cron.Expression)
+		return nil, nil, errors.Wrapf(err, "cannot parse cron schedule")
 	}
 
 	// Get time in configured timezone.
@@ -303,7 +302,7 @@ func getInitialTimeForScheduling(
 // getNext is a helper function that evaluates the next closest time immediately
 // following popTime, such that it complies with the constraints of the
 // JobConfig's schedule.
-func getNext(jobConfig *execution.JobConfig, expr *cronexpr.Expression, fromTime time.Time) time.Time {
+func getNext(jobConfig *execution.JobConfig, expr cron.Expression, fromTime time.Time) time.Time {
 	next := expr.Next(fromTime)
 
 	// Cannot schedule after NotAfter.

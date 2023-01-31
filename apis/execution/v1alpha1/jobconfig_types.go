@@ -103,7 +103,24 @@ type CronSchedule struct {
 	// parse between 5 to 7 tokens.
 	//
 	// More information: https://github.com/furiko-io/cronexpr
-	Expression string `json:"expression"`
+	//
+	// +optional
+	Expression string `json:"expression,omitempty"`
+
+	// List of cron expressions to specify how the JobConfig will be periodically scheduled.
+	//
+	// Take for example a requirement to schedule a job every day at 3AM, 3:30AM and 4AM.
+	// There is no way to represent this with a single cron expression, but we could do so
+	// with two cron expressions:
+	//
+	// 	0/30 3 * * *
+	// 	0 4 * * *
+	//
+	// Exactly one of Expression or Expressions must be specified.
+	// If two expressions fall on the same time, only one of them will take effect.
+	//
+	// +optional
+	Expressions []string `json:"expressions,omitempty"`
 
 	// Timezone to interpret the cron schedule in. For example, a cron schedule of
 	// "0 10 * * *" with a timezone of "Asia/Singapore" will be interpreted as
@@ -124,6 +141,17 @@ type CronSchedule struct {
 	//
 	// +optional
 	Timezone string `json:"timezone,omitempty"`
+}
+
+// GetExpressions returns zero or more cron expressions for the CronSchedule.
+func (c *CronSchedule) GetExpressions() []string {
+	var expressions []string
+	if c.Expression != "" {
+		expressions = append(expressions, c.Expression)
+	} else if len(c.Expressions) > 0 {
+		expressions = append(expressions, c.Expressions...)
+	}
+	return expressions
 }
 
 // ScheduleContraints defines constraints for automatic scheduling.
