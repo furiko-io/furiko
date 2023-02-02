@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package schedule
+package cronschedule
 
 import (
 	"fmt"

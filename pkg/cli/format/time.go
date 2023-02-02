@@ -71,6 +71,9 @@ var (
 	}
 )
 
+// TimeFormatFunc is a function that formats a given *metav1.Time into a string format.
+type TimeFormatFunc func(t *metav1.Time) string
+
 // TimeAgo formats a time as a string representing the duration since the
 // given time.
 func TimeAgo(t *metav1.Time) string {
