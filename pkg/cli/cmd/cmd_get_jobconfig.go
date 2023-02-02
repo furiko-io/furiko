@@ -18,8 +18,8 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -203,9 +203,11 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(
 		{"Enabled", strconv.FormatBool(!schedule.Disabled)},
 	}
 
-	if cron := schedule.Cron; cron != nil {
-		result = append(result, []string{"Cron Expressions", fmt.Sprintf("%v", cron.GetExpressions())})
-		result = append(result, []string{"Cron Timezone", cron.Timezone})
+	if cronSchedule := schedule.Cron; cronSchedule != nil {
+		result = append(result, []string{"Cron Expression(s)", strings.Join(schedule.Cron.GetExpressions(), "\n")})
+		if cronSchedule.Timezone != "" {
+			result = append(result, []string{"Cron Timezone", cronSchedule.Timezone})
+		}
 	}
 
 	if constraints := schedule.Constraints; constraints != nil {

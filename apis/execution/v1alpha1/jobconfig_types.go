@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -120,7 +121,7 @@ type CronSchedule struct {
 	// If two expressions fall on the same time, only one of them will take effect.
 	//
 	// +optional
-	Expressions []string `json:"expressions,omitempty"`
+	Expressions CronExpressionList `json:"expressions,omitempty"`
 
 	// Timezone to interpret the cron schedule in. For example, a cron schedule of
 	// "0 10 * * *" with a timezone of "Asia/Singapore" will be interpreted as
@@ -144,7 +145,7 @@ type CronSchedule struct {
 }
 
 // GetExpressions returns zero or more cron expressions for the CronSchedule.
-func (c *CronSchedule) GetExpressions() []string {
+func (c *CronSchedule) GetExpressions() CronExpressionList {
 	var expressions []string
 	if c.Expression != "" {
 		expressions = append(expressions, c.Expression)
@@ -152,6 +153,23 @@ func (c *CronSchedule) GetExpressions() []string {
 		expressions = append(expressions, c.Expressions...)
 	}
 	return expressions
+}
+
+// CronExpressionList represents a list of cron expressions.
+type CronExpressionList []string
+
+func (c CronExpressionList) String() string {
+	if len(c) == 0 {
+		return ""
+	}
+	if len(c) == 1 {
+		return c[0]
+	}
+	strs := make([]string, 0, len(c))
+	for _, exp := range c {
+		strs = append(strs, fmt.Sprintf(`"%v"`, exp))
+	}
+	return strings.Join(strs, ", ")
 }
 
 // ScheduleContraints defines constraints for automatic scheduling.

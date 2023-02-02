@@ -224,7 +224,7 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 	lastScheduled := ""
 
 	if schedule := jobConfig.Spec.Schedule; schedule != nil && schedule.Cron != nil {
-		cronSchedule = fmt.Sprintf("%v", schedule.Cron.GetExpressions())
+		cronSchedule = schedule.Cron.GetExpressions().String()
 	}
 	if !jobConfig.Status.LastExecuted.IsZero() {
 		lastExecuted = format.TimeAgo(jobConfig.Status.LastExecuted)
