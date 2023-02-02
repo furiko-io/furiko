@@ -24,6 +24,10 @@ spec:
         # Every 2 hours otherwise (00:00, 02:00, ..., 08:00, 20:00, 22:00)
         - '0 0/2 * * *'
 
+      # Note that the above cron expressions are subject to the following timezone.
+      # If not specified, the default timezone in the Dynamic Config will be used.
+      timezone: "Asia/Singapore"
+
   concurrency:
     # Even though the concurrency policy is Allow, we can see that a Job
     # will only be scheduled once for any overlapping timestamps.
