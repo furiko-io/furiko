@@ -72,9 +72,8 @@ func (c *defaultProvider) MakeVariablesFromJobConfig(rjc *execution.JobConfig) m
 	}
 
 	// Add ScheduleSpec-related variables.
-	// TODO(irvinlim):
-	//  These are now no longer supported with the introduction of multiple cron expressions.
-	// 	Consider reintroducing them after further consideration.
+	// TODO(irvinlim): These are now no longer supported with the introduction of multiple cron expressions.
+	//  Consider reintroducing them after further consideration.
 	// if spec := rjc.Spec.Schedule; spec != nil && spec.Cron != nil {
 	// 	subs["jobconfig.cron_schedule"] = spec.Cron.Expression
 	// 	subs["jobconfig.cron_timezone"] = spec.Cron.Timezone
