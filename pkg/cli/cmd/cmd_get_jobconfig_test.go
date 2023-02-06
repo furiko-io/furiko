@@ -17,6 +17,7 @@
 package cmd_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -206,6 +207,27 @@ func TestGetJobConfigCommand(t *testing.T) {
 					"Asia/Singapore",
 					// Next scheduled time
 					"in 2m",
+				},
+			},
+		},
+		{
+			Name:     "get a single adhoc jobconfig, pretty print",
+			Args:     []string{"get", "jobconfig", "adhoc-jobconfig"},
+			Fixtures: []runtime.Object{adhocJobConfig},
+			Now:      testutils.Mktime(currentTime),
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					adhocJobConfig.GetName(),
+					adhocJobConfig.GetNamespace(),
+					string(adhocJobConfig.Status.State),
+				},
+				MatchesAll: []*regexp.Regexp{
+					// Format last scheduled correctly
+					regexp.MustCompile(`Last Scheduled:\s+Never`),
+				},
+				ExcludesAll: []string{
+					// Cannot show next schedule
+					"Next Schedule",
 				},
 			},
 		},
