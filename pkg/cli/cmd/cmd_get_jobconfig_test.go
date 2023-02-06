@@ -190,13 +190,22 @@ func TestGetJobConfigCommand(t *testing.T) {
 			Name:     "get a single jobconfig, pretty print",
 			Args:     []string{"get", "jobconfig", "periodic-jobconfig"},
 			Fixtures: []runtime.Object{periodicJobConfig},
+			Now:      testutils.Mktime(currentTime),
 			Stdout: runtimetesting.Output{
 				// We expect some important information to be printed in the output.
 				ContainsAll: []string{
+					// Name
 					periodicJobConfig.GetName(),
+					// Namespace
+					periodicJobConfig.GetNamespace(),
+					// Current state
 					string(periodicJobConfig.Status.State),
+					// Cron expression
 					"H/5 * * * *",
+					// Cron timezone
 					"Asia/Singapore",
+					// Next scheduled time
+					"in 2m",
 				},
 			},
 		},

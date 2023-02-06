@@ -227,22 +227,12 @@ func (c *ListJobConfigCommand) makeJobRows(jobConfigs []*execution.JobConfig) []
 }
 
 func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []string {
-	cronSchedule := ""
-	lastExecuted := ""
-	lastScheduled := ""
-	nextSchedule := "Never"
-
+	var cronSchedule, nextSchedule string
 	if schedule := jobConfig.Spec.Schedule; schedule != nil && schedule.Cron != nil {
 		cronSchedule = schedule.Cron.GetExpressions().String()
-		if next, err := FormatNextSchedule(jobConfig, c.cronParser, formatter.FormatTimeAgo); err == nil {
+		if next, err := format.NextScheduleForJobConfig(jobConfig, c.cronParser, format.TimeAgo); err == nil {
 			nextSchedule = next
 		}
-	}
-	if !jobConfig.Status.LastExecuted.IsZero() {
-		lastExecuted = format.TimeAgo(jobConfig.Status.LastExecuted)
-	}
-	if !jobConfig.Status.LastScheduled.IsZero() {
-		lastScheduled = format.TimeAgo(jobConfig.Status.LastScheduled)
 	}
 
 	return []string{
@@ -250,8 +240,8 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 		string(jobConfig.Status.State),
 		strconv.Itoa(int(jobConfig.Status.Active)),
 		strconv.Itoa(int(jobConfig.Status.Queued)),
-		lastExecuted,
-		lastScheduled,
+		format.TimeAgo(jobConfig.Status.LastExecuted),
+		format.TimeAgo(jobConfig.Status.LastScheduled),
 		cronSchedule,
 		nextSchedule,
 	}

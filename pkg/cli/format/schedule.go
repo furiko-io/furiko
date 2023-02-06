@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cmd
+package format
 
 import (
 	"github.com/pkg/errors"
@@ -22,21 +22,23 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
 	"github.com/furiko-io/furiko/pkg/execution/util/cron"
 	"github.com/furiko-io/furiko/pkg/execution/util/schedule"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 )
 
-// FormatNextSchedule formats a JobConfig's next schedule.
-func FormatNextSchedule(
+// NextScheduleForJobConfig formats a JobConfig's next schedule with the given cron parser.
+func NextScheduleForJobConfig(
 	jobConfig *execution.JobConfig,
 	cronParser *cron.Parser,
-	format formatter.TimeFormatFunc,
+	format TimeFormatFunc,
+	opts ...Option,
 ) (string, error) {
-	nextSchedule := "Never"
+	cfg := parseConfigFromOptions(opts)
+
+	nextSchedule := cfg.DefaultValue
 	if format == nil {
-		format = formatter.FormatTime
+		format = Time
 	}
 
 	hashID, err := cache.MetaNamespaceKeyFunc(jobConfig)

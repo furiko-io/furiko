@@ -218,7 +218,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(jobConfig *execution.
 }
 
 func (c *GetJobConfigCommand) prettyPrintNextSchedule(jobConfig *execution.JobConfig) ([][]string, error) {
-	next, err := FormatNextSchedule(jobConfig, c.cronParser, format.TimeAgo)
+	next, err := format.NextScheduleForJobConfig(jobConfig, c.cronParser, format.TimeAgo, format.WithDefaultValue("Never"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot format next schedule time")
 	}
@@ -226,22 +226,11 @@ func (c *GetJobConfigCommand) prettyPrintNextSchedule(jobConfig *execution.JobCo
 }
 
 func (c *GetJobConfigCommand) prettyPrintJobConfigStatus(jobConfig *execution.JobConfig) [][]string {
-	result := [][]string{
+	return [][]string{
 		{"State", string(jobConfig.Status.State)},
 		{"Queued Jobs", strconv.Itoa(int(jobConfig.Status.Queued))},
 		{"Active Jobs", strconv.Itoa(int(jobConfig.Status.Active))},
+		{"Last Scheduled", format.TimeWithTimeAgo(jobConfig.Status.LastScheduled, format.WithDefaultValue("Never"))},
+		{"Last Executed", format.TimeWithTimeAgo(jobConfig.Status.LastExecuted, format.WithDefaultValue("Never"))},
 	}
-
-	lastScheduled := "Never"
-	lastExecuted := "Never"
-	if t := jobConfig.Status.LastScheduled; !t.IsZero() {
-		lastScheduled = format.TimeWithTimeAgo(t)
-	}
-	if t := jobConfig.Status.LastExecuted; !t.IsZero() {
-		lastExecuted = format.TimeWithTimeAgo(t)
-	}
-	result = append(result, []string{"Last Scheduled", lastScheduled})
-	result = append(result, []string{"Last Executed", lastExecuted})
-
-	return result
 }
