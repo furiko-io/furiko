@@ -31,7 +31,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/completion"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/config"
@@ -178,7 +178,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigMetadata(jobConfig *execution.
 	return [][]string{
 		{"Name", jobConfig.Name},
 		{"Namespace", jobConfig.Namespace},
-		{"Created", formatter.FormatTimeWithTimeAgo(&jobConfig.CreationTimestamp)},
+		{"Created", format.TimeWithTimeAgo(&jobConfig.CreationTimestamp)},
 	}
 }
 
@@ -262,7 +262,7 @@ func (c *GetJobConfigCommand) prettyPrintNextSchedule(
 	next := expr.Next(time.Now())
 	if !next.IsZero() {
 		t := metav1.NewTime(next)
-		nextSchedule = formatter.FormatTimeWithTimeAgo(&t)
+		nextSchedule = format.TimeWithTimeAgo(&t)
 	}
 
 	return [][]string{{"Next Schedule", nextSchedule}}, nil
@@ -277,7 +277,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigStatus(jobConfig *execution.Jo
 
 	lastScheduled := "Never"
 	if t := jobConfig.Status.LastScheduled; !t.IsZero() {
-		lastScheduled = formatter.FormatTimeWithTimeAgo(t)
+		lastScheduled = format.TimeWithTimeAgo(t)
 	}
 	result = append(result, []string{"Last Scheduled", lastScheduled})
 

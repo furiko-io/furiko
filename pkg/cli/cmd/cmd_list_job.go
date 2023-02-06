@@ -28,7 +28,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/completion"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
@@ -268,15 +268,15 @@ func (c *ListJobCommand) makeJobRows(jobs []*execution.Job) [][]string {
 }
 
 func (c *ListJobCommand) makeJobRow(job *execution.Job) []string {
-	startTime := formatter.FormatTimeAgo(job.Status.StartTime)
+	startTime := format.TimeAgo(job.Status.StartTime)
 	runTime := ""
 	finishTime := ""
 
 	if condition := job.Status.Condition.Running; condition != nil {
-		runTime = formatter.FormatTimeAgo(&condition.LatestRunningTimestamp)
+		runTime = format.TimeAgo(&condition.LatestRunningTimestamp)
 	}
 	if condition := job.Status.Condition.Finished; condition != nil {
-		finishTime = formatter.FormatTimeAgo(&condition.FinishTimestamp)
+		finishTime = format.TimeAgo(&condition.FinishTimestamp)
 	}
 
 	return []string{

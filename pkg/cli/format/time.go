@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package formatter
+package format
 
 import (
 	"fmt"
@@ -71,32 +71,32 @@ var (
 	}
 )
 
-// FormatTimeAgo formats a time as a string representing the duration since the
+// TimeAgo formats a time as a string representing the duration since the
 // given time.
-func FormatTimeAgo(t *metav1.Time) string {
+func TimeAgo(t *metav1.Time) string {
 	if t.IsZero() {
 		return ""
 	}
 	return shorthandDurationFormatter.FormatReference(t.Time, ktime.Now().Time)
 }
 
-// FormatDuration formats a duration.
-func FormatDuration(d time.Duration) string {
+// Duration formats a duration.
+func Duration(d time.Duration) string {
 	return standardDurationFormatter.FormatRelativeDuration(d)
 }
 
-// FormatTime formats a time using a human-readable format.
-func FormatTime(t *metav1.Time) string {
+// Time formats a time using a human-readable format.
+func Time(t *metav1.Time) string {
 	if t.IsZero() {
 		return ""
 	}
 	return t.Format(timeFormat)
 }
 
-// FormatTimeWithTimeAgo formats a time together with a relative time ago as a string.
-func FormatTimeWithTimeAgo(t *metav1.Time) string {
+// TimeWithTimeAgo formats a time together with a relative time ago as a string.
+func TimeWithTimeAgo(t *metav1.Time) string {
 	if t.IsZero() {
 		return ""
 	}
-	return fmt.Sprintf("%v (%v)", FormatTime(t), standardTimeAgoFormatter.FormatReference(t.Time, ktime.Now().Time))
+	return fmt.Sprintf("%v (%v)", Time(t), standardTimeAgoFormatter.FormatReference(t.Time, ktime.Now().Time))
 }
