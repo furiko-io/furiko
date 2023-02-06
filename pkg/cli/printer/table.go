@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/printers"
 
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 )
 
 // TablePrinter prints tables with header and body rows.
@@ -62,7 +62,7 @@ func (p *TablePrinter) printRow(cols []string) {
 // kvs if t is non-zero, formatted as a time with relative duration from now.
 func MaybeAppendTimeAgo(kvs [][]string, key string, t *metav1.Time) [][]string {
 	if !t.IsZero() {
-		kvs = append(kvs, []string{key, formatter.FormatTimeWithTimeAgo(t)})
+		kvs = append(kvs, []string{key, format.TimeWithTimeAgo(t)})
 	}
 	return kvs
 }

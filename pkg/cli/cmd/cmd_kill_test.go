@@ -27,7 +27,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
 )
@@ -149,7 +149,7 @@ func TestKillCommand(t *testing.T) {
 			},
 			Stdout: runtimetesting.Output{
 				Matches:  regexp.MustCompile(`^Requested for job [^\s]+ to be killed`),
-				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime)),
+				Contains: format.Time(testutils.Mkmtimep(killTime)),
 			},
 		},
 		{
@@ -173,7 +173,7 @@ func TestKillCommand(t *testing.T) {
 			},
 			Stdout: runtimetesting.Output{
 				Matches:  regexp.MustCompile(`^Requested for job [^\s]+ to be killed`),
-				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime2)),
+				Contains: format.Time(testutils.Mkmtimep(killTime2)),
 			},
 		},
 		{
@@ -190,7 +190,7 @@ func TestKillCommand(t *testing.T) {
 			},
 			Stdout: runtimetesting.Output{
 				Matches:  regexp.MustCompile(`^Requested for job [^\s]+ to be killed`),
-				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime2)),
+				Contains: format.Time(testutils.Mkmtimep(killTime2)),
 			},
 		},
 		{
@@ -207,7 +207,7 @@ func TestKillCommand(t *testing.T) {
 			},
 			Stdout: runtimetesting.Output{
 				Matches:  regexp.MustCompile(`^Requested for job [^\s]+ to be killed`),
-				Contains: formatter.FormatTime(testutils.Mkmtimep(killTime2)),
+				Contains: format.Time(testutils.Mkmtimep(killTime2)),
 			},
 		},
 		{

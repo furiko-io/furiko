@@ -28,7 +28,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/cmd"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
 	runtimetesting "github.com/furiko-io/furiko/pkg/runtime/testing"
@@ -287,8 +287,8 @@ func TestGetJobCommand(t *testing.T) {
 				// time, etc.
 				ContainsAll: []string{
 					string(jobRunning.Status.Phase),
-					formatter.FormatTimeWithTimeAgo(testutils.Mkmtimep(taskCreateTime)),
-					formatter.FormatTimeWithTimeAgo(testutils.Mkmtimep(taskLaunchTime)),
+					format.TimeWithTimeAgo(testutils.Mkmtimep(taskCreateTime)),
+					format.TimeWithTimeAgo(testutils.Mkmtimep(taskLaunchTime)),
 				},
 			},
 		},
@@ -302,9 +302,9 @@ func TestGetJobCommand(t *testing.T) {
 				ContainsAll: []string{
 					jobFinished.GetName(),
 					string(jobFinished.Status.Phase),
-					formatter.FormatTimeWithTimeAgo(testutils.Mkmtimep(taskCreateTime)),
-					formatter.FormatTimeWithTimeAgo(testutils.Mkmtimep(taskLaunchTime)),
-					formatter.FormatTimeWithTimeAgo(testutils.Mkmtimep(taskFinishTime)),
+					format.TimeWithTimeAgo(testutils.Mkmtimep(taskCreateTime)),
+					format.TimeWithTimeAgo(testutils.Mkmtimep(taskLaunchTime)),
+					format.TimeWithTimeAgo(testutils.Mkmtimep(taskFinishTime)),
 					"some error message",
 				},
 			},

@@ -26,7 +26,7 @@ import (
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/common"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
@@ -227,10 +227,10 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 		cronSchedule = schedule.Cron.Expression
 	}
 	if !jobConfig.Status.LastExecuted.IsZero() {
-		lastExecuted = formatter.FormatTimeAgo(jobConfig.Status.LastExecuted)
+		lastExecuted = format.TimeAgo(jobConfig.Status.LastExecuted)
 	}
 	if !jobConfig.Status.LastScheduled.IsZero() {
-		lastScheduled = formatter.FormatTimeAgo(jobConfig.Status.LastScheduled)
+		lastScheduled = format.TimeAgo(jobConfig.Status.LastScheduled)
 	}
 
 	return []string{

@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
 
@@ -90,7 +90,7 @@ func (c *ListJobConfigsCompleter) defaultSort(a, b *execution.JobConfig) bool {
 func (c *ListJobConfigsCompleter) defaultFormat(jobConfig *execution.JobConfig) string {
 	var lastExecuted string
 	if !jobConfig.Status.LastExecuted.IsZero() {
-		lastExecuted = ", last executed " + formatter.FormatTimeWithTimeAgo(jobConfig.Status.LastExecuted)
+		lastExecuted = ", last executed " + format.TimeWithTimeAgo(jobConfig.Status.LastExecuted)
 	}
 	return fmt.Sprintf("%v\t%v%v", jobConfig.Name, jobConfig.Status.State, lastExecuted)
 }

@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
 
@@ -93,11 +93,11 @@ func (c *ListJobsCompleter) defaultFormat(job *execution.Job) string {
 	var timestamp string
 
 	if finishCondition := job.Status.Condition.Finished; finishCondition != nil && !finishCondition.FinishTimestamp.IsZero() {
-		timestamp = fmt.Sprintf("finished %v", formatter.FormatTimeWithTimeAgo(&finishCondition.FinishTimestamp))
+		timestamp = fmt.Sprintf("finished %v", format.TimeWithTimeAgo(&finishCondition.FinishTimestamp))
 	} else if !job.Status.StartTime.IsZero() {
-		timestamp = fmt.Sprintf("started %v", formatter.FormatTimeWithTimeAgo(job.Status.StartTime))
+		timestamp = fmt.Sprintf("started %v", format.TimeWithTimeAgo(job.Status.StartTime))
 	} else {
-		timestamp = fmt.Sprintf("created %v", formatter.FormatTimeWithTimeAgo(&job.CreationTimestamp))
+		timestamp = fmt.Sprintf("created %v", format.TimeWithTimeAgo(&job.CreationTimestamp))
 	}
 
 	return fmt.Sprintf("%v\t%v, %v", job.Name, job.Status.Phase, timestamp)

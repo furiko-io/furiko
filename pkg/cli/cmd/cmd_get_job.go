@@ -27,7 +27,7 @@ import (
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/completion"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	"github.com/furiko-io/furiko/pkg/execution/util/parallel"
@@ -186,7 +186,7 @@ func (c *GetJobCommand) prettyPrintJobInfo(job *execution.Job) [][]string {
 		{"Name", job.Name},
 		{"Namespace", job.Namespace},
 		{"Type", string(job.Spec.Type)},
-		{"Created", formatter.FormatTimeWithTimeAgo(&job.CreationTimestamp)},
+		{"Created", format.TimeWithTimeAgo(&job.CreationTimestamp)},
 	}
 
 	if ref := metav1.GetControllerOf(job); ref != nil && ref.Kind == execution.KindJobConfig {
@@ -195,7 +195,7 @@ func (c *GetJobCommand) prettyPrintJobInfo(job *execution.Job) [][]string {
 
 	if sp := job.Spec.StartPolicy; sp != nil {
 		if !sp.StartAfter.IsZero() {
-			result = append(result, []string{"Start After", formatter.FormatTimeWithTimeAgo(sp.StartAfter)})
+			result = append(result, []string{"Start After", format.TimeWithTimeAgo(sp.StartAfter)})
 		}
 		if sp.ConcurrencyPolicy != "" {
 			result = append(result, []string{"Concurrency Policy", string(sp.ConcurrencyPolicy)})
@@ -218,18 +218,18 @@ func (c *GetJobCommand) prettyPrintJobStatus(job *execution.Job) [][]string {
 		if !status.LatestRunningTimestamp.IsZero() {
 			result = append(result, []string{
 				"Run Duration",
-				stringsutils.Capitalize(formatter.FormatDuration(ktime.Now().Sub(status.LatestRunningTimestamp.Time))),
+				stringsutils.Capitalize(format.Duration(ktime.Now().Sub(status.LatestRunningTimestamp.Time))),
 			})
 		}
 		if status.TerminatingTasks > 0 {
-			result = append(result, []string{"Terminating Tasks", formatter.FormatInt64(status.TerminatingTasks)})
+			result = append(result, []string{"Terminating Tasks", format.Int64(status.TerminatingTasks)})
 		}
 	}
 	if status := job.Status.Condition.Finished; status != nil {
 		if !status.LatestRunningTimestamp.IsZero() {
 			result = append(result, []string{
 				"Run Duration",
-				stringsutils.Capitalize(formatter.FormatDuration(status.FinishTimestamp.Sub(status.LatestRunningTimestamp.Time))),
+				stringsutils.Capitalize(format.Duration(status.FinishTimestamp.Sub(status.LatestRunningTimestamp.Time))),
 			})
 		}
 		result = append(result, []string{"Result", string(status.Result)})
@@ -269,7 +269,7 @@ func (c *GetJobCommand) prettyPrintParallelStatus(job *execution.Job, detailed b
 			}
 			section.kvs = append(section.kvs, c.prettyPrintParallelIndex(index.Index)...)
 			section.kvs = append(section.kvs,
-				[]string{"Created Tasks", formatter.FormatInt64(index.CreatedTasks)},
+				[]string{"Created Tasks", format.Int64(index.CreatedTasks)},
 				[]string{"State", string(index.State)},
 			)
 			if index.Result != "" {
@@ -287,11 +287,11 @@ func (c *GetJobCommand) prettyPrintParallelTaskSummary(
 	status execution.ParallelStatus,
 ) [][]string {
 	result := [][]string{
-		{"Complete", formatter.FormatBool(status.Complete)},
+		{"Complete", format.Bool(status.Complete)},
 		{"Completion Strategy", string(spec.GetCompletionStrategy())},
 	}
 	if successful := status.Successful; successful != nil {
-		result = append(result, []string{"Successful", formatter.FormatBool(*successful)})
+		result = append(result, []string{"Successful", format.Bool(*successful)})
 	}
 	result = append(result, [][]string{
 		{"Status", c.formatParallelTaskSummaryStatus(status)},
@@ -302,7 +302,7 @@ func (c *GetJobCommand) prettyPrintParallelTaskSummary(
 func (c *GetJobCommand) prettyPrintParallelIndex(index execution.ParallelIndex) [][]string {
 	switch {
 	case index.IndexNumber != nil:
-		return [][]string{{"Index Number", formatter.FormatInt64(*index.IndexNumber)}}
+		return [][]string{{"Index Number", format.Int64(*index.IndexNumber)}}
 	case index.IndexKey != "":
 		return [][]string{{"Index Key", index.IndexKey}}
 	case len(index.MatrixValues) > 0:
@@ -318,7 +318,7 @@ func (c *GetJobCommand) prettyPrintParallelIndex(index execution.ParallelIndex) 
 func (c *GetJobCommand) prettyPrintJobTaskStatus(task execution.TaskRef) [][]string {
 	result := [][]string{
 		{"Name", task.Name},
-		{"Created", formatter.FormatTimeWithTimeAgo(&task.CreationTimestamp)},
+		{"Created", format.TimeWithTimeAgo(&task.CreationTimestamp)},
 		{"State", string(task.Status.State)},
 	}
 	result = printer.MaybeAppendTimeAgo(result, "Started", task.RunningTimestamp)

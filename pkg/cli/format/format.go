@@ -14,26 +14,26 @@
  * limitations under the License.
  */
 
-package formatter
+package format
 
 import (
 	"strconv"
 )
 
-// FormatBool formats a bool as yes/no.
-func FormatBool(b bool) string {
+// Bool formats a bool as yes/no.
+func Bool(b bool) string {
 	if b {
 		return "Yes"
 	}
 	return "No"
 }
 
-// FormatInt formats an int.
-func FormatInt(i int) string {
+// Int formats an int.
+func Int(i int) string {
 	return strconv.Itoa(i)
 }
 
-// FormatInt64 formats an int64.
-func FormatInt64(i int64) string {
+// Int64 formats an int64.
+func Int64(i int64) string {
 	return strconv.Itoa(int(i))
 }

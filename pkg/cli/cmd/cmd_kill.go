@@ -28,7 +28,7 @@ import (
 
 	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/completion"
-	"github.com/furiko-io/furiko/pkg/cli/formatter"
+	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
 	jobutil "github.com/furiko-io/furiko/pkg/execution/util/job"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
@@ -163,6 +163,6 @@ func (c *KillCommand) Run(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "key func error")
 	}
 
-	c.streams.Printf("Requested for job %v to be killed at %v\n", key, formatter.FormatTime(killAt))
+	c.streams.Printf("Requested for job %v to be killed at %v\n", key, format.Time(killAt))
 	return nil
 }
