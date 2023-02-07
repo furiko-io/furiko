@@ -14,62 +14,61 @@
  * limitations under the License.
  */
 
-package cronparser
+package cron
 
 import (
 	"github.com/furiko-io/cronexpr"
+	"k8s.io/utils/pointer"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 // Parser wraps the raw cronexpr parser to encapsulate common configuration.
 type Parser struct {
-	format    cronexpr.CronFormat
-	hashNames bool
-	opts      []cronexpr.ParseOption
+	// Specifies the CronFormat to use.
+	Format cronexpr.CronFormat
+
+	// If true, names will be hashed when passed to Parse.
+	HashNames bool
+
+	// Optionally specify the raw ParseOption to pass to the cronexpr parser
+	ParseOptions []cronexpr.ParseOption
 }
 
-func NewParser(cfg *configv1alpha1.CronExecutionConfig) *Parser {
+func NewParserFromConfig(cfg *configv1alpha1.CronExecutionConfig) *Parser {
 	format := cronexpr.CronFormatStandard
 	if cronexpr.CronFormat(cfg.CronFormat) == cronexpr.CronFormatQuartz {
 		format = cronexpr.CronFormatQuartz
 	}
 
-	hashNames := unwrapBool(cfg.CronHashNames, true)
+	hashNames := pointer.BoolDeref(cfg.CronHashNames, true)
 
 	var parseOpts []cronexpr.ParseOption
 	if hashNames {
-		if unwrapBool(cfg.CronHashSecondsByDefault, false) {
+		if pointer.BoolDeref(cfg.CronHashSecondsByDefault, false) {
 			parseOpts = append(parseOpts, cronexpr.WithHashEmptySeconds())
 		}
-		if unwrapBool(cfg.CronHashFields, true) {
+		if pointer.BoolDeref(cfg.CronHashFields, true) {
 			parseOpts = append(parseOpts, cronexpr.WithHashFields())
 		}
 	}
 
 	return &Parser{
-		format:    format,
-		hashNames: hashNames,
-		opts:      parseOpts,
+		Format:       format,
+		HashNames:    hashNames,
+		ParseOptions: parseOpts,
 	}
 }
 
+// Parse the cronLine, with an optional hashID if HashNames is enabled.
 func (p *Parser) Parse(cronLine string, hashID string) (*cronexpr.Expression, error) {
-	opts := p.opts
-	if p.hashNames {
-		newOpts := make([]cronexpr.ParseOption, 0, len(p.opts)+1)
+	opts := p.ParseOptions
+	if p.HashNames {
+		newOpts := make([]cronexpr.ParseOption, 0, len(p.ParseOptions)+1)
 		newOpts = append(newOpts, cronexpr.WithHash(hashID))
-		newOpts = append(newOpts, p.opts...)
+		newOpts = append(newOpts, p.ParseOptions...)
 		opts = newOpts
 	}
 
-	return cronexpr.ParseForFormat(p.format, cronLine, opts...)
-}
-
-func unwrapBool(b *bool, defaultBool bool) bool {
-	val := defaultBool
-	if b != nil {
-		val = *b
-	}
-	return val
+	return cronexpr.ParseForFormat(p.Format, cronLine, opts...)
 }

@@ -282,5 +282,18 @@ func TestListJobConfigCommand(t *testing.T) {
 				Ignore: true,
 			},
 		},
+		{
+			Name: "print multiple cron expressions",
+			Args: []string{"list", "jobconfig"},
+			Fixtures: []runtime.Object{
+				multiCronJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					multiCronJobConfig.Spec.Schedule.Cron.Expressions[0],
+					multiCronJobConfig.Spec.Schedule.Cron.Expressions[1],
+				},
+			},
+		},
 	})
 }

@@ -33,7 +33,7 @@ import (
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
-	"github.com/furiko-io/furiko/pkg/execution/util/schedule"
+	"github.com/furiko-io/furiko/pkg/execution/util/cronschedule"
 )
 
 const (
@@ -51,7 +51,7 @@ var (
 // to be created.
 type CronWorker struct {
 	*Context
-	schedule *schedule.Schedule
+	schedule *cronschedule.Schedule
 	handler  EnqueueHandler
 	mu       sync.Mutex
 }
@@ -80,10 +80,10 @@ func (w *CronWorker) Init() error {
 		return errors.Wrapf(err, "cannot list all jobconfigs")
 	}
 
-	sched, err := schedule.New(
+	sched, err := cronschedule.New(
 		jobConfigs,
-		schedule.WithClock(Clock),
-		schedule.WithConfigLoader(w.Configs()),
+		cronschedule.WithClock(Clock),
+		cronschedule.WithConfigLoader(w.Configs()),
 	)
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func (w *CronWorker) syncOne(now time.Time, key string, ts time.Time, counts map
 		return errors.Wrapf(err, "cannot enqueue job for %v", ts)
 	}
 
-	klog.V(3).InfoS("croncontroller: scheduled job",
+	klog.V(2).InfoS("croncontroller: scheduled job",
 		"worker", w.WorkerName(),
 		"namespace", jobConfig.GetNamespace(),
 		"name", jobConfig.GetName(),

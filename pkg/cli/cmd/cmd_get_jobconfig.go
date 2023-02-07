@@ -17,25 +17,20 @@
 package cmd
 
 import (
-	"context"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 
-	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/common"
 	"github.com/furiko-io/furiko/pkg/cli/completion"
 	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
-	"github.com/furiko-io/furiko/pkg/config"
-	"github.com/furiko-io/furiko/pkg/execution/util/cronparser"
+	"github.com/furiko-io/furiko/pkg/execution/util/cron"
 )
 
 var (
@@ -54,6 +49,9 @@ type GetJobConfigCommand struct {
 	streams *streams.Streams
 
 	output printer.OutputFormat
+
+	// Cached cron parser.
+	cronParser *cron.Parser
 }
 
 func NewGetJobConfigCommand(streams *streams.Streams) *cobra.Command {
@@ -80,6 +78,10 @@ func NewGetJobConfigCommand(streams *streams.Streams) *cobra.Command {
 
 func (c *GetJobConfigCommand) Complete(cmd *cobra.Command, args []string) error {
 	c.output = common.GetOutputFormat(cmd)
+
+	// Prepare parser.
+	c.cronParser = cron.NewParserFromConfig(common.GetCronDynamicConfig(cmd))
+
 	return nil
 }
 
@@ -104,20 +106,15 @@ func (c *GetJobConfigCommand) Run(cmd *cobra.Command, args []string) error {
 		jobConfigs = append(jobConfigs, jobConfig)
 	}
 
-	return c.PrintJobConfigs(ctx, cmd, c.output, jobConfigs)
+	return c.PrintJobConfigs(c.output, jobConfigs)
 }
 
-func (c *GetJobConfigCommand) PrintJobConfigs(
-	ctx context.Context,
-	cmd *cobra.Command,
-	output printer.OutputFormat,
-	jobConfigs []*execution.JobConfig,
-) error {
+func (c *GetJobConfigCommand) PrintJobConfigs(output printer.OutputFormat, jobConfigs []*execution.JobConfig) error {
 	// Handle pretty print as a special case.
 	if output == printer.OutputFormatPretty {
 		p := printer.NewDescriptionPrinter(c.streams.Out)
 		for i, jobConfig := range jobConfigs {
-			if err := c.prettyPrintJobConfig(ctx, cmd, jobConfig); err != nil {
+			if err := c.prettyPrintJobConfig(jobConfig); err != nil {
 				return err
 			}
 			if i+1 < len(jobConfigs) {
@@ -136,11 +133,7 @@ func (c *GetJobConfigCommand) PrintJobConfigs(
 	return printer.PrintObjects(execution.GVKJobConfig, output, c.streams.Out, items)
 }
 
-func (c *GetJobConfigCommand) prettyPrintJobConfig(
-	ctx context.Context,
-	cmd *cobra.Command,
-	jobConfig *execution.JobConfig,
-) error {
+func (c *GetJobConfigCommand) prettyPrintJobConfig(jobConfig *execution.JobConfig) error {
 	p := printer.NewDescriptionPrinter(c.streams.Out)
 
 	// Print the metadata.
@@ -151,7 +144,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfig(
 	sections := []printer.SectionGenerator{
 		printer.ToSectionGenerator(printer.Section{Name: "Concurrency", Descs: c.prettyPrintJobConfigConcurrency(jobConfig)}),
 		func() (printer.Section, error) {
-			descs, err := c.prettyPrintJobConfigSchedule(ctx, cmd, jobConfig)
+			descs, err := c.prettyPrintJobConfigSchedule(jobConfig)
 			if err != nil {
 				return printer.Section{}, err
 			}
@@ -188,11 +181,7 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigConcurrency(jobConfig *executi
 	}
 }
 
-func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(
-	ctx context.Context,
-	cmd *cobra.Command,
-	jobConfig *execution.JobConfig,
-) ([][]string, error) {
+func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(jobConfig *execution.JobConfig) ([][]string, error) {
 	schedule := jobConfig.Spec.Schedule
 	if schedule == nil {
 		return nil, nil
@@ -202,9 +191,11 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(
 		{"Enabled", strconv.FormatBool(!schedule.Disabled)},
 	}
 
-	if cron := schedule.Cron; cron != nil {
-		result = append(result, []string{"Cron Expression", cron.Expression})
-		result = append(result, []string{"Cron Timezone", cron.Timezone})
+	if cronSchedule := schedule.Cron; cronSchedule != nil {
+		result = append(result, []string{"Cron Expression(s)", strings.Join(schedule.Cron.GetExpressions(), "\n")})
+		if cronSchedule.Timezone != "" {
+			result = append(result, []string{"Cron Timezone", cronSchedule.Timezone})
+		}
 	}
 
 	if constraints := schedule.Constraints; constraints != nil {
@@ -215,8 +206,8 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(
 	// Here we evaluate the next schedule as a convenience to the user. Note that is
 	// very likely just an approximation, since many factors influence the actual
 	// time that the next job is scheduled.
-	if !schedule.Disabled && schedule.Cron != nil && schedule.Cron.Expression != "" {
-		resp, err := c.prettyPrintNextSchedule(ctx, cmd, jobConfig)
+	if !schedule.Disabled && schedule.Cron != nil && len(schedule.Cron.GetExpressions()) > 0 {
+		resp, err := c.prettyPrintNextSchedule(jobConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -226,60 +217,20 @@ func (c *GetJobConfigCommand) prettyPrintJobConfigSchedule(
 	return result, nil
 }
 
-func (c *GetJobConfigCommand) prettyPrintNextSchedule(
-	ctx context.Context,
-	cmd *cobra.Command,
-	jobConfig *execution.JobConfig,
-) ([][]string, error) {
-	cfg := config.DefaultCronExecutionConfig.DeepCopy()
-
-	schedule := jobConfig.Spec.Schedule
-	if schedule == nil {
-		return nil, nil
-	}
-
-	// Fetch the cron config in the cluster, otherwise use the default one.
-	{
-		newCfg := &configv1alpha1.CronExecutionConfig{}
-		cfgName := configv1alpha1.CronExecutionConfigName
-		if err := common.GetDynamicConfig(ctx, cmd, cfgName, cfg); err != nil {
-			klog.ErrorS(err, "cannot fetch dynamic config, falling back to default", "name", cfgName)
-		}
-		cfg = newCfg
-	}
-
-	// Parse the next schedule.
-	hashID, err := cache.MetaNamespaceKeyFunc(jobConfig)
+func (c *GetJobConfigCommand) prettyPrintNextSchedule(jobConfig *execution.JobConfig) ([][]string, error) {
+	next, err := format.NextScheduleForJobConfig(jobConfig, c.cronParser, format.TimeAgo, format.WithDefaultValue("Never"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get namespaced name")
+		return nil, errors.Wrapf(err, "cannot format next schedule time")
 	}
-	expr, err := cronparser.NewParser(cfg).Parse(schedule.Cron.Expression, hashID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot parse cron expression: %v", schedule.Cron.Expression)
-	}
-
-	nextSchedule := "Never"
-	next := expr.Next(time.Now())
-	if !next.IsZero() {
-		t := metav1.NewTime(next)
-		nextSchedule = format.TimeWithTimeAgo(&t)
-	}
-
-	return [][]string{{"Next Schedule", nextSchedule}}, nil
+	return [][]string{{"Next Schedule", next}}, nil
 }
 
 func (c *GetJobConfigCommand) prettyPrintJobConfigStatus(jobConfig *execution.JobConfig) [][]string {
-	result := [][]string{
+	return [][]string{
 		{"State", string(jobConfig.Status.State)},
 		{"Queued Jobs", strconv.Itoa(int(jobConfig.Status.Queued))},
 		{"Active Jobs", strconv.Itoa(int(jobConfig.Status.Active))},
+		{"Last Scheduled", format.TimeWithTimeAgo(jobConfig.Status.LastScheduled, format.WithDefaultValue("Never"))},
+		{"Last Executed", format.TimeWithTimeAgo(jobConfig.Status.LastExecuted, format.WithDefaultValue("Never"))},
 	}
-
-	lastScheduled := "Never"
-	if t := jobConfig.Status.LastScheduled; !t.IsZero() {
-		lastScheduled = format.TimeWithTimeAgo(t)
-	}
-	result = append(result, []string{"Last Scheduled", lastScheduled})
-
-	return result
 }

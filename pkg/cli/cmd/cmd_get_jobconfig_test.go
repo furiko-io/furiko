@@ -17,6 +17,7 @@
 package cmd_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -115,6 +116,31 @@ var (
 			LastExecuted:  testutils.Mkmtimep("2022-01-01T03:14:00Z"),
 		},
 	}
+
+	multiCronJobConfig = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "multicron-jobconfig",
+			Namespace: DefaultNamespace,
+			UID:       testutils.MakeUID("multicron-jobconfig"),
+		},
+		Spec: execution.JobConfigSpec{
+			Concurrency: execution.ConcurrencySpec{
+				Policy: execution.ConcurrencyPolicyForbid,
+			},
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expressions: []string{
+						"H/5 10-18 * * *",
+						"H 0-9,19-23 * * *",
+					},
+					Timezone: "Asia/Singapore",
+				},
+			},
+		},
+		Status: execution.JobConfigStatus{
+			State: execution.JobConfigReadyEnabled,
+		},
+	}
 )
 
 func TestGetJobConfigCommand(t *testing.T) {
@@ -165,13 +191,43 @@ func TestGetJobConfigCommand(t *testing.T) {
 			Name:     "get a single jobconfig, pretty print",
 			Args:     []string{"get", "jobconfig", "periodic-jobconfig"},
 			Fixtures: []runtime.Object{periodicJobConfig},
+			Now:      testutils.Mktime(currentTime),
 			Stdout: runtimetesting.Output{
 				// We expect some important information to be printed in the output.
 				ContainsAll: []string{
+					// Name
 					periodicJobConfig.GetName(),
+					// Namespace
+					periodicJobConfig.GetNamespace(),
+					// Current state
 					string(periodicJobConfig.Status.State),
+					// Cron expression
 					"H/5 * * * *",
+					// Cron timezone
 					"Asia/Singapore",
+					// Next scheduled time
+					"in 2m",
+				},
+			},
+		},
+		{
+			Name:     "get a single adhoc jobconfig, pretty print",
+			Args:     []string{"get", "jobconfig", "adhoc-jobconfig"},
+			Fixtures: []runtime.Object{adhocJobConfig},
+			Now:      testutils.Mktime(currentTime),
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					adhocJobConfig.GetName(),
+					adhocJobConfig.GetNamespace(),
+					string(adhocJobConfig.Status.State),
+				},
+				MatchesAll: []*regexp.Regexp{
+					// Format last scheduled correctly
+					regexp.MustCompile(`Last Scheduled:\s+Never`),
+				},
+				ExcludesAll: []string{
+					// Cannot show next schedule
+					"Next Schedule",
 				},
 			},
 		},
@@ -191,6 +247,19 @@ func TestGetJobConfigCommand(t *testing.T) {
 				ContainsAll: []string{
 					"jobconfig.execution.furiko.io/periodic-jobconfig",
 					"jobconfig.execution.furiko.io/adhoc-jobconfig",
+				},
+			},
+		},
+		{
+			Name: "print multiple cron expressions",
+			Args: []string{"get", "jobconfig", "multicron-jobconfig"},
+			Fixtures: []runtime.Object{
+				multiCronJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					multiCronJobConfig.Spec.Schedule.Cron.Expressions[0],
+					multiCronJobConfig.Spec.Schedule.Cron.Expressions[1],
 				},
 			},
 		},

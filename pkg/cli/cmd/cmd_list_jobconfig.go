@@ -29,6 +29,7 @@ import (
 	"github.com/furiko-io/furiko/pkg/cli/format"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/cli/streams"
+	"github.com/furiko-io/furiko/pkg/execution/util/cron"
 	"github.com/furiko-io/furiko/pkg/execution/util/jobconfig"
 	"github.com/furiko-io/furiko/pkg/utils/sets"
 )
@@ -52,6 +53,9 @@ type ListJobConfigCommand struct {
 	adhocOnly       bool
 	scheduleEnabled bool
 	watch           bool
+
+	// Cached cron parser.
+	cronParser *cron.Parser
 
 	// Cached set of job UIDs that were previously filtered in.
 	// If it was displayed before, we don't want to filter it out afterwards.
@@ -95,6 +99,9 @@ func (c *ListJobConfigCommand) Complete(cmd *cobra.Command, args []string) error
 	c.output = common.GetOutputFormat(cmd)
 	c.noHeaders = common.GetFlagBool(cmd, "no-headers")
 	c.watch = common.GetFlagBool(cmd, "watch")
+
+	// Prepare parser.
+	c.cronParser = cron.NewParserFromConfig(common.GetCronDynamicConfig(cmd))
 
 	return nil
 }
@@ -207,6 +214,7 @@ func (c *ListJobConfigCommand) makeJobHeader() []string {
 		"LAST EXECUTED",
 		"LAST SCHEDULED",
 		"CRON SCHEDULE",
+		"NEXT SCHEDULE",
 	}
 }
 
@@ -219,18 +227,12 @@ func (c *ListJobConfigCommand) makeJobRows(jobConfigs []*execution.JobConfig) []
 }
 
 func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []string {
-	cronSchedule := ""
-	lastExecuted := ""
-	lastScheduled := ""
-
+	var cronSchedule, nextSchedule string
 	if schedule := jobConfig.Spec.Schedule; schedule != nil && schedule.Cron != nil {
-		cronSchedule = schedule.Cron.Expression
-	}
-	if !jobConfig.Status.LastExecuted.IsZero() {
-		lastExecuted = format.TimeAgo(jobConfig.Status.LastExecuted)
-	}
-	if !jobConfig.Status.LastScheduled.IsZero() {
-		lastScheduled = format.TimeAgo(jobConfig.Status.LastScheduled)
+		cronSchedule = schedule.Cron.GetExpressions().String()
+		if next, err := format.NextScheduleForJobConfig(jobConfig, c.cronParser, format.TimeAgo); err == nil {
+			nextSchedule = next
+		}
 	}
 
 	return []string{
@@ -238,9 +240,10 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 		string(jobConfig.Status.State),
 		strconv.Itoa(int(jobConfig.Status.Active)),
 		strconv.Itoa(int(jobConfig.Status.Queued)),
-		lastExecuted,
-		lastScheduled,
+		format.TimeAgo(jobConfig.Status.LastExecuted),
+		format.TimeAgo(jobConfig.Status.LastScheduled),
 		cronSchedule,
+		nextSchedule,
 	}
 }
 

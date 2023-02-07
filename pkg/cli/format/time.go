@@ -71,32 +71,38 @@ var (
 	}
 )
 
+// TimeFormatFunc is a function that formats a given *metav1.Time into a string format.
+type TimeFormatFunc func(t *metav1.Time, opts ...Option) string
+
 // TimeAgo formats a time as a string representing the duration since the
 // given time.
-func TimeAgo(t *metav1.Time) string {
+func TimeAgo(t *metav1.Time, opts ...Option) string {
+	cfg := parseConfigFromOptions(opts)
 	if t.IsZero() {
-		return ""
+		return cfg.DefaultValue
 	}
 	return shorthandDurationFormatter.FormatReference(t.Time, ktime.Now().Time)
 }
 
-// Duration formats a duration.
-func Duration(d time.Duration) string {
-	return standardDurationFormatter.FormatRelativeDuration(d)
-}
-
 // Time formats a time using a human-readable format.
-func Time(t *metav1.Time) string {
+func Time(t *metav1.Time, opts ...Option) string {
+	cfg := parseConfigFromOptions(opts)
 	if t.IsZero() {
-		return ""
+		return cfg.DefaultValue
 	}
 	return t.Format(timeFormat)
 }
 
 // TimeWithTimeAgo formats a time together with a relative time ago as a string.
-func TimeWithTimeAgo(t *metav1.Time) string {
+func TimeWithTimeAgo(t *metav1.Time, opts ...Option) string {
+	cfg := parseConfigFromOptions(opts)
 	if t.IsZero() {
-		return ""
+		return cfg.DefaultValue
 	}
-	return fmt.Sprintf("%v (%v)", Time(t), standardTimeAgoFormatter.FormatReference(t.Time, ktime.Now().Time))
+	return fmt.Sprintf("%v (%v)", Time(t, opts...), standardTimeAgoFormatter.FormatReference(t.Time, ktime.Now().Time))
+}
+
+// Duration formats a duration.
+func Duration(d time.Duration) string {
+	return standardDurationFormatter.FormatRelativeDuration(d)
 }

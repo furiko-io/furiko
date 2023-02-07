@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package schedule
+package cronschedule
 
 import (
 	"k8s.io/utils/clock"

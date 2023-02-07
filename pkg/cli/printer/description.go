@@ -105,7 +105,14 @@ func (p *DescriptionPrinter) Print(kvs [][]string) {
 		}
 
 		// Print key-value pair.
+		// If the value contains multiple lines, subsequent lines are padded.
 		value := kv[1]
-		_, _ = fmt.Fprintln(p.out, text.Pad(key+":", maxLen, ' ')+value)
+		for i, line := range strings.Split(value, "\n") {
+			if i == 0 {
+				_, _ = fmt.Fprintln(p.out, text.Pad(key+":", maxLen, ' ')+line)
+			} else {
+				_, _ = fmt.Fprintln(p.out, strings.Repeat(" ", maxLen)+line)
+			}
+		}
 	}
 }

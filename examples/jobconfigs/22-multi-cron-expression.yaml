@@ -1,0 +1,46 @@
+# This is an example JobConfig using multiple cron expressions.
+#
+# To create this JobConfig, run:
+#   kubectl create -f https://raw.githubusercontent.com/furiko-io/furiko/main/examples/jobconfigs/22-multi-cron-expression.yaml
+#
+# For more in-depth information on other JobConfig fields, refer to https://furiko.io/docs/execution/jobconfig/.
+---
+apiVersion: execution.furiko.io/v1alpha1
+kind: JobConfig
+metadata:
+  name: multi-cron-expression
+spec:
+  schedule:
+    cron:
+      # We are able to specify multiple cron expressions to support more complex
+      # periodic scheduling requirements. In the following example, the JobConfig
+      # will be scheduled every 30 minutes between 10:00 and 19:00, but every
+      # 2 hours between 00:00-10:00 and 19:00-00:00.
+      # If any overlap occurs between any two cron schedules, it will be
+      # treated as a single schedule.
+      expressions:
+        # Every 30 minutes between 10AM - 7PM
+        - '0/30 10-19 * * *'
+        # Every 2 hours otherwise (00:00, 02:00, ..., 08:00, 20:00, 22:00)
+        - '0 0/2 * * *'
+
+      # Note that the above cron expressions are subject to the following timezone.
+      # If not specified, the default timezone in the Dynamic Config will be used.
+      timezone: "Asia/Singapore"
+
+  concurrency:
+    # Even though the concurrency policy is Allow, we can see that a Job
+    # will only be scheduled once for any overlapping timestamps.
+    policy: Allow
+
+  template:
+    spec:
+      taskTemplate:
+        pod:
+          spec:
+            containers:
+              - name: container
+                image: alpine
+                command:
+                  - echo
+                  - 'Hello World'

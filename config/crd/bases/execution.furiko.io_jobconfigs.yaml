@@ -192,11 +192,14 @@ spec:
                         expression:
                           description: "Cron expression to specify how the JobConfig will be periodically scheduled. Example: \"0 0/5 * * *\". \n Supports cron schedules with optional \"seconds\" and \"years\" fields, i.e. can parse between 5 to 7 tokens. \n More information: https://github.com/furiko-io/cronexpr"
                           type: string
+                        expressions:
+                          description: "List of cron expressions to specify how the JobConfig will be periodically scheduled. \n Take for example a requirement to schedule a job every day at 3AM, 3:30AM and 4AM. There is no way to represent this with a single cron expression, but we could do so with two cron expressions: \"0/30 3 * * *\", and \"0 4 * * *\". \n Exactly one of Expression or Expressions must be specified. If two expressions fall on the same time, only one of them will take effect."
+                          items:
+                            type: string
+                          type: array
                         timezone:
                           description: "Timezone to interpret the cron schedule in. For example, a cron schedule of \"0 10 * * *\" with a timezone of \"Asia/Singapore\" will be interpreted as running at 02:00:00 UTC time every day. \n Timezone must be one of the following: \n 1. A valid tz string (e.g. \"Asia/Singapore\", \"America/New_York\"). 2. A UTC offset with minutes (e.g. UTC-10:00). 3. A GMT offset with minutes (e.g. GMT+05:30). The meaning is the same as its UTC counterpart. \n This field merely is used for parsing the cron Expression, and has nothing to do with /etc/timezone inside the container (i.e. it will not set $TZ automatically). \n Defaults to the controller's default configured timezone."
                           type: string
-                      required:
-                        - expression
                       type: object
                     disabled:
                       description: If true, then automatic scheduling will be disabled for the JobConfig.
