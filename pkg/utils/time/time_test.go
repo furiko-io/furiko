@@ -146,7 +146,7 @@ func TestTime(t *testing.T) {
 		t.Run(funcName, func(t *testing.T) {
 			for _, tt := range funcTest.cases {
 				t.Run(tt.name, func(t *testing.T) {
-					if got := funcTest.f(tt.a, tt.b); !reflect.DeepEqual(got, tt.want) {
+					if got := funcTest.f(tt.a, tt.b); !got.Equal(tt.want) {
 						t.Errorf("%v() = %v, want %v", funcName, got, tt.want)
 					}
 				})
@@ -159,10 +159,10 @@ func getFunctionName(i interface{}) string {
 	// Get the full function name.
 	name := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
 
-	// Remove the package URL (like github.com/furiko-io/furiko)
+	// Remove the leading package URL (like "github.com/furiko-io/furiko")
 	name = getLastSplit(name, "/")
 
-	// Remove the package name (like time)
+	// Remove the leading package name (like "time.")
 	name = getLastSplit(name, ".")
 
 	return name
