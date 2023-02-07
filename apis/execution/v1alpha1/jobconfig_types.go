@@ -112,10 +112,7 @@ type CronSchedule struct {
 	//
 	// Take for example a requirement to schedule a job every day at 3AM, 3:30AM and 4AM.
 	// There is no way to represent this with a single cron expression, but we could do so
-	// with two cron expressions:
-	//
-	// 	0/30 3 * * *
-	// 	0 4 * * *
+	// with two cron expressions: "0/30 3 * * *", and "0 4 * * *".
 	//
 	// Exactly one of Expression or Expressions must be specified.
 	// If two expressions fall on the same time, only one of them will take effect.
