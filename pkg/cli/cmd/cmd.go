@@ -28,13 +28,9 @@ import (
 )
 
 type RootCommand struct {
-	kubeconfig         string
-	namespace          string
-	verbosity          int
-	dynConfigName      string
-	dynConfigNamespace string
-
 	streams *streams.Streams
+
+	verbosity int
 }
 
 // NewRootCommand returns a new root command for the command-line utility.
@@ -56,13 +52,17 @@ func NewRootCommand(streams *streams.Streams) *cobra.Command {
 	streams.SetCmdOutput(cmd)
 
 	flags := cmd.PersistentFlags()
-	flags.StringVar(&c.kubeconfig, "kubeconfig", "",
+	flags.String("kubeconfig", "",
 		"Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVarP(&c.namespace, "namespace", "n", "",
+	flags.String("cluster", "",
+		"The name of the kubeconfig cluster to use.")
+	flags.String("context", "",
+		"The name of the kubeconfig context to use.")
+	flags.StringP("namespace", "n", "",
 		"If present, the namespace scope for this CLI request.")
-	flags.StringVar(&c.dynConfigName, "dynamic-config-name", "execution-dynamic-config",
+	flags.String("dynamic-config-name", "execution-dynamic-config",
 		"Overrides the name of the dynamic cluster config.")
-	flags.StringVar(&c.dynConfigNamespace, "dynamic-config-namespace", "furiko-system",
+	flags.String("dynamic-config-namespace", "furiko-system",
 		"Overrides the namespace of the dynamic cluster config.")
 	flags.IntVarP(&c.verbosity, "v", "v", 0, "Sets the log level verbosity.")
 

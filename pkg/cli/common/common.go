@@ -20,14 +20,18 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/kr/text"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
@@ -58,12 +62,75 @@ func RunAllE(funcs ...RunEFunc) RunEFunc {
 }
 
 // NewContext returns a common context from the cobra command.
-func NewContext(_ *cobra.Command) (controllercontext.Context, error) {
-	kubeconfig, err := ctrl.GetConfig()
+func NewContext(cmd *cobra.Command) (controllercontext.Context, error) {
+	kubeconfig, err := GetKubeConfig(cmd)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get kubeconfig")
 	}
 	return controllercontext.NewForConfig(kubeconfig, &configv1alpha1.BootstrapConfigSpec{})
+}
+
+// GetKubeConfig returns the desired kubeconfig.
+func GetKubeConfig(cmd *cobra.Command) (*rest.Config, error) {
+	// Get the --context and --cluster flags.
+	kubeconfigContext := GetFlagString(cmd, "context")
+	kubeconfigCluster := GetFlagString(cmd, "cluster")
+
+	// Read the --kubeconfig flag.
+	if kubeconfig := GetFlagString(cmd, "kubeconfig"); kubeconfig != "" {
+		klog.V(1).InfoS("loading kubeconfig from --kubeconfig",
+			"path", kubeconfig,
+		)
+
+		return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+			&clientcmd.ConfigOverrides{
+				CurrentContext: kubeconfigContext,
+				Context: api.Context{
+					Cluster: kubeconfigCluster,
+				},
+			},
+		).ClientConfig()
+	}
+
+	// If the recommended kubeconfig env variable is not specified,
+	// try the in-cluster config.
+	kubeconfigPath := os.Getenv(clientcmd.RecommendedConfigPathEnvVar)
+	if len(kubeconfigPath) == 0 {
+		if c, err := rest.InClusterConfig(); err == nil {
+			klog.V(1).InfoS("successfully loaded in-cluster kubeconfig")
+			return c, nil
+		}
+	}
+
+	// If the recommended kubeconfig env variable is set, or there
+	// is no in-cluster config, try the default recommended locations.
+	//
+	// NOTE: For default config file locations, upstream only checks
+	// $HOME for the user's home directory, but we can also try
+	// os/user.HomeDir when $HOME is unset.
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if _, ok := os.LookupEnv("HOME"); !ok {
+		u, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("could not get current user: %v", err)
+		}
+		loadingRules.Precedence = append(loadingRules.Precedence, filepath.Join(u.HomeDir, clientcmd.RecommendedHomeDir, clientcmd.RecommendedFileName))
+	}
+
+	klog.V(1).InfoS("loading default kubeconfig from recommended locations",
+		"pathPrecedence", strings.Join(loadingRules.Precedence, ":"),
+	)
+
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		loadingRules,
+		&clientcmd.ConfigOverrides{
+			CurrentContext: kubeconfigContext,
+			Context: api.Context{
+				Cluster: kubeconfigCluster,
+			},
+		},
+	).ClientConfig()
 }
 
 // PrerunWithKubeconfig is a pre-run function that will set up the common context when kubeconfig is needed.
