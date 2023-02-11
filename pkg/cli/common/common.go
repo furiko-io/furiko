@@ -17,7 +17,6 @@
 package common
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -27,12 +26,10 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/cli/printer"
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
-	"github.com/furiko-io/furiko/pkg/utils/jsonyaml"
 )
 
 const (
@@ -58,17 +55,12 @@ func RunAllE(funcs ...RunEFunc) RunEFunc {
 }
 
 // NewContext returns a common context from the cobra command.
-func NewContext(_ *cobra.Command) (controllercontext.Context, error) {
-	kubeconfig, err := ctrl.GetConfig()
+func NewContext(cmd *cobra.Command) (controllercontext.Context, error) {
+	kubeconfig, err := GetKubeConfig(cmd)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get kubeconfig")
 	}
 	return controllercontext.NewForConfig(kubeconfig, &configv1alpha1.BootstrapConfigSpec{})
-}
-
-// PrerunWithKubeconfig is a pre-run function that will set up the common context when kubeconfig is needed.
-func PrerunWithKubeconfig(cmd *cobra.Command, _ []string) error {
-	return SetupCtrlContext(cmd)
 }
 
 // SetupCtrlContext sets up the common context.
@@ -119,75 +111,12 @@ func GetNamespace(cmd *cobra.Command) (string, error) {
 	return namespace, nil
 }
 
-// GetDynamicConfig loads the dynamic config by name and unmarshals to out.
-// TODO(irvinlim): If the current user does not have permissions to read the
-// ConfigMap, or the ConfigMap uses a different name/namespace, we should
-// gracefully handle this case.
-func GetDynamicConfig(ctx context.Context, cmd *cobra.Command, name configv1alpha1.ConfigName, out interface{}) error {
-	cfgNamespace, err := cmd.Flags().GetString("dynamic-config-namespace")
-	if err != nil {
-		return err
-	}
-	cfgName, err := cmd.Flags().GetString("dynamic-config-name")
-	if err != nil {
-		return err
-	}
-
-	klog.V(2).InfoS("fetching dynamic config", "namespace", cfgNamespace, "name", cfgName)
-	cm, err := ctrlContext.Clientsets().Kubernetes().CoreV1().ConfigMaps(cfgNamespace).
-		Get(ctx, cfgName, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "cannot load dynamic config")
-	}
-
-	data := cm.Data[string(name)]
-	klog.V(2).InfoS("fetched dynamic config", "data", data)
-
-	return jsonyaml.UnmarshalString(data, out)
-}
-
 // GetOutputFormat returns the output format as parsed by the flag.
 func GetOutputFormat(cmd *cobra.Command) printer.OutputFormat {
 	v := GetFlagString(cmd, "output")
 	output := printer.OutputFormat(v)
 	klog.V(4).InfoS("using output format", "format", output)
 	return output
-}
-
-// GetFlagBool gets the boolean value of a flag.
-func GetFlagBool(cmd *cobra.Command, flag string) bool {
-	b, err := cmd.Flags().GetBool(flag)
-	if err != nil {
-		klog.Fatalf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
-	}
-	return b
-}
-
-// GetFlagBoolIfExists gets the boolean value of a flag if it exists.
-func GetFlagBoolIfExists(cmd *cobra.Command, flag string) (val bool, ok bool) {
-	if cmd.Flags().Lookup(flag) != nil {
-		val := GetFlagBool(cmd, flag)
-		return val, true
-	}
-	return false, false
-}
-
-// GetFlagString gets the string value of a flag.
-func GetFlagString(cmd *cobra.Command, flag string) string {
-	v, err := cmd.Flags().GetString(flag)
-	if err != nil {
-		klog.Fatalf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
-	}
-	return v
-}
-
-// GetFlagInt64 gets the int64 value of a flag.
-func GetFlagInt64(cmd *cobra.Command, flag string) int64 {
-	v, err := cmd.Flags().GetInt64(flag)
-	if err != nil {
-		klog.Fatalf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
-	}
-	return v
 }
 
 // PrepareExample replaces the root command name and indents all lines.
