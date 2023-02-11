@@ -17,6 +17,7 @@
 package cmd_test
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -90,6 +91,20 @@ func TestListJobCommand(t *testing.T) {
 				ContainsAll: []string{
 					string(prodJobRunning.UID),
 					string(jobRunning.UID),
+				},
+			},
+		},
+		{
+			Name: "use all namespaces, pretty print",
+			Args: []string{"list", "job", "-A"},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				prodJobRunning,
+			},
+			Stdout: runtimetesting.Output{
+				MatchesAll: []*regexp.Regexp{
+					regexp.MustCompile(`default\s+job-running`),
+					regexp.MustCompile(`prod\s+job-running`),
 				},
 			},
 		},
