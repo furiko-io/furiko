@@ -17,6 +17,7 @@
 package cmd_test
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -52,6 +53,58 @@ func TestListJobConfigCommand(t *testing.T) {
 			Fixtures: []runtime.Object{periodicJobConfig},
 			Stdout: runtimetesting.Output{
 				Contains: "jobconfig.execution.furiko.io/periodic-jobconfig",
+			},
+		},
+		{
+			Name: "only show job configs in the default namespace",
+			Args: []string{"list", "jobconfig", "-o", "yaml"},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				prodJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				Contains: string(periodicJobConfig.UID),
+				Excludes: string(prodJobConfig.UID),
+			},
+		},
+		{
+			Name: "use explicit namespace",
+			Args: []string{"list", "jobconfig", "-o", "yaml", "-n", ProdNamespace},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				prodJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				Contains: string(prodJobConfig.UID),
+				Excludes: string(periodicJobConfig.UID),
+			},
+		},
+		{
+			Name: "use all namespaces",
+			Args: []string{"list", "jobconfig", "-o", "yaml", "-A"},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				prodJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					string(prodJobConfig.UID),
+					string(periodicJobConfig.UID),
+				},
+			},
+		},
+		{
+			Name: "use all namespaces, pretty print",
+			Args: []string{"list", "jobconfig", "-A"},
+			Fixtures: []runtime.Object{
+				periodicJobConfig,
+				prodJobConfig,
+			},
+			Stdout: runtimetesting.Output{
+				MatchesAll: []*regexp.Regexp{
+					regexp.MustCompile(`default\s+periodic-jobconfig`),
+					regexp.MustCompile(`prod\s+periodic-jobconfig`),
+				},
 			},
 		},
 		{

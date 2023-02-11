@@ -141,6 +141,28 @@ var (
 			State: execution.JobConfigReadyEnabled,
 		},
 	}
+
+	prodJobConfig = &execution.JobConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "periodic-jobconfig",
+			Namespace: ProdNamespace,
+			UID:       testutils.MakeUID("prod/periodic-jobconfig"),
+		},
+		Spec: execution.JobConfigSpec{
+			Concurrency: execution.ConcurrencySpec{
+				Policy: execution.ConcurrencyPolicyForbid,
+			},
+			Schedule: &execution.ScheduleSpec{
+				Cron: &execution.CronSchedule{
+					Expression: "H/5 * * * *",
+					Timezone:   "Asia/Singapore",
+				},
+			},
+		},
+		Status: execution.JobConfigStatus{
+			State: execution.JobConfigReadyEnabled,
+		},
+	}
 )
 
 func TestGetJobConfigCommand(t *testing.T) {

@@ -40,6 +40,9 @@ var (
 # List all Jobs in current namespace.
 {{.CommandName}} list job
 
+# List all Jobs across all namespaces.
+{{.CommandName}} list job -A
+
 # List all Jobs in current namespace belonging to JobConfig "daily-send-email".
 {{.CommandName}} list job --for daily-send-email
 
@@ -50,12 +53,13 @@ var (
 type ListJobCommand struct {
 	*baseListCommand
 
-	streams   *streams.Streams
-	jobConfig string
-	states    sets.Set[execution.JobState]
-	output    printer.OutputFormat
-	noHeaders bool
-	watch     bool
+	streams       *streams.Streams
+	jobConfig     string
+	states        sets.Set[execution.JobState]
+	output        printer.OutputFormat
+	noHeaders     bool
+	watch         bool
+	allNamespaces bool
 
 	// Cached set of job UIDs that were previously filtered in.
 	// If it was displayed before, we don't want to filter it out afterwards.
@@ -109,6 +113,7 @@ func (c *ListJobCommand) Complete(cmd *cobra.Command, args []string) error {
 	c.output = common.GetOutputFormat(cmd)
 	c.noHeaders = common.GetFlagBool(cmd, "no-headers")
 	c.watch = common.GetFlagBool(cmd, "watch")
+	c.allNamespaces = common.GetFlagBool(cmd, "all-namespaces")
 
 	// Handle --states.
 	if v := common.GetFlagString(cmd, "states"); v != "" {
@@ -242,13 +247,18 @@ func (c *ListJobCommand) PrintJob(p *printer.TablePrinter, job *execution.Job) e
 }
 
 func (c *ListJobCommand) makeJobHeader() []string {
-	return []string{
+	var columns []string
+	if c.allNamespaces {
+		columns = append(columns, "NAMESPACE")
+	}
+	columns = append(columns, []string{
 		"NAME",
 		"PHASE",
 		"START TIME",
 		"RUN TIME",
 		"FINISH TIME",
-	}
+	}...)
+	return columns
 }
 
 func (c *ListJobCommand) prettyPrint(p *printer.TablePrinter, jobs []*execution.Job) {
@@ -279,13 +289,18 @@ func (c *ListJobCommand) makeJobRow(job *execution.Job) []string {
 		finishTime = format.TimeAgo(&condition.FinishTimestamp)
 	}
 
-	return []string{
+	var row []string
+	if c.allNamespaces {
+		row = append(row, job.Namespace)
+	}
+	row = append(row, []string{
 		job.Name,
 		string(job.Status.Phase),
 		startTime,
 		runTime,
 		finishTime,
-	}
+	}...)
+	return row
 }
 
 // FilterJobs returns a filtered list of jobs.

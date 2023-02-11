@@ -17,6 +17,7 @@
 package cmd_test
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -53,6 +54,58 @@ func TestListJobCommand(t *testing.T) {
 			Fixtures: []runtime.Object{jobRunning},
 			Stdout: runtimetesting.Output{
 				Contains: "job.execution.furiko.io/job-running",
+			},
+		},
+		{
+			Name: "only show jobs in the default namespace",
+			Args: []string{"list", "job", "-o", "yaml"},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				prodJobRunning,
+			},
+			Stdout: runtimetesting.Output{
+				Contains: string(jobRunning.UID),
+				Excludes: string(prodJobRunning.UID),
+			},
+		},
+		{
+			Name: "use explicit namespace",
+			Args: []string{"list", "job", "-o", "yaml", "-n", ProdNamespace},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				prodJobRunning,
+			},
+			Stdout: runtimetesting.Output{
+				Contains: string(prodJobRunning.UID),
+				Excludes: string(jobRunning.UID),
+			},
+		},
+		{
+			Name: "use all namespaces",
+			Args: []string{"list", "job", "-o", "yaml", "-A"},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				prodJobRunning,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					string(prodJobRunning.UID),
+					string(jobRunning.UID),
+				},
+			},
+		},
+		{
+			Name: "use all namespaces, pretty print",
+			Args: []string{"list", "job", "-A"},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				prodJobRunning,
+			},
+			Stdout: runtimetesting.Output{
+				MatchesAll: []*regexp.Regexp{
+					regexp.MustCompile(`default\s+job-running`),
+					regexp.MustCompile(`prod\s+job-running`),
+				},
 			},
 		},
 		{

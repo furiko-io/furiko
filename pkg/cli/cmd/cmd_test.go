@@ -18,4 +18,5 @@ package cmd_test
 
 const (
 	DefaultNamespace = "default"
+	ProdNamespace    = "prod"
 )
