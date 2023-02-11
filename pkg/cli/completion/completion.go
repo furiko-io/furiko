@@ -30,6 +30,9 @@ import (
 // Func is a completion func, that knows how to return completions.
 type Func func(ctx context.Context, ctrlContext controllercontext.Context, namespace string) ([]string, error)
 
+// CmdCompletionFunc is a completion func that only needs a *cobra.Command.
+type CmdCompletionFunc func(cmd *cobra.Command) ([]string, error)
+
 // Completer is the interface of Func.
 type Completer interface {
 	Complete(ctx context.Context, ctrlContext controllercontext.Context, namespace string) ([]string, error)
@@ -37,9 +40,10 @@ type Completer interface {
 
 // FlagCompletion defines a single flag completion entry.
 type FlagCompletion struct {
-	FlagName       string
-	CompletionFunc Func
-	Completer      Completer
+	FlagName          string
+	CompletionFunc    Func
+	CmdCompletionFunc CmdCompletionFunc
+	Completer         Completer
 }
 
 type cobraCompletionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
@@ -54,6 +58,8 @@ func RegisterFlagCompletions(cmd *cobra.Command, completions []FlagCompletion) e
 		var completionFunc cobraCompletionFunc
 		if completion.CompletionFunc != nil {
 			completionFunc = MakeCobraCompletionFunc(completion.CompletionFunc)
+		} else if completion.CmdCompletionFunc != nil {
+			completionFunc = CmdCompletionFuncToCobraCompletionFunc(completion.CmdCompletionFunc)
 		} else if completion.Completer != nil {
 			completionFunc = CompleterToCobraCompletionFunc(completion.Completer)
 		}
@@ -85,6 +91,17 @@ func MakeCobraCompletionFunc(f Func) func(cmd *cobra.Command, args []string, toC
 			return nil, cobra.ShellCompDirectiveError
 		}
 		return completions, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// CmdCompletionFuncToCobraCompletionFunc converts a CmdCompletionFunc into a cobra completion function.
+func CmdCompletionFuncToCobraCompletionFunc(c CmdCompletionFunc) func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		comps, err := c(cmd)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+		return comps, cobra.ShellCompDirectiveNoFileComp
 	}
 }
 

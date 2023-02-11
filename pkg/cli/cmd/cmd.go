@@ -68,6 +68,8 @@ func NewRootCommand(streams *streams.Streams) *cobra.Command {
 
 	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
 		{FlagName: "namespace", Completer: &completion.ListNamespacesCompleter{}},
+		{FlagName: "cluster", CmdCompletionFunc: completion.ListKubeconfigClusterCompletionFunc},
+		{FlagName: "context", CmdCompletionFunc: completion.ListKubeconfigContextCompletionFunc},
 	}); err != nil {
 		common.Fatal(err, common.DefaultErrorExitCode)
 	}
