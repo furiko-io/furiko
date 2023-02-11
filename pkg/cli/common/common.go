@@ -100,13 +100,28 @@ func SetCtrlContext(cc controllercontext.Context) {
 
 // GetNamespace returns the namespace to use depending on what was defined in the flags.
 func GetNamespace(cmd *cobra.Command) (string, error) {
+	// If --all-namespaces is defined on the command, use it first.
+	if flag := cmd.Flags().Lookup("all-namespaces"); flag != nil {
+		val, err := cmd.Flags().GetBool("all-namespaces")
+		if err != nil {
+			return "", errors.Wrapf(err, "cannot get value of --all-namespaces")
+		}
+		if val {
+			return metav1.NamespaceAll, nil
+		}
+	}
+
+	// Read the --namespace flag if specified.
 	namespace, err := cmd.Flags().GetString("namespace")
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "cannot get value of --namespace")
 	}
+
+	// Otherwise, fall back to the default namespace.
 	if namespace == "" {
 		namespace = metav1.NamespaceDefault
 	}
+
 	return namespace, nil
 }
 

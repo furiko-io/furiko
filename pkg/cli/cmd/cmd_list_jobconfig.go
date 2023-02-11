@@ -39,7 +39,16 @@ var (
 # List all JobConfigs in current namespace.
 {{.CommandName}} list jobconfig
 
-# List all JobConfigs in JSON format.
+# List all JobConfigs across all namespaces.
+{{.CommandName}} list jobconfig -A
+
+# List only JobConfigs with a schedule.
+{{.CommandName}} list jobconfig --scheduled
+
+# List adhoc-only JobConfigs (i.e. does not have a schedule).
+{{.CommandName}} list jobconfig --adhoc-only
+
+# List JobConfigs in JSON format.
 {{.CommandName}} list jobconfig -o json`)
 )
 
@@ -53,6 +62,7 @@ type ListJobConfigCommand struct {
 	adhocOnly       bool
 	scheduleEnabled bool
 	watch           bool
+	allNamespaces   bool
 
 	// Cached cron parser.
 	cronParser *cron.Parser
@@ -99,6 +109,7 @@ func (c *ListJobConfigCommand) Complete(cmd *cobra.Command, args []string) error
 	c.output = common.GetOutputFormat(cmd)
 	c.noHeaders = common.GetFlagBool(cmd, "no-headers")
 	c.watch = common.GetFlagBool(cmd, "watch")
+	c.allNamespaces = common.GetFlagBool(cmd, "all-namespaces")
 
 	// Prepare parser.
 	c.cronParser = cron.NewParserFromConfig(common.GetCronDynamicConfig(cmd))
@@ -206,7 +217,11 @@ func (c *ListJobConfigCommand) prettyPrint(p *printer.TablePrinter, jobConfigs [
 }
 
 func (c *ListJobConfigCommand) makeJobHeader() []string {
-	return []string{
+	var columns []string
+	if c.allNamespaces {
+		columns = append(columns, "NAMESPACE")
+	}
+	columns = append(columns, []string{
 		"NAME",
 		"STATE",
 		"ACTIVE",
@@ -215,7 +230,8 @@ func (c *ListJobConfigCommand) makeJobHeader() []string {
 		"LAST SCHEDULED",
 		"CRON SCHEDULE",
 		"NEXT SCHEDULE",
-	}
+	}...)
+	return columns
 }
 
 func (c *ListJobConfigCommand) makeJobRows(jobConfigs []*execution.JobConfig) [][]string {
@@ -235,7 +251,11 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 		}
 	}
 
-	return []string{
+	var row []string
+	if c.allNamespaces {
+		row = append(row, jobConfig.Namespace)
+	}
+	row = append(row, []string{
 		jobConfig.Name,
 		string(jobConfig.Status.State),
 		strconv.Itoa(int(jobConfig.Status.Active)),
@@ -244,7 +264,8 @@ func (c *ListJobConfigCommand) makeJobRow(jobConfig *execution.JobConfig) []stri
 		format.TimeAgo(jobConfig.Status.LastScheduled),
 		cronSchedule,
 		nextSchedule,
-	}
+	}...)
+	return row
 }
 
 // FilterJobConfigs returns a filtered list of job configs.

@@ -232,6 +232,36 @@ var (
 			State: execution.JobStateQueued,
 		},
 	}
+
+	prodJobRunning = &execution.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "job-running",
+			Namespace: ProdNamespace,
+			UID:       testutils.MakeUID("prod/job-running"),
+		},
+		Status: execution.JobStatus{
+			Phase: execution.JobRunning,
+			State: execution.JobStateRunning,
+			Condition: execution.JobCondition{
+				Running: &execution.JobConditionRunning{
+					LatestCreationTimestamp: testutils.Mkmtime(taskCreateTime),
+					LatestRunningTimestamp:  testutils.Mkmtime(taskLaunchTime),
+				},
+			},
+			StartTime:    testutils.Mkmtimep(startTime),
+			CreatedTasks: 1,
+			Tasks: []execution.TaskRef{
+				{
+					Name:              "job-running.1",
+					CreationTimestamp: testutils.Mkmtime(taskCreateTime),
+					RunningTimestamp:  testutils.Mkmtimep(taskLaunchTime),
+					Status: execution.TaskStatus{
+						State: execution.TaskRunning,
+					},
+				},
+			},
+		},
+	}
 )
 
 func TestGetJobCommand(t *testing.T) {

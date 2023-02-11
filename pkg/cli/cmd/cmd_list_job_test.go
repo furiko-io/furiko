@@ -56,6 +56,44 @@ func TestListJobCommand(t *testing.T) {
 			},
 		},
 		{
+			Name: "only show jobs in the default namespace",
+			Args: []string{"list", "job", "-o", "yaml"},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				prodJobRunning,
+			},
+			Stdout: runtimetesting.Output{
+				Contains: string(jobRunning.UID),
+				Excludes: string(prodJobRunning.UID),
+			},
+		},
+		{
+			Name: "use explicit namespace",
+			Args: []string{"list", "job", "-o", "yaml", "-n", ProdNamespace},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				prodJobRunning,
+			},
+			Stdout: runtimetesting.Output{
+				Contains: string(prodJobRunning.UID),
+				Excludes: string(jobRunning.UID),
+			},
+		},
+		{
+			Name: "use all namespaces",
+			Args: []string{"list", "job", "-o", "yaml", "-A"},
+			Fixtures: []runtime.Object{
+				jobRunning,
+				prodJobRunning,
+			},
+			Stdout: runtimetesting.Output{
+				ContainsAll: []string{
+					string(prodJobRunning.UID),
+					string(jobRunning.UID),
+				},
+			},
+		},
+		{
 			Name:     "can use alias",
 			Args:     []string{"list", "jobs", "-o", "name"},
 			Fixtures: []runtime.Object{jobRunning},

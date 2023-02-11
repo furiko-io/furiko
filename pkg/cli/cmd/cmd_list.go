@@ -70,6 +70,8 @@ func (c *ListCommand) RegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().String("field-selector", "",
 		"Selector (field query) to filter on, supports '=', '==', and '!=' (e.g. --field-selector key1=value1,key2=value2). "+
 			"The server only supports a limited number of field queries per type.")
+	cmd.Flags().BoolP("all-namespaces", "A", false,
+		"If specified, list the requested objects across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 
 	if err := completion.RegisterFlagCompletions(cmd, []completion.FlagCompletion{
 		{FlagName: "output", Completer: completion.NewSliceCompleter(printer.AllOutputFormats)},
