@@ -17,6 +17,8 @@
 package testutils
 
 import (
+	"encoding/json"
+
 	"github.com/stretchr/testify/assert"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -42,6 +44,42 @@ func AssertErrorIsNotFound() assert.ErrorAssertionFunc {
 func AssertErrorContains(str string) assert.ErrorAssertionFunc {
 	return func(t assert.TestingT, err error, i ...interface{}) bool {
 		return assert.Contains(t, err.Error(), str, i...)
+	}
+}
+
+// AssertValueContains returns assert.ValueAssertionFunc that asserts that the value contains the given contents.
+func AssertValueContains(contains interface{}) assert.ValueAssertionFunc {
+	return func(t assert.TestingT, val interface{}, i ...interface{}) bool {
+		return assert.Contains(t, val, contains, i...)
+	}
+}
+
+// AssertValueJSONEq returns assert.ValueAssertionFunc that asserts that two JSON strings are equivalent.
+func AssertValueJSONEq(expected any) assert.ValueAssertionFunc {
+	return func(t assert.TestingT, val interface{}, i ...interface{}) bool {
+		actual, ok := val.(string)
+		if !ok {
+			t.Errorf("wanted a string, got %T", val)
+			return false
+		}
+		expectedBytes, err := json.Marshal(expected)
+		if err != nil {
+			t.Errorf("Marshal() got error: %v", err)
+			return false
+		}
+		return assert.JSONEq(t, string(expectedBytes), actual, i...)
+	}
+}
+
+// AssertValueAll composes multiple assert.ValueAssertionFunc together.
+func AssertValueAll(fns ...assert.ValueAssertionFunc) assert.ValueAssertionFunc {
+	return func(t assert.TestingT, val interface{}, i ...interface{}) bool {
+		for _, fn := range fns {
+			if !fn(t, val, i...) {
+				return false
+			}
+		}
+		return true
 	}
 }
 

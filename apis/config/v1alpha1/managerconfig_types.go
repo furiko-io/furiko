@@ -146,15 +146,23 @@ type HTTPSpec struct {
 
 	// Metrics controls metrics serving.
 	// +optional
-	Metrics *MetricsSpec `json:"metrics,omitempty"`
+	Metrics *HTTPMetricsSpec `json:"metrics,omitempty"`
 
 	// Health controls health status serving.
 	// +optional
-	Health *HealthSpec `json:"health,omitempty"`
+	Health *HTTPHealthSpec `json:"health,omitempty"`
+
+	// Debug controls debug endpoint serving.
+	// +optional
+	Debug *HTTPDebugSpec `json:"debug,omitempty"`
+
+	// Pprof controls HTTP serving of runtime profiling data (i.e. pprof).
+	// +optional
+	Pprof *HTTPPprofSpec `json:"pprof,omitempty"`
 }
 
-type MetricsSpec struct {
-	// Enabled is whether the controller manager enables serving Prometheus metrics.
+type HTTPMetricsSpec struct {
+	// Enabled is whether the HTTP server enables serving Prometheus metrics.
 	//
 	// Default: true
 	// +optional
@@ -167,8 +175,8 @@ type MetricsSpec struct {
 	MetricsPath string `json:"metricsPath,omitempty"`
 }
 
-type HealthSpec struct {
-	// Enabled is whether the controller manager enables serving health probes.
+type HTTPHealthSpec struct {
+	// Enabled is whether the HTTP server enables serving health probes.
 	//
 	// Default: true
 	// +optional
@@ -185,6 +193,34 @@ type HealthSpec struct {
 	// Default: /healthz
 	// +optional
 	LivenessProbePath string `json:"livenessProbePath,omitempty"`
+}
+
+type HTTPDebugSpec struct {
+	// Enabled is whether the HTTP server enables debug endpoints.
+	//
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// BasePath is the base path for debug endpoints.
+	//
+	// Default: /debug
+	// +optional
+	BasePath string `json:"basePath,omitempty"`
+}
+
+type HTTPPprofSpec struct {
+	// Enabled is whether the HTTP server enables pprof endpoints.
+	//
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// IndexPath is the index path for pprof endpoints.
+	//
+	// Default: /debug/pprof
+	// +optional
+	IndexPath string `json:"indexPath,omitempty"`
 }
 
 type ExecutionControllerConcurrencySpec struct {
