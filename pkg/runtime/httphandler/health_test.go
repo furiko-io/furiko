@@ -57,8 +57,8 @@ func (m *mockHealthHandler) GetHealth() []controllermanager.HealthStatus {
 }
 
 func TestServeHealth(t *testing.T) {
-	makeTestCasesFor404 := func() []*httphandlertesting.TestCase {
-		return []*httphandlertesting.TestCase{
+	makeTestCasesFor404 := func() []*httphandlertesting.Case {
+		return []*httphandlertesting.Case{
 			{
 				Name:     "readiness probe path should not be enabled",
 				Path:     "/readyz",
@@ -72,8 +72,8 @@ func TestServeHealth(t *testing.T) {
 		}
 	}
 
-	makeTestCasesFor200 := func(readinessPath, livenessPath string) []*httphandlertesting.TestCase {
-		return []*httphandlertesting.TestCase{
+	makeTestCasesFor200 := func(readinessPath, livenessPath string) []*httphandlertesting.Case {
+		return []*httphandlertesting.Case{
 			{
 				Name:     "readiness probe should be ok",
 				Path:     readinessPath,
@@ -100,7 +100,7 @@ func TestServeHealth(t *testing.T) {
 		name    string
 		cfg     *configv1alpha1.HTTPHealthSpec
 		handler httphandler.HealthHandler
-		cases   []*httphandlertesting.TestCase
+		cases   []*httphandlertesting.Case
 	}
 	for _, tt := range []testCase{
 		{
@@ -152,7 +152,7 @@ func TestServeHealth(t *testing.T) {
 			cfg: &configv1alpha1.HTTPHealthSpec{
 				Enabled: pointer.Bool(true),
 			},
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "readiness probe returns error",
 					Path:     "/readyz",
@@ -179,7 +179,7 @@ func TestServeHealth(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			suite := httphandlertesting.NewSuite(&httphandlertesting.TestSuite{
+			suite := httphandlertesting.NewSuite(&httphandlertesting.Config{
 				Method: http.MethodGet,
 			})
 			httphandler.ServeHealth(suite.GetMux(), tt.cfg, tt.handler)

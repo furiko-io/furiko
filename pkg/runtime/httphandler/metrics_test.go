@@ -32,12 +32,12 @@ func TestServeMetrics(t *testing.T) {
 	type testCase struct {
 		name  string
 		cfg   *configv1alpha1.HTTPMetricsSpec
-		cases []*httphandlertesting.TestCase
+		cases []*httphandlertesting.Case
 	}
 	for _, tt := range []testCase{
 		{
 			name: "default config",
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "should not be enabled",
 					WantCode: 404,
@@ -49,7 +49,7 @@ func TestServeMetrics(t *testing.T) {
 			cfg: &configv1alpha1.HTTPMetricsSpec{
 				Enabled: pointer.Bool(false),
 			},
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "should not be enabled",
 					WantCode: 404,
@@ -61,7 +61,7 @@ func TestServeMetrics(t *testing.T) {
 			cfg: &configv1alpha1.HTTPMetricsSpec{
 				Enabled: pointer.Bool(true),
 			},
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "should be ok",
 					WantCode: 200,
@@ -70,7 +70,7 @@ func TestServeMetrics(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			suite := httphandlertesting.NewSuite(&httphandlertesting.TestSuite{
+			suite := httphandlertesting.NewSuite(&httphandlertesting.Config{
 				Method: http.MethodGet,
 				Path:   "/metrics",
 			})

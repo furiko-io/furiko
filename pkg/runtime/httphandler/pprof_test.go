@@ -31,12 +31,12 @@ func TestServePprof(t *testing.T) {
 	type testCase struct {
 		name  string
 		cfg   *configv1alpha1.HTTPPprofSpec
-		cases []*httphandlertesting.TestCase
+		cases []*httphandlertesting.Case
 	}
 	for _, tt := range []testCase{
 		{
 			name: "default config",
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "should not be enabled",
 					Path:     "/debug/pprof/",
@@ -49,7 +49,7 @@ func TestServePprof(t *testing.T) {
 			cfg: &configv1alpha1.HTTPPprofSpec{
 				Enabled: pointer.Bool(false),
 			},
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "should not be enabled",
 					Path:     "/debug/pprof/",
@@ -62,7 +62,7 @@ func TestServePprof(t *testing.T) {
 			cfg: &configv1alpha1.HTTPPprofSpec{
 				Enabled: pointer.Bool(true),
 			},
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "should have redirect",
 					Path:     "/debug/pprof",
@@ -91,7 +91,7 @@ func TestServePprof(t *testing.T) {
 				Enabled:   pointer.Bool(true),
 				IndexPath: "/_internal/debug/pprof",
 			},
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "default route is not registered",
 					Path:     "/debug/pprof/",
@@ -116,7 +116,7 @@ func TestServePprof(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			suite := httphandlertesting.NewSuite(&httphandlertesting.TestSuite{
+			suite := httphandlertesting.NewSuite(&httphandlertesting.Config{
 				Method: http.MethodGet,
 			})
 			httphandler.ServePprof(suite.GetMux(), tt.cfg)

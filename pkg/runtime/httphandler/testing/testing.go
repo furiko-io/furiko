@@ -26,21 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// MockServer knows how to run a TestSuite.
-type MockServer struct {
-	mux   *http.ServeMux
-	suite *TestSuite
-}
-
-func NewSuite(test *TestSuite) *MockServer {
-	return &MockServer{
-		mux:   http.NewServeMux(),
-		suite: test,
-	}
-}
-
-// TestSuite encapsulates one or more test cases.
-type TestSuite struct {
+// Config contains common configuration for a single Suite.
+type Config struct {
 	// Defines the default path to request.
 	Path string
 
@@ -48,17 +35,17 @@ type TestSuite struct {
 	Method string
 }
 
-// TestCase represents a single test case.
-type TestCase struct {
+// Case represents a single test case.
+type Case struct {
 	// Name of the test case.
 	Name string
 
 	// Path to request.
-	// If empty, uses the default path in the TestSuite.
+	// If empty, uses the default path in the Config.
 	Path string
 
 	// Method to request.
-	// If empty, uses the default method in the TestSuite.
+	// If empty, uses the default method in the Config.
 	Method string
 
 	// Request body.
@@ -75,13 +62,26 @@ type TestCase struct {
 	AssertBody assert.ValueAssertionFunc
 }
 
+// Suite is a test suite for HTTP testing.
+type Suite struct {
+	mux   *http.ServeMux
+	suite *Config
+}
+
+func NewSuite(test *Config) *Suite {
+	return &Suite{
+		mux:   http.NewServeMux(),
+		suite: test,
+	}
+}
+
 // GetMux returns the *http.ServeMux.
-func (s *MockServer) GetMux() *http.ServeMux {
+func (s *Suite) GetMux() *http.ServeMux {
 	return s.mux
 }
 
 // Run the test suite.
-func (s *MockServer) Run(t *testing.T, cases []*TestCase) {
+func (s *Suite) Run(t *testing.T, cases []*Case) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			s.runTestCase(t, tt)
@@ -89,7 +89,7 @@ func (s *MockServer) Run(t *testing.T, cases []*TestCase) {
 	}
 }
 
-func (s *MockServer) runTestCase(t *testing.T, tt *TestCase) {
+func (s *Suite) runTestCase(t *testing.T, tt *Case) {
 	rec := httptest.NewRecorder()
 
 	method := tt.Method

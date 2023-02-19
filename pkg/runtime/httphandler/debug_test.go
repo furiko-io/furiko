@@ -74,8 +74,8 @@ func (m *mockDebugHandler) GetDynamicConfig() (map[configv1alpha1.ConfigName]run
 }
 
 func TestServeDebug(t *testing.T) {
-	makeTestCasesFor404 := func() []*httphandlertesting.TestCase {
-		return []*httphandlertesting.TestCase{
+	makeTestCasesFor404 := func() []*httphandlertesting.Case {
+		return []*httphandlertesting.Case{
 			{
 				Name:     "bootstrap config should not be enabled",
 				Path:     "/debug/config/bootstrap",
@@ -89,8 +89,8 @@ func TestServeDebug(t *testing.T) {
 		}
 	}
 
-	makeTestCasesFor200 := func(basePath string) []*httphandlertesting.TestCase {
-		return []*httphandlertesting.TestCase{
+	makeTestCasesFor200 := func(basePath string) []*httphandlertesting.Case {
+		return []*httphandlertesting.Case{
 			{
 				Name: "bootstrap config should not be enabled",
 				Path: basePath + "/config/bootstrap",
@@ -112,7 +112,7 @@ func TestServeDebug(t *testing.T) {
 		name    string
 		cfg     *configv1alpha1.HTTPDebugSpec
 		handler httphandler.DebugHandler
-		cases   []*httphandlertesting.TestCase
+		cases   []*httphandlertesting.Case
 	}
 	for _, tt := range []testCase{
 		{
@@ -164,7 +164,7 @@ func TestServeDebug(t *testing.T) {
 			cfg: &configv1alpha1.HTTPDebugSpec{
 				Enabled: pointer.Bool(true),
 			},
-			cases: []*httphandlertesting.TestCase{
+			cases: []*httphandlertesting.Case{
 				{
 					Name:     "error while getting dynamic config",
 					Path:     "/debug/config/dynamic",
@@ -177,7 +177,7 @@ func TestServeDebug(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			suite := httphandlertesting.NewSuite(&httphandlertesting.TestSuite{
+			suite := httphandlertesting.NewSuite(&httphandlertesting.Config{
 				Method: http.MethodGet,
 			})
 			httphandler.ServeDebug(suite.GetMux(), tt.cfg, tt.handler)
