@@ -18,20 +18,20 @@ package httphandler
 
 import (
 	"net/http"
+	"net/http/pprof"
+	"path"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 )
 
 const (
-	defaultMetricsPath = "/metrics"
+	defaultPprofIndexPath = "/debug/pprof"
 )
 
-// ServeMetrics adds Prometheus metrics handlers to the given serve mux.
-func ServeMetrics(mux *http.ServeMux, cfg *configv1alpha1.HTTPMetricsSpec, registry prometheus.Gatherer) {
+// ServePprof adds the pprof debug handler to the given serve mux.
+func ServePprof(mux *http.ServeMux, cfg *configv1alpha1.HTTPPprofSpec) {
 	// Not enabled.
 	if cfg == nil {
 		return
@@ -40,15 +40,20 @@ func ServeMetrics(mux *http.ServeMux, cfg *configv1alpha1.HTTPMetricsSpec, regis
 		return
 	}
 
-	path := cfg.MetricsPath
-	if path == "" {
-		path = defaultMetricsPath
+	indexPath := cfg.IndexPath
+	if indexPath == "" {
+		indexPath = defaultPprofIndexPath
 	}
 
-	// Use registry from controller-runtime
-	mux.Handle(path, promhttp.HandlerFor(registry, promhttp.HandlerOpts{
-		ErrorHandling: promhttp.HTTPErrorOnError,
-	}))
+	// Clean the path to remove any trailing slashes.
+	indexPath = path.Clean(indexPath)
 
-	klog.V(4).Infof("httphandler: added http handler for metrics")
+	// Register all handlers.
+	mux.HandleFunc(indexPath+"/", pprof.Index)
+	mux.HandleFunc(indexPath+"/cmdline", pprof.Cmdline)
+	mux.HandleFunc(indexPath+"/profile", pprof.Profile)
+	mux.HandleFunc(indexPath+"/symbol", pprof.Symbol)
+	mux.HandleFunc(indexPath+"/trace", pprof.Trace)
+
+	klog.V(4).Infof("httphandler: added http handler for pprof")
 }

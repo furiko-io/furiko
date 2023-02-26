@@ -107,7 +107,7 @@ func main() {
 
 	// Start HTTP server in background.
 	go func() {
-		if err := httphandler.ListenAndServe(ctx, options.HTTP, mgr); err != nil {
+		if err := httphandler.ListenAndServeHTTP(ctx, options.HTTP, mgr, &options, ctrlContext.Configs()); err != nil {
 			klog.Fatalf("cannot start http handlers: %v", err)
 		}
 	}()

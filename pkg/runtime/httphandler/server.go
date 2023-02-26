@@ -19,100 +19,56 @@ package httphandler
 import (
 	"context"
 	"net/http"
-	"time"
 
-	"github.com/pkg/errors"
-	"k8s.io/klog/v2"
+	"github.com/prometheus/client_golang/prometheus"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
-	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
 )
 
-var (
-	defaultHTTPConfig = &configv1alpha1.HTTPSpec{
-		BindAddress: ":8080",
-	}
-
-	defaultWebhooksConfig = &configv1alpha1.WebhookServerSpec{
-		BindAddress: ":9443",
-	}
-)
-
-type Manager interface {
-	GetReadiness() error
-	GetHealth() []controllermanager.HealthStatus
+// Server is a thin wrapper around HTTP servers.
+type Server struct {
+	addr   string
+	mux    *http.ServeMux
+	server ListeningServer
 }
 
-// ListenAndServe listens on the given TCP address and gracefully stops when the
-// given context is canceled, setting up all HTTP handlers.
-func ListenAndServe(ctx context.Context, config *configv1alpha1.HTTPSpec, mgr Manager) error {
-	if config == nil {
-		config = defaultHTTPConfig
-	}
-	addr := config.BindAddress
-	if addr == "" {
-		addr = defaultHTTPConfig.BindAddress
-	}
-
+func NewServer(addr string) *Server {
 	mux := http.NewServeMux()
 	server := &http.Server{
 		Addr:    addr,
 		Handler: mux,
 	}
 
-	ServeMetrics(mux, config.Metrics)
-	ServeHealth(mux, config.Health, mgr)
-	return listenAndServe(ctx, addr, server)
+	return &Server{
+		mux:    mux,
+		addr:   addr,
+		server: server,
+	}
 }
 
-// ListenAndServeWebhooks listens on the given TCP address and gracefully stops when the
-// given context is canceled, setting up all webhooks handlers.
-func ListenAndServeWebhooks(
-	ctx context.Context,
-	config *configv1alpha1.WebhookServerSpec,
-	webhooks []controllermanager.Webhook,
-) error {
-	if config == nil {
-		config = defaultWebhooksConfig
-	}
-	addr := config.BindAddress
-	if addr == "" {
-		addr = defaultWebhooksConfig.BindAddress
-	}
-
-	mux := http.NewServeMux()
-	server := newTLSServer(&http.Server{
-		Addr:    addr,
-		Handler: mux,
-	}, config.TLSCertFile, config.TLSPrivateKeyFile)
-
-	ServeWebhooks(mux, webhooks)
-	return listenAndServe(ctx, addr, server)
+// Handle registers the handler for the given pattern.
+// If a handler already exists for pattern, Handle panics.
+func (s *Server) Handle(path string, handler http.Handler) {
+	s.mux.Handle(path, handler)
 }
 
-type Server interface {
-	ListenAndServe() error
-	Shutdown(context.Context) error
+// RegisterCommonHandlers registers common handlers from the given HTTPSpec.
+func (s *Server) RegisterCommonHandlers(
+	cfg *configv1alpha1.HTTPSpec,
+	registry prometheus.Gatherer,
+	healthHandler HealthHandler,
+	debugHandler DebugHandler,
+) {
+	if cfg == nil {
+		cfg = defaultHTTPConfig
+	}
+	ServeMetrics(s.mux, cfg.Metrics, registry)
+	ServeHealth(s.mux, cfg.Health, healthHandler)
+	ServeDebug(s.mux, cfg.Debug, debugHandler)
+	ServePprof(s.mux, cfg.Pprof)
 }
 
-func listenAndServe(ctx context.Context, addr string, server Server) error {
-	go func() {
-		<-ctx.Done()
-		klog.Infof("httphandler: shutting down http server on %v", addr)
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			klog.ErrorS(err, "httphandler: error while shutting down", "addr", addr)
-		}
-		klog.Infof("httphandler: http server shut down on %v", addr)
-	}()
-
-	klog.Infof("httphandler: http server listening on %v", addr)
-	if err := server.ListenAndServe(); errors.Is(err, http.ErrServerClosed) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-
-	return nil
+// ListenAndServe will listen and serve incoming HTTP connections until the context is closed.
+func (s *Server) ListenAndServe(ctx context.Context) error {
+	return listenAndServe(ctx, s.addr, s.server)
 }

@@ -17,13 +17,14 @@
 package httphandler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
+	"github.com/furiko-io/furiko/pkg/runtime/controllermanager"
 )
 
 const (
@@ -31,8 +32,14 @@ const (
 	defaultLivenessProbePath  = "/healthz"
 )
 
+// HealthHandler is a delegate to get health information.
+type HealthHandler interface {
+	GetReadiness() error
+	GetHealth() []controllermanager.HealthStatus
+}
+
 // ServeHealth adds health probe handlers to the given serve mux.
-func ServeHealth(mux *http.ServeMux, cfg *configv1alpha1.HealthSpec, mgr Manager) {
+func ServeHealth(mux *http.ServeMux, cfg *configv1alpha1.HTTPHealthSpec, handler HealthHandler) {
 	// Not enabled.
 	if cfg == nil {
 		return
@@ -50,17 +57,28 @@ func ServeHealth(mux *http.ServeMux, cfg *configv1alpha1.HealthSpec, mgr Manager
 		livenessProbePath = defaultLivenessProbePath
 	}
 
-	mux.HandleFunc(readinessProbePath, handleReadinessProbes(mgr))
-	mux.HandleFunc(livenessProbePath, handleLivenessProbes(mgr))
+	server := newHealthServer(handler)
+	mux.HandleFunc(readinessProbePath, server.HandleReadinessProbes())
+	mux.HandleFunc(livenessProbePath, server.HandleLivenessProbes())
 
 	klog.V(4).Infof("httphandler: added http handler for health probes")
 }
 
-func handleReadinessProbes(mgr Manager) http.HandlerFunc {
+type healthServer struct {
+	handler HealthHandler
+}
+
+func newHealthServer(handler HealthHandler) *healthServer {
+	return &healthServer{
+		handler: handler,
+	}
+}
+
+func (s *healthServer) HandleReadinessProbes() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		statusCode := http.StatusOK
 		msg := "ok"
-		if err := mgr.GetReadiness(); err != nil {
+		if err := s.handler.GetReadiness(); err != nil {
 			statusCode = http.StatusServiceUnavailable
 			msg = fmt.Sprintf("controller manager is not ready: %v", err)
 		}
@@ -69,12 +87,12 @@ func handleReadinessProbes(mgr Manager) http.HandlerFunc {
 	}
 }
 
-func handleLivenessProbes(mgr Manager) http.HandlerFunc {
+func (s *healthServer) HandleLivenessProbes() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		healthy := true
 		statusCode := http.StatusAccepted
 
-		ctrlHealth := mgr.GetHealth()
+		ctrlHealth := s.handler.GetHealth()
 		for _, workerHealth := range ctrlHealth {
 			if !workerHealth.Healthy {
 				statusCode = http.StatusInternalServerError
