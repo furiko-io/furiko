@@ -27,6 +27,16 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext"
 )
 
+const (
+	// defaultShellCompDirectives is the default bitmask of cobra.ShellCompDirective
+	// when returning a successful list of completions.
+	defaultShellCompDirectives = cobra.ShellCompDirectiveDefault |
+		// Do not show file completion
+		cobra.ShellCompDirectiveNoFileComp |
+		// Retain order in completions (necessary for zsh)
+		cobra.ShellCompDirectiveKeepOrder
+)
+
 // Func is a completion func, that knows how to return completions.
 type Func func(ctx context.Context, ctrlContext controllercontext.Context, namespace string) ([]string, error)
 
@@ -90,7 +100,7 @@ func MakeCobraCompletionFunc(f Func) func(cmd *cobra.Command, args []string, toC
 			common.Fatal(err, common.DefaultErrorExitCode)
 			return nil, cobra.ShellCompDirectiveError
 		}
-		return completions, cobra.ShellCompDirectiveNoFileComp
+		return completions, defaultShellCompDirectives
 	}
 }
 
@@ -101,7 +111,7 @@ func CmdCompletionFuncToCobraCompletionFunc(c CmdCompletionFunc) func(cmd *cobra
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveError
 		}
-		return comps, cobra.ShellCompDirectiveNoFileComp
+		return comps, defaultShellCompDirectives
 	}
 }
 
