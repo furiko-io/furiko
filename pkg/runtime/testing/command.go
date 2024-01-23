@@ -42,6 +42,7 @@ import (
 // RunCommandTests executes all CommandTest cases.
 func RunCommandTests(t *testing.T, cases []CommandTest) {
 	for _, tt := range cases {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Run(t)
 		})
