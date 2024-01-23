@@ -28,10 +28,7 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2.5.2
-        with:
-          version: v1.45.2
-          args: --timeout=5m
+        run: make lint
 
   generate-lint:
     runs-on: ubuntu-latest
