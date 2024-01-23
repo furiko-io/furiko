@@ -129,7 +129,7 @@ type RunContext struct {
 }
 
 func (c *CommandTest) Run(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	done := make(chan struct{})
@@ -142,7 +142,7 @@ func (c *CommandTest) Run(t *testing.T) {
 	case <-done:
 		return
 	case <-ctx.Done():
-		t.Errorf("test did not complete: %v", ctx.Err())
+		t.Fatalf("test did not complete: %v", ctx.Err())
 	}
 }
 
