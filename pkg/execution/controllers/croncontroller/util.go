@@ -28,13 +28,6 @@ import (
 	"github.com/furiko-io/furiko/pkg/utils/cmp"
 )
 
-const (
-	// defaultTimezone is the default timezone value that will be used if there is
-	// no timezone configuration for the JobConfig or a default value set for the
-	// controller.
-	defaultTimezone = "UTC"
-)
-
 // IsScheduleEqual returns true if the ScheduleSpec is not equal and should be updated.
 // This equality check is only true in the context of the CronController.
 func IsScheduleEqual(orig, updated *execution.ScheduleSpec) (bool, error) {

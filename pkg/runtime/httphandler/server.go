@@ -19,6 +19,7 @@ package httphandler
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -35,8 +36,9 @@ type Server struct {
 func NewServer(addr string) *Server {
 	mux := http.NewServeMux()
 	server := &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	return &Server{

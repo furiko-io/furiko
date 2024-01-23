@@ -42,7 +42,6 @@ type JobControlInterface interface {
 type JobControl struct {
 	client   executionv1alpha1.ExecutionV1alpha1Interface
 	recorder record.EventRecorder
-	name     string
 }
 
 var _ JobControlInterface = (*JobControl)(nil)

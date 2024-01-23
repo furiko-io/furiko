@@ -30,7 +30,6 @@ import (
 	"k8s.io/utils/clock"
 	utiltrace "k8s.io/utils/trace"
 
-	configv1alpha1 "github.com/furiko-io/furiko/apis/config/v1alpha1"
 	execution "github.com/furiko-io/furiko/apis/execution/v1alpha1"
 	"github.com/furiko-io/furiko/pkg/config"
 	"github.com/furiko-io/furiko/pkg/execution/util/cronschedule"
@@ -264,22 +263,6 @@ func (w *CronWorker) syncOne(now time.Time, key string, ts time.Time, counts map
 	)
 
 	return nil
-}
-
-// getTimezone returns the timezone for the given JobConfig.
-func (w *CronWorker) getTimezone(cronSchedule *execution.CronSchedule, cfg *configv1alpha1.CronExecutionConfig) string {
-	// Read from spec.
-	if cronSchedule.Timezone != "" {
-		return cronSchedule.Timezone
-	}
-
-	// Use default timezone from config.
-	if tz := cfg.DefaultTimezone; tz != nil && len(*tz) > 0 {
-		return *tz
-	}
-
-	// Fallback to controller default.
-	return defaultTimezone
 }
 
 type enqueueHandler struct {

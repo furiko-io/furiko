@@ -99,11 +99,11 @@ func TestNewPodTaskClient(t *testing.T) {
 }
 
 func getPodIndexedName(name string, index int64) string {
-	name, err := jobutil.GenerateTaskName(fakeJob.Name, tasks.TaskIndex{
+	taskName, err := jobutil.GenerateTaskName(name, tasks.TaskIndex{
 		Retry: index,
 	})
 	if err != nil {
 		panic(err)
 	}
-	return name
+	return taskName
 }

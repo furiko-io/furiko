@@ -38,7 +38,6 @@ var (
 
 type EnableCommand struct {
 	streams *streams.Streams
-	name    string
 }
 
 func NewEnableCommand(streams *streams.Streams) *cobra.Command {
