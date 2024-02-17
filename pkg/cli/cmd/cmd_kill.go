@@ -48,7 +48,6 @@ var (
 
 type KillCommand struct {
 	streams  *streams.Streams
-	name     string
 	override bool
 	killAt   time.Time
 }

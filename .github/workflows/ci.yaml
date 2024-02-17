@@ -27,10 +27,13 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
+      - id: get-golangci-lint-version
+        name: Get golangci-lint version
+        run: echo "GOLANGCI_LINT_VERSION=$(grep '^GOLANGCI_LINT_VERSION' Makefile | cut -d' ' -f3)" >> "$GITHUB_OUTPUT"
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2.5.2
         with:
-          version: v1.45.2
+          version: ${{ steps.get-golangci-lint-version.outputs.GOLANGCI_LINT_VERSION }}
           args: --timeout=5m
 
   generate-lint:

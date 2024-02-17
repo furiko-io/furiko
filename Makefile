@@ -217,6 +217,15 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN): ## Ensure that the directory exists
 	mkdir -p $(LOCALBIN)
 
+## Tool Versions
+KUSTOMIZE_VERSION ?= v4.5.5
+CONTROLLER_TOOLS_VERSION ?= v0.8.0
+YQ_VERSION ?= v4.14.1
+GOIMPORTS_REVISER_VERSION ?= 32c80678d5d73a50b6966f06b346de58b1d018f1
+GOLANGCI_LINT_VERSION ?= v1.55.2
+LICENSEHEADERCHECKER_VERSION ?= v1.3.0
+GORELEASER_VERSION ?= v1.8.2
+
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
@@ -224,18 +233,9 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOIMPORTS ?= $(LOCALBIN)/goimports
 GOIMPORTS_REVISER ?= $(LOCALBIN)/goimports-reviser
 YQ ?= $(LOCALBIN)/yq
-GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint@$(GOLANGCI_LINT_VERSION)
 LICENSE_HEADER_CHECKER ?= $(LOCALBIN)/license-header-checker
 GORELEASER ?= $(LOCALBIN)/goreleaser
-
-## Tool Versions
-KUSTOMIZE_VERSION ?= v4.5.5
-CONTROLLER_TOOLS_VERSION ?= v0.8.0
-YQ_VERSION ?= v4.14.1
-GOIMPORTS_REVISER_VERSION ?= 32c80678d5d73a50b6966f06b346de58b1d018f1
-GOLANGCILINT_VERSION ?= v1.45.2
-LICENSEHEADERCHECKER_VERSION ?= v1.3.0
-GORELEASER_VERSION ?= v1.8.2
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -272,7 +272,10 @@ GOLANGCILINT_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/golangci/golan
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT):
-	@[ -f $(GOLANGCI_LINT) ] || curl -sSfL $(GOLANGCILINT_INSTALL_SCRIPT) | sh -s $(GOLANGCILINT_VERSION)
+	# Downloads to ./bin/golangci-lint.
+	@[ -f $(GOLANGCI_LINT) ] || curl -sSfL $(GOLANGCILINT_INSTALL_SCRIPT) | sh -s $(GOLANGCI_LINT_VERSION)
+	# Move to versioned path.
+	mv ./bin/golangci-lint $(GOLANGCI_LINT)
 
 .PHONY: goreleaser
 goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.

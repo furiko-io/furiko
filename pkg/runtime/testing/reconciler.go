@@ -179,7 +179,7 @@ func (r *ReconcilerTest) RunTestCase(t testinginterface.T, tt ReconcilerTestCase
 	recon := r.ReconcilerFunc(ctrlContext)
 
 	// Initialize fixtures.
-	target, err := r.initClientset(ctx, c.MockClientsets(), tt, ctrlContext.GetHasSynced())
+	target, err := r.initClientset(ctx, c.MockClientsets(), tt)
 	if err != nil {
 		t.Fatalf("cannot initialize fixtures: %v", err)
 	}
@@ -230,7 +230,6 @@ func (r *ReconcilerTest) initClientset(
 	ctx context.Context,
 	client *mock.Clientsets,
 	tt ReconcilerTestCase,
-	hasSynced []cache.InformerSynced,
 ) (runtime.Object, error) {
 	// Set up all fixtures.
 	fixtures := tt.Fixtures

@@ -88,8 +88,9 @@ func ListenAndServeWebhooks(
 
 	mux := http.NewServeMux()
 	server := newTLSServer(&http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}, config.TLSCertFile, config.TLSPrivateKeyFile)
 
 	ServeWebhooks(mux, webhooks)

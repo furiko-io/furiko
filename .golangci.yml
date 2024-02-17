@@ -10,18 +10,28 @@ linters-settings:
 
 issues:
   exclude-rules:
+    # Add default exclusions for test files.
     - path: '(.+)_test\.go'
       linters:
+        - dupl
         - gocognit
         - gocyclo
-        - dupl
+
+    # Excludes nil error return unparam checks.
+    - text: "result .* is always nil"
+      linters:
+        - unparam
+
+    # Excludes "always receives" unparam checks for test files.
+    - path: '(.+)_test\.go'
+      text: "`.*` always receives `.*`"
+      linters:
+        - unparam
 
 linters:
   enable:
     - asciicheck
     - bodyclose
-    - deadcode
-    - depguard
     - dupl
     - errcheck
     - exportloopref
@@ -42,15 +52,12 @@ linters:
     - nakedret
     - noctx
     - prealloc
-    - revive
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace

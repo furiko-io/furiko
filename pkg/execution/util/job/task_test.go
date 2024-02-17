@@ -45,9 +45,8 @@ var (
 
 type stubTask struct {
 	metav1.ObjectMeta
-	taskRef    v1alpha1.TaskRef
-	retryIndex int64
-	killable   bool
+	taskRef  v1alpha1.TaskRef
+	killable bool
 }
 
 func (t *stubTask) GetName() string {
