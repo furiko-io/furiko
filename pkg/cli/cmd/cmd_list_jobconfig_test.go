@@ -289,16 +289,28 @@ func TestListJobConfigCommand(t *testing.T) {
 			},
 			Procedure: func(t *testing.T, rc runtimetesting.RunContext) {
 				// Expect that initial output contains the specified job config.
-				rc.Console.ExpectString(periodicJobConfig.Name)
-				rc.Console.ExpectString(string(v1alpha1.JobConfigReadyEnabled))
+				_, err := rc.Console.Console.ExpectString(periodicJobConfig.Name)
+				if !assert.NoError(t, err) {
+					return
+				}
+				_, err = rc.Console.Console.ExpectString(string(v1alpha1.JobConfigReadyEnabled))
+				if !assert.NoError(t, err) {
+					return
+				}
 
 				// Create a new JobConfig.
-				_, err := rc.CtrlContext.Clientsets().Furiko().ExecutionV1alpha1().JobConfigs(adhocJobConfig.Namespace).Create(rc.Context, adhocJobConfig, metav1.CreateOptions{})
+				_, err = rc.CtrlContext.Clientsets().Furiko().ExecutionV1alpha1().JobConfigs(adhocJobConfig.Namespace).Create(rc.Context, adhocJobConfig, metav1.CreateOptions{})
 				assert.NoError(t, err)
 
 				// Wait for the console to print updates.
-				rc.Console.ExpectString(adhocJobConfig.Name)
-				rc.Console.ExpectString(string(v1alpha1.JobConfigReady))
+				_, err = rc.Console.Console.ExpectString(adhocJobConfig.Name)
+				if !assert.NoError(t, err) {
+					return
+				}
+				_, err = rc.Console.Console.ExpectString(string(v1alpha1.JobConfigReady))
+				if !assert.NoError(t, err) {
+					return
+				}
 
 				// Cancel watch.
 				rc.Cancel()
