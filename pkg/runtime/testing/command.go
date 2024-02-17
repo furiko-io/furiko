@@ -17,6 +17,7 @@
 package testing
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"regexp"
@@ -37,6 +38,10 @@ import (
 	"github.com/furiko-io/furiko/pkg/runtime/controllercontext/mock"
 	"github.com/furiko-io/furiko/pkg/utils/ktime"
 	"github.com/furiko-io/furiko/pkg/utils/testutils"
+)
+
+const (
+	testTimeout = time.Second * 5
 )
 
 // RunCommandTests executes all CommandTest cases.
@@ -130,27 +135,32 @@ type RunContext struct {
 }
 
 func (c *CommandTest) Run(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
+
+	ctrlContext := mock.NewContext()
+	common.SetCtrlContext(ctrlContext)
+	iostreams, _, stdout, stderr := genericclioptions.NewTestIOStreams()
 
 	done := make(chan struct{})
 	go func() {
-		c.run(ctx, t)
+		c.run(ctx, ctrlContext, t, iostreams)
 		close(done)
 	}()
 
 	select {
 	case <-done:
+		c.verify(t, ctrlContext, stdout, stderr)
 		return
 	case <-ctx.Done():
-		t.Fatalf("test did not complete: %v", ctx.Err())
+		t.Errorf("test did not complete after %v: %v", testTimeout, ctx.Err())
+		t.Logf("command stdout =\n%s", stdout.String())
+		t.Logf("command stderr =\n%s", stderr.String())
 	}
 }
 
-func (c *CommandTest) run(ctx context.Context, t *testing.T) {
+func (c *CommandTest) run(ctx context.Context, ctrlContext *mock.Context, t *testing.T, iostreams genericclioptions.IOStreams) bool {
 	// Override the shared context.
-	ctrlContext := mock.NewContext()
-	common.SetCtrlContext(ctrlContext)
 	client := ctrlContext.MockClientsets()
 	assert.NoError(t, InitFixtures(ctx, client, c.Fixtures))
 	client.ClearActions()
@@ -163,10 +173,11 @@ func (c *CommandTest) run(ctx context.Context, t *testing.T) {
 	ktime.Clock = fakeclock.NewFakeClock(now)
 
 	// Run command with I/O.
-	iostreams, _, stdout, stderr := genericclioptions.NewTestIOStreams()
-	if c.runCommand(ctx, t, ctrlContext, iostreams) {
-		return
-	}
+	return c.runCommand(ctx, t, ctrlContext, iostreams)
+}
+
+func (c *CommandTest) verify(t *testing.T, ctrlContext *mock.Context, stdout, stderr *bytes.Buffer) {
+	client := ctrlContext.MockClientsets()
 
 	// Ensure that output matches.
 	c.checkOutput(t, "stdout", stdout.String(), c.Stdout)
@@ -177,7 +188,7 @@ func (c *CommandTest) run(ctx context.Context, t *testing.T) {
 }
 
 // runCommand will execute the command, setting up all I/O streams and blocking
-// until the streams are done.
+// until the streams are done. Returns true if an error was encountered.
 //
 // Reference:
 // https://github.com/AlecAivazis/survey/blob/93657ef69381dd1ffc7a4a9cfe5a2aefff4ca4ad/survey_posix_test.go#L15
