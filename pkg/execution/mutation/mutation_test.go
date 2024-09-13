@@ -326,7 +326,6 @@ func TestMutator_MutateJobConfig(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			mutator := setup(t, tt.cfgs, nil)
 			newRjc := tt.rjc.DeepCopy()
@@ -404,7 +403,6 @@ func TestMutator_MutateCreateJobConfig(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			mutator := mutation.NewMutator(mock.NewContext())
 			if tt.setup != nil {
@@ -632,7 +630,6 @@ func TestMutator_MutateUpdateJobConfig(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			mutator := mutation.NewMutator(mock.NewContext())
 			if tt.setup != nil {
@@ -716,7 +713,6 @@ func TestMutator_MutateJob(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			mutator := setup(t, tt.cfgs, nil)
 			newRj := tt.rj.DeepCopy()
@@ -1231,7 +1227,6 @@ func TestMutator_MutateCreateJob(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			mutator := setup(t, tt.cfgs, tt.rjcs)
 			if tt.setup != nil {

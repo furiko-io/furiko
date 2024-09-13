@@ -60,8 +60,6 @@ func (c *ListNamespacesCompleter) Complete(ctx context.Context, ctrlContext cont
 	})
 
 	for _, item := range lst.Items {
-		item := item
-
 		// Filter item.
 		if c.Filter != nil && !c.Filter(&item) {
 			continue

@@ -90,7 +90,6 @@ func GetCondition(rj *execution.Job) (execution.JobCondition, error) {
 	// Compute latest timestamps across all tasks.
 	var latestCreated, latestRunning, latestFinished *metav1.Time
 	for _, task := range rj.Status.Tasks {
-		task := task
 		latestCreated = ktime.TimeMax(latestCreated, &task.CreationTimestamp)
 		latestRunning = ktime.TimeMax(latestRunning, task.RunningTimestamp)
 		latestFinished = ktime.TimeMax(latestFinished, task.FinishTimestamp)

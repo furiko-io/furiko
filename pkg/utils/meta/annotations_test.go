@@ -85,7 +85,6 @@ func TestSetAnnotation(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			meta.SetAnnotation(tt.object, tt.key, tt.value)
 			got := tt.object.GetAnnotations()

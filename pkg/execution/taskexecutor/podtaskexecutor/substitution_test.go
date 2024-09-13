@@ -139,7 +139,6 @@ func TestSubstitutePodSpec(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			rj := &execution.Job{
 				ObjectMeta: metav1.ObjectMeta{

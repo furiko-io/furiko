@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: jobs.execution.furiko.io
 spec:
   group: execution.furiko.io
@@ -40,13 +39,24 @@ spec:
       name: v1alpha1
       schema:
         openAPIV3Schema:
-          description: Job is the schema for a single job execution, which may consist of multiple tasks.
+          description: |-
+            Job is the schema for a single job execution, which may consist of multiple
+            tasks.
           properties:
             apiVersion:
-              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
               type: string
             kind:
-              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
               type: string
             metadata:
               type: object
@@ -54,23 +64,64 @@ spec:
               description: JobSpec defines the desired state of a Job.
               properties:
                 configName:
-                  description: "ConfigName allows specifying the name of the JobConfig to create the Job from. The JobConfig must be in the same namespace as the Job. \n It is provided as a write-only input field for convenience, and will override the template, labels and annotations from the JobConfig's template. \n This field will never be returned from the API. To look up the parent JobConfig, use ownerReferences."
+                  description: |-
+                    ConfigName allows specifying the name of the JobConfig to create the Job
+                    from. The JobConfig must be in the same namespace as the Job.
+
+
+                    It is provided as a write-only input field for convenience, and will override
+                    the template, labels and annotations from the JobConfig's template.
+
+
+                    This field will never be returned from the API. To look up the parent
+                    JobConfig, use ownerReferences.
                   type: string
                 killTimestamp:
-                  description: Specifies the time to start killing the job. When the time passes this timestamp, the controller will start attempting to kill all tasks.
+                  description: |-
+                    Specifies the time to start killing the job. When the time passes this
+                    timestamp, the controller will start attempting to kill all tasks.
                   format: date-time
                   type: string
                 optionValues:
-                  description: "Specifies key-values pairs of values for Options, in JSON or YAML format. \n Example specification: \n spec: optionValues: |- myStringOption: \"value\" myBoolOption: true mySelectOption: - option1 - option3 \n Each entry in the optionValues struct should consist of the option's name, and the value could be an arbitrary type that corresponds to the option's type itself. Each option value specified will be evaluated to a string based on the JobConfig's OptionsSpec and added to Substitutions. If the key also exists in Substitutions, that one takes priority. \n Cannot be updated after creation."
+                  description: |-
+                    Specifies key-values pairs of values for Options, in JSON or YAML format.
+
+
+                    Example specification:
+
+
+                      spec:
+                        optionValues: |-
+                          myStringOption: "value"
+                          myBoolOption: true
+                          mySelectOption:
+                          - option1
+                          - option3
+
+
+                    Each entry in the optionValues struct should consist of the option's name,
+                    and the value could be an arbitrary type that corresponds to the option's
+                    type itself. Each option value specified will be evaluated to a string based
+                    on the JobConfig's OptionsSpec and added to Substitutions. If the key also
+                    exists in Substitutions, that one takes priority.
+
+
+                    Cannot be updated after creation.
                   type: string
                 startPolicy:
-                  description: Specifies optional start policy for a Job, which specifies certain conditions which have to be met before a Job is started.
+                  description: |-
+                    Specifies optional start policy for a Job, which specifies certain conditions
+                    which have to be met before a Job is started.
                   properties:
                     concurrencyPolicy:
-                      description: Specifies the behaviour when there are other concurrent jobs for the JobConfig.
+                      description: |-
+                        Specifies the behaviour when there are other concurrent jobs for the
+                        JobConfig.
                       type: string
                     startAfter:
-                      description: Specifies the earliest time that the Job can be started after. Can be specified together with other fields.
+                      description: |-
+                        Specifies the earliest time that the Job can be started after. Can be
+                        specified together with other fields.
                       format: date-time
                       type: string
                   required:
@@ -79,30 +130,77 @@ spec:
                 substitutions:
                   additionalProperties:
                     type: string
-                  description: "Defines key-value pairs of context variables to be substituted into the TaskTemplate. Each entry should consist of the full context variable name (i.e. `ctx.name`), and the values must be a string. Substitutions defined here take highest precedence over both predefined context variables and evaluated OptionValues. \n Most users should be using OptionValues to specify custom Job Option values for running the Job instead of using Subsitutions directly. \n Cannot be updated after creation."
+                  description: |-
+                    Defines key-value pairs of context variables to be substituted into the
+                    TaskTemplate. Each entry should consist of the full context variable name
+                    (i.e. `ctx.name`), and the values must be a string. Substitutions defined
+                    here take highest precedence over both predefined context variables and
+                    evaluated OptionValues.
+
+
+                    Most users should be using OptionValues to specify custom Job Option values
+                    for running the Job instead of using Subsitutions directly.
+
+
+                    Cannot be updated after creation.
                   type: object
                 template:
                   description: Template specifies how to create the Job.
                   properties:
                     forbidTaskForceDeletion:
-                      description: "Defines whether tasks are allowed to be force deleted or not. If the node is unresponsive, it may be possible that the task cannot be killed by normal graceful deletion. The controller may choose to force delete the task, which would ignore the final state of the task since the node is unable to return whether the task is actually still alive. \n If not set to true, there may be some cases when there may actually be two concurrently running tasks when even when ConcurrencyPolicyForbid. Setting this to true would prevent this from happening, but the Job may remain stuck indefinitely until the node recovers."
+                      description: |-
+                        Defines whether tasks are allowed to be force deleted or not. If the node is
+                        unresponsive, it may be possible that the task cannot be killed by normal
+                        graceful deletion. The controller may choose to force delete the task, which
+                        would ignore the final state of the task since the node is unable to return
+                        whether the task is actually still alive.
+
+
+                        If not set to true, there may be some cases when there may actually be two
+                        concurrently running tasks when even when ConcurrencyPolicyForbid. Setting
+                        this to true would prevent this from happening, but the Job may remain stuck
+                        indefinitely until the node recovers.
                       type: boolean
                     maxAttempts:
-                      description: "Specifies maximum number of attempts before the Job will terminate in failure. If defined, the controller will wait retryDelaySeconds before creating the next task. Once maxAttempts is reached, the Job terminates in RetryLimitExceeded. \n If parallelism is also defined, this corresponds to the maximum attempts for each parallel task. That is, if there are 5 parallel task to be run at a time, with maxAttempts of 3, the Job may create up to a maximum of 15 tasks if each has failed. \n Value must be a positive integer. Defaults to 1."
+                      description: |-
+                        Specifies maximum number of attempts before the Job will terminate in
+                        failure. If defined, the controller will wait retryDelaySeconds before
+                        creating the next task. Once maxAttempts is reached, the Job terminates in
+                        RetryLimitExceeded.
+
+
+                        If parallelism is also defined, this corresponds to the maximum attempts for
+                        each parallel task. That is, if there are 5 parallel task to be run at a
+                        time, with maxAttempts of 3, the Job may create up to a maximum of 15 tasks
+                        if each has failed.
+
+
+                        Value must be a positive integer. Defaults to 1.
                       format: int64
                       type: integer
                     parallelism:
-                      description: Describes how to run multiple tasks in parallel for the Job. If not set, then there will be at most a single task running at any time.
+                      description: |-
+                        Describes how to run multiple tasks in parallel for the Job. If not set, then
+                        there will be at most a single task running at any time.
                       properties:
                         completionStrategy:
-                          description: Defines when the Job will complete when there are multiple tasks running in parallel. For example, if using the AllSuccessful strategy, the Job will only terminate once all parallel tasks have terminated successfully, or once any task has exhausted its maxAttempts limit.
+                          description: |-
+                            Defines when the Job will complete when there are multiple tasks running in
+                            parallel. For example, if using the AllSuccessful strategy, the Job will only
+                            terminate once all parallel tasks have terminated successfully, or once any
+                            task has exhausted its maxAttempts limit.
                           type: string
                         withCount:
-                          description: Specifies an exact number of tasks to be run in parallel. The index number can be retrieved via the "${task.index_num}" context variable.
+                          description: |-
+                            Specifies an exact number of tasks to be run in parallel. The index number
+                            can be retrieved via the "${task.index_num}" context variable.
                           format: int64
                           type: integer
                         withKeys:
-                          description: Specifies a list of keys corresponding to each task that will be run in parallel. The index key can be retrieved via the "${task.index_key}" context variable.
+                          description: |-
+                            Specifies a list of keys corresponding to each task that will be run in
+                            parallel. The index key can be retrieved via the "${task.index_key}" context
+                            variable.
                           items:
                             type: string
                           type: array
@@ -112,16 +210,37 @@ spec:
                             items:
                               type: string
                             type: array
-                          description: 'Specifies a matrix of key-value pairs, with each key mapped to a list of possible values, such that tasks will be started for each combination of key-value pairs. The matrix values can be retrieved via context variables in the following format: "${task.index_matrix.<key>}".'
+                          description: |-
+                            Specifies a matrix of key-value pairs, with each key mapped to a list of
+                            possible values, such that tasks will be started for each combination of
+                            key-value pairs. The matrix values can be retrieved via context variables in
+                            the following format: "${task.index_matrix.<key>}".
                           type: object
                           x-kubernetes-map-type: atomic
                       type: object
                     retryDelaySeconds:
-                      description: "Optional duration in seconds to wait between retries. If left empty or zero, it means no delay (i.e. retry immediately). \n If parallelism is also defined, the retry delay is from the time of the last failed task with the same index. That is, if there are two parallel tasks - index 0 and index 1 - which failed at t=0 and t=15, with retryDelaySeconds of 30, the controller will only create the next attempts at t=30 and t=45 respectively. \n Value must be a non-negative integer."
+                      description: |-
+                        Optional duration in seconds to wait between retries. If left empty or zero,
+                        it means no delay (i.e. retry immediately).
+
+
+                        If parallelism is also defined, the retry delay is from the time of the last
+                        failed task with the same index. That is, if there are two parallel tasks -
+                        index 0 and index 1 - which failed at t=0 and t=15, with retryDelaySeconds of
+                        30, the controller will only create the next attempts at t=30 and t=45
+                        respectively.
+
+
+                        Value must be a non-negative integer.
                       format: int64
                       type: integer
                     taskPendingTimeoutSeconds:
-                      description: Optional duration in seconds to wait before terminating the task if it is still pending. This field is useful to prevent jobs from being stuck forever if the Job has a deadline to start running by. If not set, it will be set to the DefaultPendingTimeoutSeconds configuration value in the controller. To disable pending timeout, set this to 0.
+                      description: |-
+                        Optional duration in seconds to wait before terminating the task if it is
+                        still pending. This field is useful to prevent jobs from being stuck forever
+                        if the Job has a deadline to start running by. If not set, it will be set to
+                        the DefaultPendingTimeoutSeconds configuration value in the controller. To
+                        disable pending timeout, set this to 0.
                       format: int64
                       type: integer
                     taskTemplate:
@@ -131,11 +250,19 @@ spec:
                           description: Describes how to create tasks as Pods.
                           properties:
                             metadata:
-                              description: 'Standard object''s metadata that will be added to Pod. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                              description: |-
+                                Standard object's metadata that will be added to Pod. More info:
+                                https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
                             spec:
-                              description: "Specification of the desired behavior of the pod. API docs: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core \n Supports context variable substitution in the following fields for containers and initContainers: image, command, args, env.value"
+                              description: |-
+                                Specification of the desired behavior of the pod. API docs:
+                                https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core
+
+
+                                Supports context variable substitution in the following fields for containers
+                                and initContainers: image, command, args, env.value
                               type: object
                               x-kubernetes-map-type: atomic
                               x-kubernetes-preserve-unknown-fields: true
@@ -145,11 +272,19 @@ spec:
                     - taskTemplate
                   type: object
                 ttlSecondsAfterFinished:
-                  description: Specifies the maximum lifetime of a Job that is finished. If not set, it will be set to the DefaultTTLSecondsAfterFinished configuration value in the controller.
+                  description: |-
+                    Specifies the maximum lifetime of a Job that is finished. If not set, it will
+                    be set to the DefaultTTLSecondsAfterFinished configuration value in the
+                    controller.
                   format: int64
                   type: integer
                 type:
-                  description: "Specifies the type of Job. Can be one of: Adhoc, Scheduled \n Default: Adhoc"
+                  description: |-
+                    Specifies the type of Job.
+                    Can be one of: Adhoc, Scheduled
+
+
+                    Default: Adhoc
                   type: string
               type: object
             status:
@@ -159,18 +294,24 @@ spec:
                   description: Condition stores details about the Job's current condition.
                   properties:
                     finished:
-                      description: Stores the status of the Job's finished state. If specified, it means that all tasks in the Job have terminated.
+                      description: |-
+                        Stores the status of the Job's finished state. If specified, it means that
+                        all tasks in the Job have terminated.
                       properties:
                         finishTime:
                           description: The time at which the Job was first marked as finished by the controller.
                           format: date-time
                           type: string
                         latestCreationTimestamp:
-                          description: The time at which the latest task was created by the controller. May be nil if no tasks were ever created.
+                          description: |-
+                            The time at which the latest task was created by the controller. May be nil
+                            if no tasks were ever created.
                           format: date-time
                           type: string
                         latestRunningTimestamp:
-                          description: The time at which the latest task had started running. May be nil if no tasks had started running.
+                          description: |-
+                            The time at which the latest task had started running. May be nil if no tasks
+                            had started running.
                           format: date-time
                           type: string
                         message:
@@ -187,7 +328,9 @@ spec:
                         - result
                       type: object
                     queueing:
-                      description: Stores the status of the Job's queueing condition. If specified, it means that the Job is currently not started and is queued.
+                      description: |-
+                        Stores the status of the Job's queueing condition. If specified, it means
+                        that the Job is currently not started and is queued.
                       properties:
                         message:
                           description: Optional descriptive message explaining the condition's last transition.
@@ -197,7 +340,10 @@ spec:
                           type: string
                       type: object
                     running:
-                      description: Stores the status of the Job's running state. If specified, it means that all tasks in the Job have started running. If the Job is already complete, this status may be set of not all tasks are terminated.
+                      description: |-
+                        Stores the status of the Job's running state. If specified, it means that all
+                        tasks in the Job have started running. If the Job is already complete, this
+                        status may be set of not all tasks are terminated.
                       properties:
                         latestRunningTimestamp:
                           description: The time at which the latest task had started running.
@@ -216,7 +362,10 @@ spec:
                         - latestTaskCreationTimestamp
                       type: object
                     waiting:
-                      description: Stores the status of the Job's waiting condition. If specified, it means that the Job currently is waiting for at least one task to be created and start running.
+                      description: |-
+                        Stores the status of the Job's waiting condition. If specified, it means that
+                        the Job currently is waiting for at least one task to be created and start
+                        running.
                       properties:
                         message:
                           description: Optional descriptive message explaining the condition's last transition.
@@ -231,15 +380,24 @@ spec:
                   format: int64
                   type: integer
                 parallelStatus:
-                  description: The current status for parallel execution of the job. May not be set if the job is not a parallel job.
+                  description: |-
+                    The current status for parallel execution of the job.
+                    May not be set if the job is not a parallel job.
                   properties:
                     complete:
-                      description: If true, the job is complete and currently in the process of waiting for all remaining tasks to be terminated.
+                      description: |-
+                        If true, the job is complete and currently in the process of waiting for all
+                        remaining tasks to be terminated.
                       type: boolean
                     indexes:
-                      description: The status for each parallel index. The size of the list should be exactly equal to the total parallelism factor, even if no tasks are created yet.
+                      description: |-
+                        The status for each parallel index. The size of the list should be exactly
+                        equal to the total parallelism factor, even if no tasks are created yet.
                       items:
-                        description: ParallelIndexStatus stores the status for a single ParallelIndex in the Job. There should be at most one task running at a time for a single parallel index in the Job.
+                        description: |-
+                          ParallelIndexStatus stores the status for a single ParallelIndex in the Job.
+                          There should be at most one task running at a time for a single parallel
+                          index in the Job.
                         properties:
                           createdTasks:
                             description: Total number of tasks created for this parallel index.
@@ -252,16 +410,22 @@ spec:
                             description: The parallel index.
                             properties:
                               indexKey:
-                                description: If withKeys is used for parallelism, contains the index key of the job as a string.
+                                description: |-
+                                  If withKeys is used for parallelism, contains the index key of the job as a
+                                  string.
                                 type: string
                               indexNumber:
-                                description: If withCount is used for parallelism, contains the index number of the job numbered from 0 to N-1.
+                                description: |-
+                                  If withCount is used for parallelism, contains the index number of the job
+                                  numbered from 0 to N-1.
                                 format: int64
                                 type: integer
                               matrixValues:
                                 additionalProperties:
                                   type: string
-                                description: If withMatrix is used for parallelism, contains key-value pairs of the job as strings.
+                                description: |-
+                                  If withMatrix is used for parallelism, contains key-value pairs of the job as
+                                  strings.
                                 type: object
                                 x-kubernetes-map-type: atomic
                             type: object
@@ -279,7 +443,9 @@ spec:
                         type: object
                       type: array
                     successful:
-                      description: If complete, contains whether the job is successful according to the ParallelCompletionStrategy.
+                      description: |-
+                        If complete, contains whether the job is successful according to the
+                        ParallelCompletionStrategy.
                       type: boolean
                   required:
                     - complete
@@ -293,23 +459,37 @@ spec:
                   format: int64
                   type: integer
                 startTime:
-                  description: StartTime specifies the time that the Job was started by the controller. If nil, it means that the Job is Queued. Cannot be changed once set.
+                  description: |-
+                    StartTime specifies the time that the Job was started by the controller. If
+                    nil, it means that the Job is Queued. Cannot be changed once set.
                   format: date-time
                   type: string
                 state:
-                  description: 'State stores the high-level state of the Job''s current condition. Must be one of: Queued, Waiting, Running, Finished.'
+                  description: |-
+                    State stores the high-level state of the Job's current condition.
+                    Must be one of: Queued, Waiting, Running, Finished.
                   type: string
                 tasks:
-                  description: Tasks contains a list of tasks created by the controller. The controller updates this field when it creates a task, which helps to guard against recreating tasks after they were deleted, and also stores necessary task data for reconciliation in case tasks are deleted.
+                  description: |-
+                    Tasks contains a list of tasks created by the controller. The controller
+                    updates this field when it creates a task, which helps to guard against
+                    recreating tasks after they were deleted, and also stores necessary task data
+                    for reconciliation in case tasks are deleted.
                   items:
                     description: TaskRef stores information about a Job's owned task.
                     properties:
                       containerStates:
-                        description: States of each container for the task. This field will be reconciled from the relevant task object, and is not guaranteed to be up-to-date. This field will persist the state of tasks beyond the lifetime of the task resources, even if they were deleted.
+                        description: |-
+                          States of each container for the task. This field will be reconciled from the
+                          relevant task object, and is not guaranteed to be up-to-date. This field will
+                          persist the state of tasks beyond the lifetime of the task resources, even if
+                          they were deleted.
                         items:
                           properties:
                             containerID:
-                              description: Container ID of the container. May be empty if the container is not yet created.
+                              description: |-
+                                Container ID of the container. May be empty if the container is not yet
+                                created.
                               type: string
                             exitCode:
                               description: Exit status from the last termination of the container
@@ -334,7 +514,21 @@ spec:
                         format: date-time
                         type: string
                       deletedStatus:
-                        description: "DeletedStatus, if set, specifies a placeholder Status of the task after it is reconciled as deleted. If the task is deleted, Status cannot be reconciled from the task any more, and instead uses information stored in DeletedStatus. In other words, this field acts as a tombstone marker, and is only used after the deletion of the task object is complete. \n While the task is in the process of being deleted (i.e. deletionTimestamp is set but object still exists), Status will still be reconciled from the actual task's status. \n If the task is already deleted and DeletedStatus is also not set, then the task's state will be marked as TaskDeletedFinalStateUnknown."
+                        description: |-
+                          DeletedStatus, if set, specifies a placeholder Status of the task after it is
+                          reconciled as deleted. If the task is deleted, Status cannot be reconciled
+                          from the task any more, and instead uses information stored in DeletedStatus.
+                          In other words, this field acts as a tombstone marker, and is only used after
+                          the deletion of the task object is complete.
+
+
+                          While the task is in the process of being deleted (i.e. deletionTimestamp is
+                          set but object still exists), Status will still be reconciled from the actual
+                          task's status.
+
+
+                          If the task is already deleted and DeletedStatus is also not set, then the
+                          task's state will be marked as TaskDeletedFinalStateUnknown.
                         properties:
                           message:
                             description: Descriptive message for the task's status.
@@ -352,29 +546,39 @@ spec:
                           - state
                         type: object
                       finishTimestamp:
-                        description: Time that the task finished. Will always return a non-zero timestamp if task is finished.
+                        description: |-
+                          Time that the task finished. Will always return a non-zero timestamp if task
+                          is finished.
                         format: date-time
                         type: string
                       name:
                         description: Name of the task. Assumes to share the same namespace as the Job.
                         type: string
                       nodeName:
-                        description: Node name that the task was bound to. May be empty if task was never scheduled.
+                        description: |-
+                          Node name that the task was bound to. May be empty if task was never
+                          scheduled.
                         type: string
                       parallelIndex:
                         description: If the Job is a parallel job, then contains the parallel index of the task.
                         properties:
                           indexKey:
-                            description: If withKeys is used for parallelism, contains the index key of the job as a string.
+                            description: |-
+                              If withKeys is used for parallelism, contains the index key of the job as a
+                              string.
                             type: string
                           indexNumber:
-                            description: If withCount is used for parallelism, contains the index number of the job numbered from 0 to N-1.
+                            description: |-
+                              If withCount is used for parallelism, contains the index number of the job
+                              numbered from 0 to N-1.
                             format: int64
                             type: integer
                           matrixValues:
                             additionalProperties:
                               type: string
-                            description: If withMatrix is used for parallelism, contains key-value pairs of the job as strings.
+                            description: |-
+                              If withMatrix is used for parallelism, contains key-value pairs of the job as
+                              strings.
                             type: object
                             x-kubernetes-map-type: atomic
                         type: object
@@ -383,11 +587,16 @@ spec:
                         format: int64
                         type: integer
                       runningTimestamp:
-                        description: Timestamp that the task transitioned to running. May be zero if the task was never observed as started running.
+                        description: |-
+                          Timestamp that the task transitioned to running. May be zero if the task was
+                          never observed as started running.
                         format: date-time
                         type: string
                       status:
-                        description: Status of the task. This field will be reconciled from the relevant task object, may not be always up-to-date. This field will persist the state of tasks beyond the lifetime of the task resources, even if they are deleted.
+                        description: |-
+                          Status of the task. This field will be reconciled from the relevant task
+                          object, may not be always up-to-date. This field will persist the state of
+                          tasks beyond the lifetime of the task resources, even if they are deleted.
                         properties:
                           message:
                             description: Descriptive message for the task's status.
@@ -426,9 +635,3 @@ spec:
       subresources:
         status: {}
   preserveUnknownFields: false
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

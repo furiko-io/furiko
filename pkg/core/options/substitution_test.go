@@ -97,7 +97,6 @@ func TestSubstituteVariables(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := options.SubstituteVariables(tt.args.target, tt.args.submap); got != tt.want {
 				t.Errorf("SubstituteVariables() = %v, want %v", got, tt.want)
@@ -158,7 +157,6 @@ func TestSubstituteEmptyStringForPrefixes(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := options.SubstituteEmptyStringForPrefixes(tt.args.target, tt.args.prefixes); got != tt.want {
 				t.Errorf("SubstituteEmptyStringForPrefixes() = %v, want %v", got, tt.want)
@@ -233,7 +231,6 @@ func TestSubstituteVariableMaps(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got := options.SubstituteVariableMaps(tt.args.target, tt.args.submaps, tt.args.prefixes)
 			if got != tt.want {
@@ -286,7 +283,6 @@ func TestMergeSubstitutions(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := options.MergeSubstitutions(tt.paramMaps...); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("MergeParameters() = %v, want %v", got, tt.want)

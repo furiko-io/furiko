@@ -81,7 +81,6 @@ func TestTimeMax(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ktime.TimeMax(tt.args.ts1, tt.args.ts2); !tt.want.Equal(got) {
 				t.Errorf("TimeMax() = %v, want %v", got, tt.want)
@@ -112,7 +111,6 @@ func TestIsUnixZero(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ktime.IsUnixZero(&tt.ts); got != tt.want {
 				t.Errorf("IsUnixZero() = %v, want %v", got, tt.want)

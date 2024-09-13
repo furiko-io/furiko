@@ -792,7 +792,6 @@ func TestEvaluateOption(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			// Validate the option first, as EvaluateOption assumes a valid option.
 			if err := options.ValidateOption(tt.option, rootPath).ToAggregate(); err != nil {
@@ -930,7 +929,6 @@ func TestEvaluateOptions(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, errs := options.EvaluateOptions(tt.args.options, tt.args.cfg, rootPath)
 			if (errs.ToAggregate() != nil) != tt.wantErr {

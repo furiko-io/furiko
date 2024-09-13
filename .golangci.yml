@@ -7,6 +7,11 @@ linters-settings:
     disabled-checks:
       - singleCaseSwitch
       - ifElseChain
+  gosec:
+    excludes:
+      # G115: Potential integer overflow when converting between integer types
+      # Excluded due to false positives.
+      - G115
 
 issues:
   exclude-rules:
@@ -32,9 +37,9 @@ linters:
   enable:
     - asciicheck
     - bodyclose
+    - copyloopvar
     - dupl
     - errcheck
-    - exportloopref
     - gocognit
     - goconst
     - gocritic

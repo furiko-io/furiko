@@ -65,7 +65,6 @@ func TestZeroForNonConfig(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := options.ZeroForNonConfig(tt.option); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ZeroForNonConfig() = %v, want %v", got, tt.want)

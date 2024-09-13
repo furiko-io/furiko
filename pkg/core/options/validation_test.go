@@ -61,7 +61,6 @@ func TestValidateOptionSpec(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			err := options.ValidateOptionSpec(tt.spec, rootPath).ToAggregate()
 			if (err != nil) != tt.wantErr {
@@ -470,7 +469,6 @@ func TestValidateJobOption(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			err := options.ValidateOption(tt.option, rootPath).ToAggregate()
 			if (err != nil) != tt.wantErr {

@@ -74,7 +74,6 @@ func TestPodTask_GetState(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			p := podtaskexecutor.NewPodTask(&tt.Pod, nil)
 			if got := p.GetState(); got != tt.want {
@@ -120,7 +119,6 @@ func TestPodTask_GetResult(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			p := podtaskexecutor.NewPodTask(&tt.Pod, nil)
 			got := p.GetResult()
@@ -159,7 +157,6 @@ func TestPodTask_GetRunningTimestamp(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			p := podtaskexecutor.NewPodTask(&tt.Pod, nil)
 			got := p.GetRunningTimestamp()
@@ -228,7 +225,6 @@ func TestPodTask_GetFinishTimestamp(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			p := podtaskexecutor.NewPodTask(&tt.Pod, nil)
 			got := p.GetFinishTimestamp()
@@ -277,7 +273,6 @@ func TestPodTask_RequiresKillWithDeletion(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			p := podtaskexecutor.NewPodTask(&tt.Pod, nil)
 			if got := p.RequiresKillWithDeletion(); got != tt.want {
@@ -372,7 +367,6 @@ func TestPodTask_GetReasonMessage(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			p := podtaskexecutor.NewPodTask(&tt.Pod, nil)
 			reason, message := p.GetReasonMessage()

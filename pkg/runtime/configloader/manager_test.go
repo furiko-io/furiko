@@ -330,7 +330,6 @@ func TestConfigManager(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			mgr := configloader.NewConfigManager()
 			for _, loader := range tt.loaders {
@@ -477,7 +476,6 @@ func TestConfigManager_Dynamic(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			mgr := configloader.NewConfigManager()
 			loader := newMockDynamicConfigLoader(tt.initial.config)
@@ -488,7 +486,6 @@ func TestConfigManager_Dynamic(t *testing.T) {
 			checkConfig(t, mgr, tt.initial.want, tt.initial.wantErr)
 
 			for i, update := range tt.updates {
-				update := update
 				t.Run(fmt.Sprintf("step #%02d: %v", i+1, update.name), func(t *testing.T) {
 					loader.SetConfig(update.config)
 					checkConfig(t, mgr, update.want, update.wantErr)

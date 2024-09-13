@@ -209,7 +209,6 @@ func RunControllers(ctx context.Context, controllers []Controller) error {
 	grp, _ := errgroup.WithContext(ctx)
 
 	for _, controller := range controllers {
-		controller := controller
 		grp.Go(func() error {
 			return controller.Run(ctx)
 		})
@@ -224,7 +223,6 @@ func ShutdownRunnables(ctx context.Context, controllers []Runnable) {
 	wg.Add(len(controllers))
 
 	for _, controller := range controllers {
-		controller := controller
 		go func() {
 			defer wg.Done()
 			controller.Shutdown(ctx)

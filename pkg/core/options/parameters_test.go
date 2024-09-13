@@ -64,7 +64,6 @@ func TestFilterParametersWithPrefix(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := options.FilterParametersWithPrefix(tt.args.parameters, tt.args.prefix); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FilterParametersWithPrefix() = %v, want %v", got, tt.want)
@@ -130,7 +129,6 @@ func TestFilterParametersWithPrefixes(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got := options.FilterParametersWithPrefixes(tt.args.parameters, tt.args.prefixes...)
 			if !reflect.DeepEqual(got, tt.want) {

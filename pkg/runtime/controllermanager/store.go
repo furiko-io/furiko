@@ -33,7 +33,6 @@ func RecoverStores(ctx context.Context, stores []Store) error {
 	group, _ := errgroup.WithContext(ctx)
 
 	for _, store := range stores {
-		store := store
 		group.Go(func() error {
 			return store.Recover(ctx)
 		})

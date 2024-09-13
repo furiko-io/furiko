@@ -49,7 +49,6 @@ func TestJobConfigKeyFunc(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			jobConfig := &execution.JobConfig{
 				ObjectMeta: metav1.ObjectMeta{
@@ -100,7 +99,6 @@ func TestSplitJobConfigKey(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			gotName, gotTS, err := croncontroller.SplitJobConfigKeyName(tt.key)
 			if err != nil {

@@ -121,7 +121,6 @@ func TestHashOptionsSpec(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := options.HashOptionSpec(tt.spec)
 			if (err != nil) != tt.wantErr {
@@ -222,7 +221,6 @@ func TestHashOptionsSpec_Deterministic(t *testing.T) {
 
 	const numIterations = 10
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			var hash string
 			for i := 0; i < numIterations; i++ {

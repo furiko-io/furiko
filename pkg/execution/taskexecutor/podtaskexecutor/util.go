@@ -89,7 +89,6 @@ func GetContainerTerminateTime(pod *corev1.Pod) metav1.Time {
 	var t metav1.Time
 
 	for _, container := range pod.Status.ContainerStatuses {
-		container := container
 		if status := GetTerminationStatus(&container); status != nil && !ktime.IsUnixZero(&status.FinishedAt) {
 			t = *ktime.TimeMax(&status.FinishedAt, &t)
 		}
