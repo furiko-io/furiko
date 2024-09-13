@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: jobconfigs.execution.furiko.io
 spec:
   group: execution.furiko.io
@@ -46,13 +45,24 @@ spec:
       name: v1alpha1
       schema:
         openAPIV3Schema:
-          description: JobConfig is the schema for a single job configuration. Multiple Job objects belong to a single JobConfig.
+          description: |-
+            JobConfig is the schema for a single job configuration. Multiple Job objects
+            belong to a single JobConfig.
           properties:
             apiVersion:
-              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
               type: string
             kind:
-              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
               type: string
             metadata:
               type: object
@@ -63,7 +73,12 @@ spec:
                   description: Concurrency defines the behaviour of multiple concurrent Jobs.
                   properties:
                     maxConcurrency:
-                      description: "Maximum number of Jobs that can be running concurrently for the same JobConfig. Cannot be specified if Policy is set to Allow. \n Defaults to 1."
+                      description: |-
+                        Maximum number of Jobs that can be running concurrently for the same
+                        JobConfig. Cannot be specified if Policy is set to Allow.
+
+
+                        Defaults to 1.
                       format: int64
                       type: integer
                     policy:
@@ -73,7 +88,10 @@ spec:
                     - policy
                   type: object
                 option:
-                  description: Option is an optional field that defines how the JobConfig is parameterized. Each option defined here can subsequently be used in the Template via context variable substitution.
+                  description: |-
+                    Option is an optional field that defines how the JobConfig is parameterized.
+                    Each option defined here can subsequently be used in the Template via context
+                    variable substitution.
                   properties:
                     options:
                       description: Options is a list of job options.
@@ -87,13 +105,22 @@ spec:
                                 description: Default value, will be used to populate the option if not specified.
                                 type: boolean
                               falseVal:
-                                description: If Format is custom, will be substituted if value is false. Can also be an empty string.
+                                description: |-
+                                  If Format is custom, will be substituted if value is false.
+                                  Can also be an empty string.
                                 type: string
                               format:
-                                description: "Determines how to format the value as string. Can be one of: TrueFalse, OneZero, YesNo, Custom \n Default: TrueFalse"
+                                description: |-
+                                  Determines how to format the value as string.
+                                  Can be one of: TrueFalse, OneZero, YesNo, Custom
+
+
+                                  Default: TrueFalse
                                 type: string
                               trueVal:
-                                description: If Format is custom, will be substituted if value is true. Can also be an empty string.
+                                description: |-
+                                  If Format is custom, will be substituted if value is true.
+                                  Can also be an empty string.
                                 type: string
                             required:
                               - default
@@ -102,17 +129,31 @@ spec:
                             description: Date adds additional configuration for OptionTypeDate.
                             properties:
                               format:
-                                description: "Date format in moment.js format. If not specified, will use RFC3339 format by default. \n Date format reference: https://momentjs.com/docs/#/displaying/format/ \n Default:"
+                                description: |-
+                                  Date format in moment.js format. If not specified, will use RFC3339 format by
+                                  default.
+
+
+                                  Date format reference: https://momentjs.com/docs/#/displaying/format/
+
+
+                                  Default:
                                 type: string
                             type: object
                           label:
-                            description: Label is an optional human-readable label for this option, which is purely used for display purposes.
+                            description: |-
+                              Label is an optional human-readable label for this option, which is purely
+                              used for display purposes.
                             type: string
                           multi:
                             description: Multi adds additional configuration for OptionTypeMulti.
                             properties:
                               allowCustom:
-                                description: "Whether to allow custom values instead of just the list of allowed values. \n Default: false"
+                                description: |-
+                                  Whether to allow custom values instead of just the list of allowed values.
+
+
+                                  Default: false
                                 type: boolean
                               default:
                                 description: Default values, will be used to populate the option if not specified.
@@ -132,16 +173,26 @@ spec:
                               - values
                             type: object
                           name:
-                            description: 'The name of the job option. Will be substituted as `${option.NAME}`. Must match the following regex: ^[a-zA-Z_0-9.-]+$'
+                            description: |-
+                              The name of the job option. Will be substituted as `${option.NAME}`.
+                              Must match the following regex: ^[a-zA-Z_0-9.-]+$
                             type: string
                           required:
-                            description: "Required defines whether this field is required. \n Default: false"
+                            description: |-
+                              Required defines whether this field is required.
+
+
+                              Default: false
                             type: boolean
                           select:
                             description: Select adds additional configuration for OptionTypeSelect.
                             properties:
                               allowCustom:
-                                description: "Whether to allow custom values instead of just the list of allowed values. \n Default: false"
+                                description: |-
+                                  Whether to allow custom values instead of just the list of allowed values.
+
+
+                                  Default: false
                                 type: boolean
                               default:
                                 description: Default value, will be used to populate the option if not specified.
@@ -159,11 +210,17 @@ spec:
                                 description: Optional default value, will be used to populate the option if not specified.
                                 type: string
                               trimSpaces:
-                                description: "Whether to trim spaces before substitution. \n Default: false"
+                                description: |-
+                                  Whether to trim spaces before substitution.
+
+
+                                  Default: false
                                 type: boolean
                             type: object
                           type:
-                            description: 'The type of the job option. Can be one of: bool, string, select, multi, date'
+                            description: |-
+                              The type of the job option.
+                              Can be one of: bool, string, select, multi, date
                             type: string
                         required:
                           - name
@@ -172,17 +229,23 @@ spec:
                       type: array
                   type: object
                 schedule:
-                  description: Schedule is an optional field that defines automatic scheduling of the JobConfig.
+                  description: |-
+                    Schedule is an optional field that defines automatic scheduling of the
+                    JobConfig.
                   properties:
                     constraints:
                       description: Specifies any constraints that should apply to this Schedule.
                       properties:
                         notAfter:
-                          description: Specifies the latest possible time that is allowed to be scheduled. If set, the scheduler should not create schedules after this time.
+                          description: |-
+                            Specifies the latest possible time that is allowed to be scheduled. If set,
+                            the scheduler should not create schedules after this time.
                           format: date-time
                           type: string
                         notBefore:
-                          description: Specifies the earliest possible time that is allowed to be scheduled. If set, the scheduler should not create schedules before this time.
+                          description: |-
+                            Specifies the earliest possible time that is allowed to be scheduled. If set,
+                            the scheduler should not create schedules before this time.
                           format: date-time
                           type: string
                       type: object
@@ -190,22 +253,68 @@ spec:
                       description: Specify a schedule using cron expressions.
                       properties:
                         expression:
-                          description: "Cron expression to specify how the JobConfig will be periodically scheduled. Example: \"0 0/5 * * *\". \n Supports cron schedules with optional \"seconds\" and \"years\" fields, i.e. can parse between 5 to 7 tokens. \n More information: https://github.com/furiko-io/cronexpr"
+                          description: |-
+                            Cron expression to specify how the JobConfig will be periodically scheduled.
+                            Example: "0 0/5 * * *".
+
+
+                            Supports cron schedules with optional "seconds" and "years" fields, i.e. can
+                            parse between 5 to 7 tokens.
+
+
+                            More information: https://github.com/furiko-io/cronexpr
                           type: string
                         expressions:
-                          description: "List of cron expressions to specify how the JobConfig will be periodically scheduled. \n Take for example a requirement to schedule a job every day at 3AM, 3:30AM and 4AM. There is no way to represent this with a single cron expression, but we could do so with two cron expressions: \"0/30 3 * * *\", and \"0 4 * * *\". \n Exactly one of Expression or Expressions must be specified. If two expressions fall on the same time, only one of them will take effect."
+                          description: |-
+                            List of cron expressions to specify how the JobConfig will be periodically scheduled.
+
+
+                            Take for example a requirement to schedule a job every day at 3AM, 3:30AM and 4AM.
+                            There is no way to represent this with a single cron expression, but we could do so
+                            with two cron expressions: "0/30 3 * * *", and "0 4 * * *".
+
+
+                            Exactly one of Expression or Expressions must be specified.
+                            If two expressions fall on the same time, only one of them will take effect.
                           items:
                             type: string
                           type: array
                         timezone:
-                          description: "Timezone to interpret the cron schedule in. For example, a cron schedule of \"0 10 * * *\" with a timezone of \"Asia/Singapore\" will be interpreted as running at 02:00:00 UTC time every day. \n Timezone must be one of the following: \n 1. A valid tz string (e.g. \"Asia/Singapore\", \"America/New_York\"). 2. A UTC offset with minutes (e.g. UTC-10:00). 3. A GMT offset with minutes (e.g. GMT+05:30). The meaning is the same as its UTC counterpart. \n This field merely is used for parsing the cron Expression, and has nothing to do with /etc/timezone inside the container (i.e. it will not set $TZ automatically). \n Defaults to the controller's default configured timezone."
+                          description: |-
+                            Timezone to interpret the cron schedule in. For example, a cron schedule of
+                            "0 10 * * *" with a timezone of "Asia/Singapore" will be interpreted as
+                            running at 02:00:00 UTC time every day.
+
+
+                            Timezone must be one of the following:
+
+
+                             1. A valid tz string (e.g. "Asia/Singapore", "America/New_York").
+                             2. A UTC offset with minutes (e.g. UTC-10:00).
+                             3. A GMT offset with minutes (e.g. GMT+05:30). The meaning is the
+                                same as its UTC counterpart.
+
+
+                            This field merely is used for parsing the cron Expression, and has nothing to
+                            do with /etc/timezone inside the container (i.e. it will not set $TZ
+                            automatically).
+
+
+                            Defaults to the controller's default configured timezone.
                           type: string
                       type: object
                     disabled:
                       description: If true, then automatic scheduling will be disabled for the JobConfig.
                       type: boolean
                     lastUpdated:
-                      description: "Specifies the time that the schedule was last updated. This prevents accidental back-scheduling. \n For example, if a JobConfig that was previously disabled from automatic scheduling is now enabled, we do not want to perform back-scheduling for schedules after LastScheduled prior to updating of the JobConfig."
+                      description: |-
+                        Specifies the time that the schedule was last updated. This prevents
+                        accidental back-scheduling.
+
+
+                        For example, if a JobConfig that was previously disabled from automatic
+                        scheduling is now enabled, we do not want to perform back-scheduling for
+                        schedules after LastScheduled prior to updating of the JobConfig.
                       format: date-time
                       type: string
                   type: object
@@ -213,31 +322,68 @@ spec:
                   description: Template for creating the Job.
                   properties:
                     metadata:
-                      description: 'Standard object''s metadata that will be added to Job. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                      description: |-
+                        Standard object's metadata that will be added to Job. More info:
+                        https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                     spec:
                       description: Specification of the desired behavior of the job.
                       properties:
                         forbidTaskForceDeletion:
-                          description: "Defines whether tasks are allowed to be force deleted or not. If the node is unresponsive, it may be possible that the task cannot be killed by normal graceful deletion. The controller may choose to force delete the task, which would ignore the final state of the task since the node is unable to return whether the task is actually still alive. \n If not set to true, there may be some cases when there may actually be two concurrently running tasks when even when ConcurrencyPolicyForbid. Setting this to true would prevent this from happening, but the Job may remain stuck indefinitely until the node recovers."
+                          description: |-
+                            Defines whether tasks are allowed to be force deleted or not. If the node is
+                            unresponsive, it may be possible that the task cannot be killed by normal
+                            graceful deletion. The controller may choose to force delete the task, which
+                            would ignore the final state of the task since the node is unable to return
+                            whether the task is actually still alive.
+
+
+                            If not set to true, there may be some cases when there may actually be two
+                            concurrently running tasks when even when ConcurrencyPolicyForbid. Setting
+                            this to true would prevent this from happening, but the Job may remain stuck
+                            indefinitely until the node recovers.
                           type: boolean
                         maxAttempts:
-                          description: "Specifies maximum number of attempts before the Job will terminate in failure. If defined, the controller will wait retryDelaySeconds before creating the next task. Once maxAttempts is reached, the Job terminates in RetryLimitExceeded. \n If parallelism is also defined, this corresponds to the maximum attempts for each parallel task. That is, if there are 5 parallel task to be run at a time, with maxAttempts of 3, the Job may create up to a maximum of 15 tasks if each has failed. \n Value must be a positive integer. Defaults to 1."
+                          description: |-
+                            Specifies maximum number of attempts before the Job will terminate in
+                            failure. If defined, the controller will wait retryDelaySeconds before
+                            creating the next task. Once maxAttempts is reached, the Job terminates in
+                            RetryLimitExceeded.
+
+
+                            If parallelism is also defined, this corresponds to the maximum attempts for
+                            each parallel task. That is, if there are 5 parallel task to be run at a
+                            time, with maxAttempts of 3, the Job may create up to a maximum of 15 tasks
+                            if each has failed.
+
+
+                            Value must be a positive integer. Defaults to 1.
                           format: int64
                           type: integer
                         parallelism:
-                          description: Describes how to run multiple tasks in parallel for the Job. If not set, then there will be at most a single task running at any time.
+                          description: |-
+                            Describes how to run multiple tasks in parallel for the Job. If not set, then
+                            there will be at most a single task running at any time.
                           properties:
                             completionStrategy:
-                              description: Defines when the Job will complete when there are multiple tasks running in parallel. For example, if using the AllSuccessful strategy, the Job will only terminate once all parallel tasks have terminated successfully, or once any task has exhausted its maxAttempts limit.
+                              description: |-
+                                Defines when the Job will complete when there are multiple tasks running in
+                                parallel. For example, if using the AllSuccessful strategy, the Job will only
+                                terminate once all parallel tasks have terminated successfully, or once any
+                                task has exhausted its maxAttempts limit.
                               type: string
                             withCount:
-                              description: Specifies an exact number of tasks to be run in parallel. The index number can be retrieved via the "${task.index_num}" context variable.
+                              description: |-
+                                Specifies an exact number of tasks to be run in parallel. The index number
+                                can be retrieved via the "${task.index_num}" context variable.
                               format: int64
                               type: integer
                             withKeys:
-                              description: Specifies a list of keys corresponding to each task that will be run in parallel. The index key can be retrieved via the "${task.index_key}" context variable.
+                              description: |-
+                                Specifies a list of keys corresponding to each task that will be run in
+                                parallel. The index key can be retrieved via the "${task.index_key}" context
+                                variable.
                               items:
                                 type: string
                               type: array
@@ -247,16 +393,37 @@ spec:
                                 items:
                                   type: string
                                 type: array
-                              description: 'Specifies a matrix of key-value pairs, with each key mapped to a list of possible values, such that tasks will be started for each combination of key-value pairs. The matrix values can be retrieved via context variables in the following format: "${task.index_matrix.<key>}".'
+                              description: |-
+                                Specifies a matrix of key-value pairs, with each key mapped to a list of
+                                possible values, such that tasks will be started for each combination of
+                                key-value pairs. The matrix values can be retrieved via context variables in
+                                the following format: "${task.index_matrix.<key>}".
                               type: object
                               x-kubernetes-map-type: atomic
                           type: object
                         retryDelaySeconds:
-                          description: "Optional duration in seconds to wait between retries. If left empty or zero, it means no delay (i.e. retry immediately). \n If parallelism is also defined, the retry delay is from the time of the last failed task with the same index. That is, if there are two parallel tasks - index 0 and index 1 - which failed at t=0 and t=15, with retryDelaySeconds of 30, the controller will only create the next attempts at t=30 and t=45 respectively. \n Value must be a non-negative integer."
+                          description: |-
+                            Optional duration in seconds to wait between retries. If left empty or zero,
+                            it means no delay (i.e. retry immediately).
+
+
+                            If parallelism is also defined, the retry delay is from the time of the last
+                            failed task with the same index. That is, if there are two parallel tasks -
+                            index 0 and index 1 - which failed at t=0 and t=15, with retryDelaySeconds of
+                            30, the controller will only create the next attempts at t=30 and t=45
+                            respectively.
+
+
+                            Value must be a non-negative integer.
                           format: int64
                           type: integer
                         taskPendingTimeoutSeconds:
-                          description: Optional duration in seconds to wait before terminating the task if it is still pending. This field is useful to prevent jobs from being stuck forever if the Job has a deadline to start running by. If not set, it will be set to the DefaultPendingTimeoutSeconds configuration value in the controller. To disable pending timeout, set this to 0.
+                          description: |-
+                            Optional duration in seconds to wait before terminating the task if it is
+                            still pending. This field is useful to prevent jobs from being stuck forever
+                            if the Job has a deadline to start running by. If not set, it will be set to
+                            the DefaultPendingTimeoutSeconds configuration value in the controller. To
+                            disable pending timeout, set this to 0.
                           format: int64
                           type: integer
                         taskTemplate:
@@ -266,11 +433,19 @@ spec:
                               description: Describes how to create tasks as Pods.
                               properties:
                                 metadata:
-                                  description: 'Standard object''s metadata that will be added to Pod. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                  description: |-
+                                    Standard object's metadata that will be added to Pod. More info:
+                                    https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
                                   type: object
                                   x-kubernetes-preserve-unknown-fields: true
                                 spec:
-                                  description: "Specification of the desired behavior of the pod. API docs: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core \n Supports context variable substitution in the following fields for containers and initContainers: image, command, args, env.value"
+                                  description: |-
+                                    Specification of the desired behavior of the pod. API docs:
+                                    https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podspec-v1-core
+
+
+                                    Supports context variable substitution in the following fields for containers
+                                    and initContainers: image, command, args, env.value
                                   type: object
                                   x-kubernetes-map-type: atomic
                                   x-kubernetes-preserve-unknown-fields: true
@@ -290,7 +465,10 @@ spec:
               description: JobConfigStatus defines the observed state of the JobConfig.
               properties:
                 active:
-                  description: Total number of active jobs created for the JobConfig. An active job is one that is waiting to create a task, waiting for a task to be running, or has a running task.
+                  description: |-
+                    Total number of active jobs created for the JobConfig. An active job is one
+                    that is waiting to create a task, waiting for a task to be running, or has a
+                    running task.
                   format: int64
                   type: integer
                 activeJobs:
@@ -322,15 +500,24 @@ spec:
                     type: object
                   type: array
                 lastExecuted:
-                  description: The last timestamp that the job config was executed, including both scheduled and adhoc executions.
+                  description: |-
+                    The last timestamp that the job config was executed, including both scheduled
+                    and adhoc executions.
                   format: date-time
                   type: string
                 lastScheduled:
-                  description: The last known schedule time for this job config, used to persist state during controller downtime. If the controller was down for a short period of time, any schedules that were missed during the downtime will be back-scheduled, subject to the number of schedules missed since LastScheduled.
+                  description: |-
+                    The last known schedule time for this job config, used to persist state
+                    during controller downtime. If the controller was down for a short period of
+                    time, any schedules that were missed during the downtime will be
+                    back-scheduled, subject to the number of schedules missed since
+                    LastScheduled.
                   format: date-time
                   type: string
                 queued:
-                  description: Total number of Jobs queued for the JobConfig. A job that is queued is one that is not yet started.
+                  description: |-
+                    Total number of Jobs queued for the JobConfig. A job that is queued is one
+                    that is not yet started.
                   format: int64
                   type: integer
                 queuedJobs:
@@ -373,9 +560,3 @@ spec:
       subresources:
         status: {}
   preserveUnknownFields: false
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

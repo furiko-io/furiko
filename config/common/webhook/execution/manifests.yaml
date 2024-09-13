@@ -2,29 +2,8 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  creationTimestamp: null
   name: mutating-webhook-configuration
 webhooks:
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /mutating/jobs.execution.furiko.io
-  failurePolicy: Fail
-  name: mutating.webhook.jobs.execution.furiko.io
-  rules:
-  - apiGroups:
-    - execution.furiko.io
-    apiVersions:
-    - '*'
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - jobs
-  sideEffects: None
 - admissionReviewVersions:
   - v1
   clientConfig:
@@ -45,22 +24,15 @@ webhooks:
     resources:
     - jobconfigs
   sideEffects: None
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
-metadata:
-  creationTimestamp: null
-  name: validating-webhook-configuration
-webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
       name: webhook-service
       namespace: system
-      path: /validating/jobs.execution.furiko.io
+      path: /mutating/jobs.execution.furiko.io
   failurePolicy: Fail
-  name: validation.webhook.jobs.execution.furiko.io
+  name: mutating.webhook.jobs.execution.furiko.io
   rules:
   - apiGroups:
     - execution.furiko.io
@@ -72,6 +44,12 @@ webhooks:
     resources:
     - jobs
   sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
@@ -91,4 +69,24 @@ webhooks:
     - UPDATE
     resources:
     - jobconfigs
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validating/jobs.execution.furiko.io
+  failurePolicy: Fail
+  name: validation.webhook.jobs.execution.furiko.io
+  rules:
+  - apiGroups:
+    - execution.furiko.io
+    apiVersions:
+    - '*'
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - jobs
   sideEffects: None

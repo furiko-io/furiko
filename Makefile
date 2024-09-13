@@ -76,7 +76,7 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: generate
-generate: generate-deepcopy generate-groups ## Generate Go code.
+generate: generate-deepcopy generate-groups fmt ## Generate Go code.
 
 generate-deepcopy: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="$(LICENSE_HEADER_GO)" paths="./..."
@@ -219,7 +219,7 @@ $(LOCALBIN): ## Ensure that the directory exists
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.5
-CONTROLLER_TOOLS_VERSION ?= v0.8.0
+CONTROLLER_TOOLS_VERSION ?= v0.14.0
 YQ_VERSION ?= v4.14.1
 GOIMPORTS_REVISER_VERSION ?= 32c80678d5d73a50b6966f06b346de58b1d018f1
 GOLANGCI_LINT_VERSION ?= v1.61.0
