@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -106,7 +108,7 @@ type Output struct {
 	// If specified, expects the output to match the specified regexp.
 	Matches *regexp.Regexp
 
-	// If specified, expects the output to match all of the given regular expressions.
+	// If specified, expects the output to match all the given regular expressions.
 	MatchesAll []*regexp.Regexp
 
 	// If specified, expects that the output to NOT contain the given string.
@@ -199,7 +201,6 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 	if err != nil {
 		t.Fatalf("failed to create console: %v", err)
 	}
-	defer console.Close()
 
 	// Prepare root command.
 	command := cmd.NewRootCommand(streams.NewTTYStreams(console.Tty()))
@@ -219,15 +220,39 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 		done = console.Run(c.Stdin.Procedure)
 	}
 
-	// Always make sure to explicitly close and wait for done.
-	defer func() {
-		// Close the TTY to unblock the procedure goroutine.
-		if err := console.Tty().Close(); err != nil {
-			t.Errorf("error closing TTY: %v", err)
+	// Only close the PTY once.
+	closeConsole := sync.OnceFunc(func() {
+		if err := console.Close(); err != nil {
+			t.Errorf("cannot close PTY: %v", err)
 		}
+	})
+
+	// Close the console if context had deadline exceeded.
+	// Note that the context could possibly be canceled by tests in order to terminate the command execution.
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				t.Errorf("Context was canceled: %v", ctx.Err().Error())
+				closeConsole()
+			}
+		case <-done:
+			// Already closed.
+		}
+	}()
+
+	defer func() {
+		// Always make sure to explicitly close the PTY.
+		closeConsole()
 
 		// Wait for the procedure to complete and EOF to be read.
 		<-done
+
+		// Wait for .
+		wg.Wait()
 	}()
 
 	// Execute command.

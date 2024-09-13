@@ -20,17 +20,12 @@ import (
 	"bytes"
 	"io"
 	"testing"
-	"time"
 
 	"github.com/Netflix/go-expect"
 	"github.com/creack/pty"
 	"github.com/hinshun/vt10x"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-)
-
-const (
-	expectTimeout = time.Millisecond * 200
 )
 
 type Console struct {
@@ -82,9 +77,9 @@ func (c *Console) Run(f func(c *Console)) <-chan struct{} {
 }
 
 // ExpectString advances the PTY buffer until the given string is found.
-// If not found within a timeout, a test error will be thrown, and returns false.
+// If not, a test error will be thrown, and returns false.
 func (c *Console) ExpectString(s string) bool {
-	got, err := c.Console.Expect(expect.String(s), expect.WithTimeout(expectTimeout))
+	got, err := c.Console.Expect(expect.String(s))
 	c.read.WriteString(got)
 	return assert.NoError(c.T, err, `did not find expected string: "%v", got "%v"`, s, got)
 }
@@ -99,6 +94,9 @@ func (c *Console) SendLine(s string) bool {
 // Close the TTY, unblocking all Expect and ExpectEOF calls.
 func (c *Console) Close() error {
 	err := c.Console.Close()
-	c.T.Logf("Console output:\n%s\n\n", c.read.String())
+	output := c.read.String()
+	if len(output) > 0 {
+		c.T.Logf("Console output:\n%s\n\n", output)
+	}
 	return err
 }
