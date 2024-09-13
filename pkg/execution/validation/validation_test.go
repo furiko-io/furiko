@@ -492,7 +492,6 @@ func TestValidateJobConfig(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			original := tt.rjc.DeepCopy()
 			ctrlContext := mock.NewContext()
@@ -848,7 +847,6 @@ func TestValidateJob(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			original := tt.rj.DeepCopy()
 			ctrlContext := mock.NewContext()
@@ -1119,7 +1117,6 @@ func TestValidateJobUpdate(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClock := fakeclock.NewFakeClock(time.Now())
 			validation.Clock = fakeClock
@@ -1387,7 +1384,6 @@ func TestValidateJobCreate(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			originalRj := tt.rj.DeepCopy()
 			validator := setup(t, tt.cfgs, tt.rjcs)

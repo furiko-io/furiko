@@ -111,7 +111,6 @@ func StartWebhooksAndWait(ctx context.Context, webhooks []Webhook) error {
 	grp, ctx := errgroup.WithContext(ctx)
 
 	for _, webhook := range webhooks {
-		webhook := webhook
 		grp.Go(func() error {
 			return webhook.Start(ctx)
 		})

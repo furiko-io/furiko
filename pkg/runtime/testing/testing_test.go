@@ -160,7 +160,6 @@ func TestCompareAction(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if err := runtimetesting.CompareAction(tt.want, tt.got); (err != nil) != tt.wantErr {
 				t.Errorf("CompareAction() error = %v, wantErr %v", err, tt.wantErr)
@@ -262,7 +261,6 @@ func TestCompareActions(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			newT := &testinginterface.RuntimeT{}
 			var gotErr bool

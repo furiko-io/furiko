@@ -232,7 +232,6 @@ func TestGenerateTaskRefs(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		cmpOpts := cmp.Options{
 			cmpopts.EquateEmpty(),
 		}
@@ -337,7 +336,6 @@ func TestUpdateTaskRefDeletedStatusIfNotSet(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			original := tt.args.rj.DeepCopy()
 
@@ -507,7 +505,6 @@ func TestUpdateJobTaskRefs(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got := jobutil.UpdateJobTaskRefs(tt.rj, tt.tasks); !cmp.Equal(tt.want, got) {
 				t.Errorf("UpdateJobTaskRefs() not equal\ndiff = %v", cmp.Diff(tt.want, got))

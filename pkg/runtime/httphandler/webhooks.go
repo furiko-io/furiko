@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"runtime"
 	"time"
@@ -133,7 +132,7 @@ func handleWebhookRequest(
 	}
 
 	// Print debug logs for input request.
-	if body, err := ioutil.ReadAll(buf); err == nil {
+	if body, err := io.ReadAll(buf); err == nil {
 		klog.V(4).InfoS(
 			"httphandler: received request",
 			"name", webhook.Name(),

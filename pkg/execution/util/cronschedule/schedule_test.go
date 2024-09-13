@@ -499,7 +499,6 @@ func TestSchedule(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			initTime := testutils.Mktime(now)
 			if !tt.initTime.IsZero() {
@@ -762,7 +761,6 @@ func TestSchedule_Sequence(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			// Change popTime if specified.
 			now := testutils.Mktime(now)

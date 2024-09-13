@@ -36,7 +36,6 @@ import (
 func GetLastScheduleTime(jobs []*execution.Job) *metav1.Time {
 	var lastScheduleTime metav1.Time
 	for _, rj := range jobs {
-		rj := rj
 		if t := GetLabelScheduleTime(rj); t != nil && lastScheduleTime.Before(t) {
 			lastScheduleTime = *t
 		}
@@ -64,7 +63,6 @@ func GetLabelScheduleTime(rj *execution.Job) *metav1.Time {
 func GetLastStartTime(jobs []*execution.Job) *metav1.Time {
 	var lastStartTime metav1.Time
 	for _, rj := range jobs {
-		rj := rj
 		if !job.IsStarted(rj) || rj.Status.StartTime.IsZero() {
 			continue
 		}

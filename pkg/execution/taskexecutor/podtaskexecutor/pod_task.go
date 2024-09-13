@@ -196,7 +196,6 @@ func (p *PodTask) IsFinished() bool {
 
 func (p *PodTask) IsOOMKilled() bool {
 	for _, container := range p.Status.ContainerStatuses {
-		container := container
 		if status := GetTerminationStatus(&container); status != nil && status.Reason == reasonOOMKilled {
 			return true
 		}

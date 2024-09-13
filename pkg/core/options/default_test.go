@@ -286,7 +286,6 @@ func TestMakeDefaultOptions(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := options.MakeDefaultOptions(tt.cfg)
 			if (err != nil) != tt.wantErr {
@@ -554,7 +553,6 @@ func TestEvaluateOptionDefault(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := options.EvaluateOptionDefault(tt.option)
 			if (err != nil) != tt.wantErr {

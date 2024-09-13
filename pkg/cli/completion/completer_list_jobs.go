@@ -64,8 +64,6 @@ func (c *ListJobsCompleter) Complete(ctx context.Context, ctrlContext controller
 	})
 
 	for _, item := range lst.Items {
-		item := item
-
 		// Filter item.
 		if c.Filter != nil && !c.Filter(&item) {
 			continue
