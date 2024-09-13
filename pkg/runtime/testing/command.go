@@ -47,7 +47,6 @@ const (
 // RunCommandTests executes all CommandTest cases.
 func RunCommandTests(t *testing.T, cases []CommandTest) {
 	for _, tt := range cases {
-		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.Run(t)
 		})
@@ -196,7 +195,7 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	console, err := console.NewConsole(iostreams.Out)
+	console, err := console.NewConsole(t, iostreams.Out)
 	if err != nil {
 		t.Fatalf("failed to create console: %v", err)
 	}
@@ -208,7 +207,7 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 
 	var done <-chan struct{}
 
-	// Run procedure if specified.
+	// Run procedure in the background.
 	if c.Procedure != nil {
 		done = c.runProcedure(t, c.Procedure, RunContext{
 			Console:     console,
@@ -220,6 +219,17 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 		done = console.Run(c.Stdin.Procedure)
 	}
 
+	// Always make sure to explicitly close and wait for done.
+	defer func() {
+		// Close the TTY to unblock the procedure goroutine.
+		if err := console.Tty().Close(); err != nil {
+			t.Errorf("error closing TTY: %v", err)
+		}
+
+		// Wait for the procedure to complete and EOF to be read.
+		<-done
+	}()
+
 	// Execute command.
 	if testutils.WantError(t, c.WantError, command.ExecuteContext(ctx), fmt.Sprintf("Run error with args: %v", c.Args)) {
 		return true
@@ -228,15 +238,11 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 	// TODO(irvinlim): We need a sleep here otherwise tests will be flaky
 	time.Sleep(time.Millisecond * 5)
 
-	// Wait for tty to be closed.
-	if err := console.Tty().Close(); err != nil {
-		t.Errorf("error closing Tty: %v", err)
-	}
-	<-done
-
 	return false
 }
 
+// runProcedure starts the procedure in the background, and returns a channel
+// that will be closed once the PTY output is closed.
 func (c *CommandTest) runProcedure(t *testing.T, procedure func(t *testing.T, rc RunContext), rc RunContext) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {

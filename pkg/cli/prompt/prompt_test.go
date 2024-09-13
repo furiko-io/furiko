@@ -99,7 +99,7 @@ func TestNewBoolPrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pt, ps, err := NewPromptTest()
+			pt, ps, err := NewPromptTest(t)
 			if err != nil {
 				t.Fatalf("cannot initialize test: %v", err)
 			}
@@ -214,7 +214,7 @@ func TestNewStringPrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pt, ps, err := NewPromptTest()
+			pt, ps, err := NewPromptTest(t)
 			if err != nil {
 				t.Fatalf("cannot initialize test: %v", err)
 			}
@@ -324,7 +324,7 @@ func TestNewSelectPrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pt, ps, err := NewPromptTest()
+			pt, ps, err := NewPromptTest(t)
 			if err != nil {
 				t.Fatalf("cannot initialize test: %v", err)
 			}
@@ -418,7 +418,7 @@ func TestNewMultiPrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pt, ps, err := NewPromptTest()
+			pt, ps, err := NewPromptTest(t)
 			if err != nil {
 				t.Fatalf("cannot initialize test: %v", err)
 			}
@@ -472,7 +472,7 @@ func TestNewDatePrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pt, ps, err := NewPromptTest()
+			pt, ps, err := NewPromptTest(t)
 			if err != nil {
 				t.Fatalf("cannot initialize test: %v", err)
 			}
@@ -492,9 +492,9 @@ type PromptTest struct {
 	console *console.Console
 }
 
-func NewPromptTest() (*PromptTest, *streams.Streams, error) {
+func NewPromptTest(t *testing.T) (*PromptTest, *streams.Streams, error) {
 	iostreams, _, _, _ := genericclioptions.NewTestIOStreams()
-	c, err := console.NewConsole(iostreams.Out)
+	c, err := console.NewConsole(t, iostreams.Out)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to init pseudo TTY")
 	}
@@ -546,6 +546,6 @@ func (pt *PromptTest) Run(t *testing.T, p prompt.Prompt, procedure func(c *conso
 	return resp.retval, resp.err
 }
 
-func (pt *PromptTest) Close() {
-	_ = pt.console.Close()
+func (pt *PromptTest) Close() error {
+	return pt.console.Close()
 }
