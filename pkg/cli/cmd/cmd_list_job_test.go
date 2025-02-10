@@ -516,7 +516,7 @@ func TestListJobCommand(t *testing.T) {
 		},
 		{
 			Name: "watch jobs belonging to jobconfig with --for and --finished",
-			Args: []string{"list", "job", "--for", adhocJobConfig.Name},
+			Args: []string{"list", "job", "-w", "--for", adhocJobConfig.Name},
 			Fixtures: []runtime.Object{
 				jobRunning,
 				jobFinished,
@@ -524,15 +524,24 @@ func TestListJobCommand(t *testing.T) {
 				adhocJobConfig,
 			},
 			Procedure: func(t *testing.T, rc runtimetesting.RunContext) {
+				// Expect that headers and rows are printed.
+				rc.Console.ExpectString("NAME")
+				rc.Console.ExpectString(jobRunning.Name)
+				rc.Console.ExpectString(string(jobRunning.Status.Phase))
+
 				// Update the Job's state.
 				newJob := jobRunning.DeepCopy()
 				newJob.Status.Phase = v1alpha1.JobSucceeded
 				newJob.Status.State = v1alpha1.JobStateFinished
+				newJob.Status.Condition = v1alpha1.JobCondition{
+					Finished: &v1alpha1.JobConditionFinished{
+						FinishTimestamp: testutils.Mkmtime(taskFinishTime),
+					},
+				}
 				_, err := rc.CtrlContext.Clientsets().Furiko().ExecutionV1alpha1().Jobs(newJob.Namespace).Update(rc.Context, newJob, metav1.UpdateOptions{})
 				assert.NoError(t, err)
 
-				// Expect that headers and rows are printed.
-				rc.Console.ExpectString("NAME")
+				// Expect that we got the update.
 				rc.Console.ExpectString(newJob.Name)
 				rc.Console.ExpectString(string(newJob.Status.Phase))
 
@@ -540,7 +549,7 @@ func TestListJobCommand(t *testing.T) {
 				rc.Cancel()
 			},
 			Stdout: runtimetesting.Output{
-				NumLines: pointer.Int(2),
+				NumLines: pointer.Int(3),
 			},
 			WantActions: runtimetesting.CombinedActions{
 				Ignore: true,
