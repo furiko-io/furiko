@@ -22,7 +22,7 @@ set -euxo pipefail
 # Exclude the .cache directory.
 # Cannot use -execdir because find always exits with 0 even if `go test` returns non-zero exit code.
 find "$(pwd)" -not -path '*/\.*' -name go.mod -print0 |\
-  xargs -I {} bash -c "cd $(dirname {}) && go test -coverpkg=./... -coverprofile ./coverage.cov ./..."
+  xargs -0 -I {} bash -c "cd $(dirname {}) && go test -coverpkg=./... -coverprofile ./coverage.cov ./..."
 
 # Combine all coverage files, skipping first line of each file
 echo "mode: set" > combined.cov
