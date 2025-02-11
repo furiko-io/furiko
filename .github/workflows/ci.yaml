@@ -84,8 +84,9 @@ jobs:
       - name: Run tests
         run: make test
       - name: Push code coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v5
         with:
           files: ./combined.cov
+          token: ${{ secrets.CODECOV_TOKEN }}
         # Push code coverage only for one of the environments
         if: matrix.platform == 'ubuntu-latest'
