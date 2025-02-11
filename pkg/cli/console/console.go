@@ -81,14 +81,14 @@ func (c *Console) Run(f func(c *Console)) <-chan struct{} {
 func (c *Console) ExpectString(s string) bool {
 	got, err := c.Console.Expect(expect.String(s))
 	c.read.WriteString(got)
-	return assert.NoError(c.T, err, `did not find expected string: "%v", got "%v"`, s, got)
+	return assert.NoErrorf(c.T, err, `did not find expected string: "%v", got "%v"`, s, got)
 }
 
 // SendLine writes to the PTY buffer.
 // Blocks until the line is written.
 func (c *Console) SendLine(s string) bool {
 	_, err := c.Console.SendLine(s)
-	return assert.NoError(c.T, err, `cannot send line: "%v"`, s)
+	return assert.NoErrorf(c.T, err, `cannot send line: "%v"`, s)
 }
 
 // Close the TTY, unblocking all Expect and ExpectEOF calls.

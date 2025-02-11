@@ -22,12 +22,10 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -143,24 +141,20 @@ func (c *CommandTest) Run(t *testing.T) {
 	common.SetCtrlContext(ctrlContext)
 	iostreams, _, stdout, stderr := genericclioptions.NewTestIOStreams()
 
-	done := make(chan struct{})
-	go func() {
-		c.run(ctx, ctrlContext, t, iostreams)
-		close(done)
-	}()
+	// Execute the command and perform the procedure, before verifying the expected outputs.
+	c.run(ctx, ctrlContext, t, iostreams)
+	c.verify(t, ctrlContext, stdout, stderr)
 
-	select {
-	case <-done:
-		c.verify(t, ctrlContext, stdout, stderr)
-		return
-	case <-ctx.Done():
+	// The context was canceled by the time that we got here.
+	// Return an error and show the output that was printed so far.
+	if ctx.Err() != nil {
 		t.Errorf("test did not complete after %v: %v", testTimeout, ctx.Err())
 		t.Logf("command stdout =\n%s", stdout.String())
 		t.Logf("command stderr =\n%s", stderr.String())
 	}
 }
 
-func (c *CommandTest) run(ctx context.Context, ctrlContext *mock.Context, t *testing.T, iostreams genericclioptions.IOStreams) bool {
+func (c *CommandTest) run(ctx context.Context, ctrlContext *mock.Context, t *testing.T, iostreams genericclioptions.IOStreams) {
 	// Override the shared context.
 	client := ctrlContext.MockClientsets()
 	assert.NoError(t, InitFixtures(ctx, client, c.Fixtures))
@@ -174,7 +168,7 @@ func (c *CommandTest) run(ctx context.Context, ctrlContext *mock.Context, t *tes
 	ktime.Clock = fakeclock.NewFakeClock(now)
 
 	// Run command with I/O.
-	return c.runCommand(ctx, t, ctrlContext, iostreams)
+	c.runCommand(ctx, t, ctrlContext, iostreams)
 }
 
 func (c *CommandTest) verify(t *testing.T, ctrlContext *mock.Context, stdout, stderr *bytes.Buffer) {
@@ -189,11 +183,11 @@ func (c *CommandTest) verify(t *testing.T, ctrlContext *mock.Context, stdout, st
 }
 
 // runCommand will execute the command, setting up all I/O streams and blocking
-// until the streams are done. Returns true if an error was encountered.
+// until the streams are done.
 //
 // Reference:
 // https://github.com/AlecAivazis/survey/blob/93657ef69381dd1ffc7a4a9cfe5a2aefff4ca4ad/survey_posix_test.go#L15
-func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext *mock.Context, iostreams genericclioptions.IOStreams) bool {
+func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext *mock.Context, iostreams genericclioptions.IOStreams) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -201,14 +195,11 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 	if err != nil {
 		t.Fatalf("failed to create console: %v", err)
 	}
+	defer console.Close()
 
-	// Prepare root command.
-	command := cmd.NewRootCommand(streams.NewTTYStreams(console.Tty()))
-	command.SetArgs(c.Args)
-
+	// The procedure will be executed in the background.
+	// Once completed, the returned channel will be closed.
 	var done <-chan struct{}
-
-	// Run procedure in the background.
 	if c.Procedure != nil {
 		done = c.runProcedure(t, c.Procedure, RunContext{
 			Console:     console,
@@ -220,50 +211,19 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 		done = console.Run(c.Stdin.Procedure)
 	}
 
-	// Only close the PTY once.
-	closeConsole := sync.OnceFunc(func() {
-		if err := console.Close(); err != nil {
-			t.Errorf("cannot close PTY: %v", err)
-		}
-	})
+	// Execute the command.
+	command := cmd.NewRootCommand(streams.NewTTYStreams(console.Tty()))
+	command.SetArgs(c.Args)
+	testutils.WantError(t, c.WantError, command.ExecuteContext(ctx), fmt.Sprintf("Run error with args: %v", c.Args))
 
-	// Close the console if context had deadline exceeded.
-	// Note that the context could possibly be canceled by tests in order to terminate the command execution.
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		select {
-		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				t.Errorf("Context was canceled: %v", ctx.Err().Error())
-				closeConsole()
-			}
-		case <-done:
-			// Already closed.
-		}
-	}()
+	// Wait until the TTY completely prints all output, before closing the PTY to
+	// unblock any ExpectEOF() calls.
+	// TODO: No better way other than to sleep?
+	time.Sleep(time.Millisecond * 50)
+	assert.NoError(t, console.Tty().Close())
 
-	defer func() {
-		// Always make sure to explicitly close the PTY.
-		closeConsole()
-
-		// Wait for the procedure to complete and EOF to be read.
-		<-done
-
-		// Wait for .
-		wg.Wait()
-	}()
-
-	// Execute command.
-	if testutils.WantError(t, c.WantError, command.ExecuteContext(ctx), fmt.Sprintf("Run error with args: %v", c.Args)) {
-		return true
-	}
-
-	// TODO(irvinlim): We need a sleep here otherwise tests will be flaky
-	time.Sleep(time.Millisecond * 5)
-
-	return false
+	// Block until procedure terminates fully.
+	<-done
 }
 
 // runProcedure starts the procedure in the background, and returns a channel
@@ -277,7 +237,8 @@ func (c *CommandTest) runProcedure(t *testing.T, procedure func(t *testing.T, rc
 		procedure(t, rc)
 
 		// Waits for the TTY to be closed.
-		_, _ = rc.Console.ExpectEOF()
+		_, err := rc.Console.ExpectEOF()
+		assert.NoError(t, err, "Failed to ExpectEOF")
 	}()
 	return done
 }
