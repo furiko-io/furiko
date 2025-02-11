@@ -219,7 +219,7 @@ func (c *CommandTest) runCommand(ctx context.Context, t *testing.T, ctrlContext 
 	// Wait until the TTY completely prints all output, before closing the PTY to
 	// unblock any ExpectEOF() calls.
 	// TODO: No better way other than to sleep?
-	time.Sleep(time.Millisecond * 50)
+	time.Sleep(time.Millisecond * 200)
 	assert.NoError(t, console.Tty().Close())
 
 	// Block until procedure terminates fully.
