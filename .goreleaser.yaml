@@ -1,3 +1,5 @@
+version: 2
+
 # Package the YAML manifests.
 before:
   hooks:
@@ -62,14 +64,15 @@ archives:
   - id: furiko-cli
     builds:
       - furiko-cli
-    format: binary
+    formats:
+      - binary
     name_template: >-
       {{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}
 
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
   use: github-native
 
@@ -245,4 +248,4 @@ release:
   draft: true
   extra_files:
     # Add all YAML manifests to release as well
-    - glob: ./yamls/*.yaml
+    - glob: ./dist-yamls/*.yaml

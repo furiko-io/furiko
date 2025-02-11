@@ -30,6 +30,6 @@ testbin/*
 .local
 
 # Build output
-build/
-dist/
-yamls/
+/build/
+/dist/
+/dist-*/

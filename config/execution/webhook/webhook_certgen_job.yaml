@@ -24,11 +24,11 @@ spec:
             - "--secret-name=execution-webhook-certs"
           resources:
             requests:
-              cpu: 10m
-              memory: 64Mi
+              cpu: "10m"
+              memory: "64Mi"
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: "500m"
+              memory: "512Mi"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -47,11 +47,11 @@ spec:
             - "--webhook-name=furiko-execution-validating-webhook-configuration"
           resources:
             requests:
-              cpu: 10m
-              memory: 64Mi
+              cpu: "10m"
+              memory: "64Mi"
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: "500m"
+              memory: "512Mi"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -67,11 +67,11 @@ spec:
             - "--webhook-name=furiko-execution-mutating-webhook-configuration"
           resources:
             requests:
-              cpu: 10m
-              memory: 64Mi
+              cpu: "10m"
+              memory: "64Mi"
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: "500m"
+              memory: "512Mi"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
