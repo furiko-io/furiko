@@ -135,11 +135,11 @@ install-furiko-cli: ## Install furiko-cli to PATH.
 ##@ YAML Configuration
 
 ## Location to write YAMLs to
-YAML_DEST ?= $(shell pwd)/yamls
+YAML_DEST ?= $(shell pwd)/dist-yamls
 $(YAML_DEST): ## Ensure that the directory exists
 	mkdir -p $(YAML_DEST)
 
-KUSTOMIZE_DEST ?= $(shell pwd)/dist/kustomize
+KUSTOMIZE_DEST ?= $(shell pwd)/dist-kustomize
 $(KUSTOMIZE_DEST):
 	mkdir -p $(KUSTOMIZE_DEST)
 
@@ -148,7 +148,7 @@ yaml: yaml-execution ## Build kustomize configs. Outputs to dist folder.
 
 .PHONY: yaml-execution
 yaml-execution: manifests kustomize $(YAML_DEST) $(KUSTOMIZE_DEST) ## Build furiko-execution.yaml with Kustomize.
-	DEST_DIR=$(KUSTOMIZE_DEST) ./hack/generate-kustomization.sh "$(IMAGE_NAME_PREFIX)" "$(IMAGE_TAG)"
+	DEST_DIR=$(KUSTOMIZE_DEST) BASE_CONFIG=../config/default ./hack/generate-kustomization.sh "$(IMAGE_NAME_PREFIX)" "$(IMAGE_TAG)"
 	$(KUSTOMIZE) build $(KUSTOMIZE_DEST) -o $(YAML_DEST)/furiko-execution.yaml
 
 .PHONY: manifests

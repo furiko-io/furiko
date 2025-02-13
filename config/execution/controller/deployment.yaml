@@ -50,11 +50,11 @@ spec:
               subPath: config.yaml
           resources:
             limits:
-              cpu: 4
-              memory: 2Gi
+              cpu: "4"
+              memory: "2Gi"
             requests:
-              cpu: 500m
-              memory: 512Mi
+              cpu: "500m"
+              memory: "512Mi"
         - name: kube-rbac-proxy
           image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
           args:
@@ -68,11 +68,11 @@ spec:
               name: https
           resources:
             limits:
-              cpu: 500m
-              memory: 128Mi
+              cpu: "500m"
+              memory: "128Mi"
             requests:
-              cpu: 5m
-              memory: 64Mi
+              cpu: "5m"
+              memory: "64Mi"
       volumes:
         - name: controller-config
           configMap:

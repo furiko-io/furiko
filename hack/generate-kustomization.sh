@@ -53,7 +53,7 @@ fi
 # Optional environment variables
 DEST_DIR="${DEST_DIR:-$(pwd)}"
 KUSTOMIZE="${KUSTOMIZE:-$(pwd)/bin/kustomize}"
-BASE_CONFIG="${BASE_CONFIG:-$(realpath --relative-to="${DEST_DIR}" "$(pwd)/config/default")}" # NOTE: Cannot be absolute, otherwise kustomize will complain
+BASE_CONFIG="${BASE_CONFIG:-./config/default}"
 
 # Get path to image names.
 DOCKER_IMAGES="$(pwd)/hack/docker-images.txt"
